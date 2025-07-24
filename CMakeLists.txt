@@ -32,7 +32,10 @@ if(PLATFORM_DESKTOP)
     target_include_directories(MRDesktopServer PRIVATE ${COMMON_INCLUDES})
 
     # Create console client executable
-    add_executable(MRDesktopConsoleClient src/clients/console/main.cpp)
+    add_executable(MRDesktopConsoleClient 
+        src/clients/console/main.cpp
+        src/shared/FrameLogger.cpp
+    )
     target_include_directories(MRDesktopConsoleClient PRIVATE ${COMMON_INCLUDES})
 
     if(WIN32)

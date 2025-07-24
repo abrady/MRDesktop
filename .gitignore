@@ -40,6 +40,7 @@ Thumbs.db
 
 # debug stuff
 first_frame.bmp
+debug_frames/
 
 # Android tools (downloaded by scripts)
 tools/android-tools/

@@ -6,7 +6,9 @@
 #include <thread>
 #include <chrono>
 #include <conio.h>
+#include <string>
 #include "protocol.h"
+#include "../shared/FrameLogger.h"
 
 #pragma comment(lib, "ws2_32.lib")
 
@@ -177,9 +179,64 @@ void SaveFrameAsBMP(const FrameMessage& frameMsg, const std::vector<BYTE>& frame
     }
 }
 
-int main() {
-    std::cout << "MRDesktop Client - Remote Desktop Viewer" << std::endl;
-    std::cout << "=======================================" << std::endl;
+void PrintUsage() {
+    std::cout << "MRDesktop Console Client - Remote Desktop Controller" << std::endl;
+    std::cout << "Usage: MRDesktopConsoleClient [options]" << std::endl;
+    std::cout << "Options:" << std::endl;
+    std::cout << "  --ip=<address>     Server IP address (default: 127.0.0.1)" << std::endl;
+    std::cout << "  --port=<port>      Server port (default: 8080)" << std::endl;
+    std::cout << "  --debug-frames[=N] Save first N frames for debugging (default: 5)" << std::endl;
+    std::cout << "  --help             Show this help message" << std::endl;
+}
+
+int main(int argc, char* argv[]) {
+    // Parse command line arguments
+    std::string serverIP = "127.0.0.1";
+    int serverPort = 8080;
+    bool debugFrames = false;
+    int maxDebugFrames = 5;
+    
+    for (int i = 1; i < argc; i++) {
+        std::string arg = argv[i];
+        
+        if (arg == "--help") {
+            PrintUsage();
+            return 0;
+        }
+        else if (arg.find("--ip=") == 0) {
+            serverIP = arg.substr(5);
+        }
+        else if (arg.find("--port=") == 0) {
+            serverPort = std::stoi(arg.substr(7));
+        }
+        else if (arg == "--debug-frames") {
+            debugFrames = true;
+        }
+        else if (arg.find("--debug-frames=") == 0) {
+            debugFrames = true;
+            maxDebugFrames = std::stoi(arg.substr(15));
+        }
+        else {
+            std::cerr << "Unknown option: " << arg << std::endl;
+            PrintUsage();
+            return 1;
+        }
+    }
+    
+    std::cout << "MRDesktop Console Client - Remote Desktop Controller" << std::endl;
+    std::cout << "====================================================" << std::endl;
+    std::cout << "Server: " << serverIP << ":" << serverPort << std::endl;
+    if (debugFrames) {
+        std::cout << "Debug mode: Will save first " << maxDebugFrames << " frames" << std::endl;
+    }
+    std::cout << std::endl;
+    
+    // Initialize frame logger if debugging
+    std::unique_ptr<FrameLogger> frameLogger;
+    if (debugFrames) {
+        frameLogger = std::make_unique<FrameLogger>(maxDebugFrames, "debug_frames");
+        std::cout << "Frame logging enabled - will save to debug_frames/ directory" << std::endl;
+    }
     
     // Initialize Winsock
     WSADATA wsaData;
@@ -193,7 +250,7 @@ int main() {
     
     // Connect to server
     FrameReceiver receiver;
-    if (!receiver.Connect("127.0.0.1", 8080)) {
+    if (!receiver.Connect(serverIP.c_str(), serverPort)) {
         std::cerr << "Failed to connect to server" << std::endl;
         WSACleanup();
         return 1;
@@ -306,7 +363,18 @@ int main() {
         if (receiver.ReceiveFrame(frameMsg, frameData)) {
             frameCount++;
             
-            // Save first frame as BMP for verification
+            // Log frame for debugging if enabled
+            if (frameLogger && frameLogger->IsLogging()) {
+                frameLogger->LogFrame(frameMsg.width, frameMsg.height, frameMsg.dataSize, frameData.data());
+                
+                // Print stats when logging is complete
+                if (!frameLogger->IsLogging()) {
+                    frameLogger->PrintFrameStats();
+                    std::cout << "Frame logging complete. Files saved to debug_frames/ directory." << std::endl;
+                }
+            }
+            
+            // Save first frame as BMP for verification (legacy behavior)
             if (!savedFirstFrame) {
                 SaveFrameAsBMP(frameMsg, frameData, "first_frame.bmp");
                 savedFirstFrame = true;
