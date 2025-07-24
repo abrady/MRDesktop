@@ -22,8 +22,9 @@ target_include_directories(MRDesktopClient PRIVATE
 if(WIN32)
     # Server needs DXGI and other Windows APIs
     target_compile_definitions(MRDesktopServer PRIVATE WIN32_LEAN_AND_MEAN)
-    target_link_libraries(MRDesktopServer PRIVATE dxgi d3d11)
+    target_link_libraries(MRDesktopServer PRIVATE dxgi d3d11 ws2_32)
     
     # Client for now just basic Windows
     target_compile_definitions(MRDesktopClient PRIVATE WIN32_LEAN_AND_MEAN)
+    target_link_libraries(MRDesktopClient PRIVATE ws2_32)
 endif()
