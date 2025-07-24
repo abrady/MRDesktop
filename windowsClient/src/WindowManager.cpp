@@ -6,6 +6,7 @@
 #include "Protocol.h"
 #include <commdlg.h>
 #include <sstream>
+#include <iostream>
 
 WindowManager::WindowManager()
     : m_hInstance(nullptr)
@@ -192,7 +193,7 @@ void WindowManager::OnCreate() {
             return;
         }
         m_usingSimpleRenderer = true;
-        MessageBoxW(m_hwnd, L"Direct2D not available - using GDI fallback renderer.\nPerformance may be reduced.", L"Renderer Notice", MB_OK | MB_ICONINFORMATION);
+        std::cout << "Direct2D not available - using GDI fallback renderer. Performance may be reduced." << std::endl;
     } else {
         m_usingSimpleRenderer = false;
     }
@@ -311,6 +312,8 @@ void WindowManager::ShowConnectionDialog() {
 
 void WindowManager::ConnectToServer(const std::string& ip, int port) {
     if (m_connectionState != ConnectionState::Disconnected) return;
+    
+    std::cout << "Connecting to " << ip << ":" << port << "..." << std::endl;
     
     m_connectionState = ConnectionState::Connecting;
     m_statusMessage = "Connecting to " + ip + ":" + std::to_string(port) + "...";

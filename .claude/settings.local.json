@@ -16,7 +16,9 @@
       "Bash(taskkill:*)",
       "Bash(cl test_client.cpp:*)",
       "Bash(./run.bat client)",
-      "Bash(build/debug/bin/Debug/MRDesktopClient.exe)"
+      "Bash(build/debug/bin/Debug/MRDesktopClient.exe)",
+      "Bash(run.bat:*)",
+      "Bash(powershell:*)"
     ],
     "deny": []
   }

@@ -2,44 +2,47 @@
 echo MRDesktop Application Launcher
 echo =============================
 
-REM Check if we want Debug or Release build (default to Debug)
+REM Default values
 set BUILD_TYPE=Debug
 set APP_TYPE=%1
-set SERVER_IP=%2
+set SERVER_IP=
 
-REM Handle build type parameter - check if second param is build type or IP
-if "%2"=="release" (
-    set BUILD_TYPE=Release
-    set SERVER_IP=
-)
-if "%2"=="Release" (
-    set BUILD_TYPE=Release
-    set SERVER_IP=
-)
+REM Check first parameter (app type)
+if "%APP_TYPE%"=="" goto show_usage
+if "%APP_TYPE%"=="server" goto param_ok
+if "%APP_TYPE%"=="client" goto param_ok
+goto show_usage
 
-REM For client, if second param is not build type, treat as IP
+:param_ok
+
+REM Handle second parameter
+if "%2"=="release" set BUILD_TYPE=Release
+if "%2"=="Release" set BUILD_TYPE=Release
+
+REM For client, check if second param is an IP address (not release)
 if "%APP_TYPE%"=="client" (
-    if not "%2"=="release" (
-        if not "%2"=="Release" (
-            if not "%2"=="" (
+    if not "%2"=="" (
+        if not "%2"=="release" (
+            if not "%2"=="Release" (
                 set SERVER_IP=%2
             )
         )
     )
 )
 
-REM Check what application to run
+REM Route to appropriate handler
 if "%APP_TYPE%"=="server" goto run_server
 if "%APP_TYPE%"=="client" goto run_client
 
-REM Show usage if no valid app type specified
-echo Usage: run.bat [server^|client] [ip-address^|debug^|release] [debug^|release]
+:show_usage
+echo Usage: run.bat [server^|client] [ip-address^|release]
 echo.
 echo Examples:
 echo   run.bat server              - Run MRDesktopServer (Debug)
 echo   run.bat client              - Run MRDesktopClient (Debug, localhost)
 echo   run.bat client 192.168.1.100 - Run MRDesktopClient connecting to IP
 echo   run.bat client release       - Run MRDesktopClient (Release, localhost)
+echo   run.bat server release       - Run MRDesktopServer (Release)
 pause
 exit /b 1
 
@@ -69,7 +72,7 @@ goto check_and_run
 REM Check if executable exists
 if not exist "%EXE_PATH%" (
     echo Executable not found at %EXE_PATH%
-    echo Make sure you've run 'configure.bat' and 'build.bat' first
+    echo Make sure you've built the project first
     pause
     exit /b 1
 )
