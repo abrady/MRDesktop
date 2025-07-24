@@ -8,6 +8,7 @@
 #include <vector>
 #include <thread>
 #include <chrono>
+#include <algorithm>
 #include "protocol.h"
 
 #pragma comment(lib, "ws2_32.lib")
@@ -203,7 +204,7 @@ std::string formatBytes(uint64_t bytes) {
 
 class InputInjector {
 public:
-    static bool InjectMouseMove(INT32 deltaX, INT32 deltaY, BOOL absolute = FALSE, INT32 x = 0, INT32 y = 0) {
+    static bool InjectMouseMove(INT32 deltaX, INT32 deltaY, UINT32 absolute = 0, INT32 x = 0, INT32 y = 0) {
         INPUT input = {};
         input.type = INPUT_MOUSE;
         
@@ -225,7 +226,7 @@ public:
         return result == 1;
     }
     
-    static bool InjectMouseClick(MouseClickMessage::MouseButton button, BOOL pressed) {
+    static bool InjectMouseClick(MouseClickMessage::MouseButton button, UINT32 pressed) {
         INPUT input = {};
         input.type = INPUT_MOUSE;
         
@@ -273,6 +274,18 @@ public:
         return true;
     }
 };
+
+// Helper function to dump hex data for debugging
+void HexDump(const char* data, size_t size, const std::string& label) {
+    std::cout << label << " (size=" << size << "):" << std::endl;
+    size_t maxBytes = (size < 32) ? size : 32;
+    for (size_t i = 0; i < maxBytes; i++) {
+        printf("%02X ", (unsigned char)data[i]);
+        if ((i + 1) % 16 == 0) std::cout << std::endl;
+    }
+    if (size > 32) std::cout << "... (truncated)";
+    std::cout << std::endl;
+}
 
 // Helper function to ensure all data is sent over the network
 bool SendAllData(SOCKET socket, const char* data, size_t size) {
@@ -455,16 +468,39 @@ int main() {
             frameMsg.dataSize = frameDataSize;
             
             // Send frame message header (ensure complete transmission)
+            std::cout << "SERVER SEND: Frame " << frameCount + 1 << " - Header size: " << sizeof(FrameMessage) 
+                     << ", Msg(type=" << frameMsg.header.type << ", headerSize=" << frameMsg.header.size
+                     << ", w=" << frameMsg.width << ", h=" << frameMsg.height 
+                     << ", dataSize=" << frameMsg.dataSize << ")" << std::endl;
+                     
+            // Debug: Show structure layout info
+            std::cout << "SERVER DEBUG: sizeof(FrameMessage)=" << sizeof(FrameMessage) 
+                     << ", sizeof(MessageHeader)=" << sizeof(MessageHeader) << std::endl;
+                     
+            // Debug: Show raw header bytes being sent
+            HexDump((char*)&frameMsg, sizeof(FrameMessage), "SERVER SEND: Raw header data");
+                     
             if (!SendAllData(clientSocket, (char*)&frameMsg, sizeof(FrameMessage))) {
                 std::cerr << "Failed to send frame header completely" << std::endl;
                 break;
             }
             
             // Send frame pixel data (ensure complete transmission)
+            std::cout << "SERVER SEND: Frame " << frameCount + 1 << " - Pixel data size: " << frameDataSize 
+                     << " bytes" << std::endl;
+                     
+            // Debug: Show first few bytes of pixel data
+            if (frameDataSize >= 16) {
+                HexDump((char*)pixelData.data(), 16, "SERVER SEND: First 16 bytes of pixel data");
+                HexDump((char*)pixelData.data() + frameDataSize - 16, 16, "SERVER SEND: Last 16 bytes of pixel data");
+            }
+                     
             if (!SendAllData(clientSocket, (char*)pixelData.data(), frameDataSize)) {
                 std::cerr << "Failed to send frame data completely" << std::endl;
                 break;
             }
+            
+            std::cout << "SERVER SEND: Frame " << frameCount + 1 << " - COMPLETE" << std::endl;
             
             frameCount++;
             if (frameCount % 30 == 0) {

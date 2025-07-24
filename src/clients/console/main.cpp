@@ -7,6 +7,7 @@
 #include <chrono>
 #include <conio.h>
 #include <string>
+#include <algorithm>
 #include "protocol.h"
 #include "../shared/FrameLogger.h"
 
@@ -19,7 +20,7 @@ private:
 public:
     InputSender(SOCKET socket) : m_Socket(socket) {}
     
-    bool SendMouseMove(INT32 deltaX, INT32 deltaY, BOOL absolute = FALSE, INT32 x = 0, INT32 y = 0) {
+    bool SendMouseMove(INT32 deltaX, INT32 deltaY, UINT32 absolute = 0, INT32 x = 0, INT32 y = 0) {
         MouseMoveMessage msg;
         msg.header.type = MSG_MOUSE_MOVE;
         msg.header.size = sizeof(MouseMoveMessage);
@@ -33,7 +34,7 @@ public:
         return sent == sizeof(msg);
     }
     
-    bool SendMouseClick(MouseClickMessage::MouseButton button, BOOL pressed) {
+    bool SendMouseClick(MouseClickMessage::MouseButton button, UINT32 pressed) {
         MouseClickMessage msg;
         msg.header.type = MSG_MOUSE_CLICK;
         msg.header.size = sizeof(MouseClickMessage);
@@ -55,6 +56,18 @@ public:
         return sent == sizeof(msg);
     }
 };
+
+// Helper function to dump hex data for debugging
+void HexDump(const char* data, size_t size, const std::string& label) {
+    std::cout << label << " (size=" << size << "):" << std::endl;
+    size_t maxBytes = (size < 32) ? size : 32;
+    for (size_t i = 0; i < maxBytes; i++) {
+        printf("%02X ", (unsigned char)data[i]);
+        if ((i + 1) % 16 == 0) std::cout << std::endl;
+    }
+    if (size > 32) std::cout << "... (truncated)";
+    std::cout << std::endl;
+}
 
 class FrameReceiver {
 private:
@@ -87,28 +100,80 @@ public:
             return false;
         }
         
+        // Set socket to non-blocking mode for frame receiving
+        u_long mode = 1;
+        if (ioctlsocket(m_Socket, FIONBIO, &mode) != 0) {
+            std::cerr << "Failed to set socket non-blocking: " << WSAGetLastError() << std::endl;
+            closesocket(m_Socket);
+            m_Socket = INVALID_SOCKET;
+            return false;
+        }
+        
         std::cout << "Connected to server successfully!" << std::endl;
         return true;
     }
     
-    bool ReceiveFrame(FrameMessage& frameMsg, std::vector<BYTE>& frameData) {
+    bool ReceiveFrame(FrameMessage& frameMsg, std::vector<BYTE>& frameData, int frameNumber) {
         if (m_Socket == INVALID_SOCKET) return false;
+        
+        std::cout << "CLIENT RECV: Frame " << frameNumber << " - Expecting header size: " << sizeof(FrameMessage) << std::endl;
         
         // Receive frame message header
         int received = recv(m_Socket, (char*)&frameMsg, sizeof(FrameMessage), 0);
+        
+        if (received == SOCKET_ERROR) {
+            int error = WSAGetLastError();
+            if (error == WSAEWOULDBLOCK) {
+                // No data available right now, not an error
+                return false;
+            }
+            std::cout << "CLIENT ERROR: Frame " << frameNumber << " - Socket error on header recv: " << error << std::endl;
+            return false;
+        }
+        
+        std::cout << "CLIENT RECV: Frame " << frameNumber << " - Header received: " << received << " bytes" << std::endl;
+        
+        // Debug: Show raw header bytes
+        HexDump((char*)&frameMsg, received, "CLIENT RECV: Raw header data");
+        
         if (received != sizeof(FrameMessage)) {
             if (received == 0) {
                 std::cout << "Server disconnected" << std::endl;
             } else if (received > 0) {
-                std::cerr << "Partial frame header received: " << received << std::endl;
+                std::cout << "CLIENT ERROR: Frame " << frameNumber << " - Partial header! Expected: " 
+                         << sizeof(FrameMessage) << ", Got: " << received << std::endl;
+                std::cout << "ABORTING on first bad frame for debugging" << std::endl;
+                exit(1);
             }
             return false;
         }
         
+        std::cout << "CLIENT RECV: Frame " << frameNumber << " - Header parsed: type=" << frameMsg.header.type 
+                 << " (hex: 0x" << std::hex << frameMsg.header.type << std::dec << ")"
+                 << ", headerSize=" << frameMsg.header.size
+                 << ", w=" << frameMsg.width << ", h=" << frameMsg.height 
+                 << ", dataSize=" << frameMsg.dataSize << std::endl;
+                 
+        // Debug: Show structure layout info
+        std::cout << "CLIENT DEBUG: sizeof(FrameMessage)=" << sizeof(FrameMessage) 
+                 << ", sizeof(MessageHeader)=" << sizeof(MessageHeader) << std::endl;
+        
         // Verify this is a frame message
         if (frameMsg.header.type != MSG_FRAME_DATA) {
-            std::cerr << "Unexpected message type: " << frameMsg.header.type << std::endl;
-            return false;
+            std::cout << "CLIENT ERROR: Frame " << frameNumber << " - Unexpected message type: " 
+                     << frameMsg.header.type << std::endl;
+            std::cout << "ABORTING on first bad frame for debugging" << std::endl;
+            exit(1);
+        }
+        
+        // Validate frame dimensions are reasonable
+        if (frameMsg.width == 0 || frameMsg.height == 0 ||
+            frameMsg.width > 10000 || frameMsg.height > 10000 ||
+            frameMsg.dataSize > 100000000) {
+            std::cout << "CLIENT ERROR: Frame " << frameNumber << " - Invalid dimensions: w=" 
+                     << frameMsg.width << ", h=" << frameMsg.height << ", dataSize=" << frameMsg.dataSize << std::endl;
+            std::cout << "ABORTING on first bad frame for debugging" << std::endl;
+            exit(1);
         }
         
         // Resize buffer if needed
@@ -116,22 +181,66 @@ public:
             m_FrameBuffer.resize(frameMsg.dataSize);
         }
         
-        // Receive frame pixel data
+        std::cout << "CLIENT RECV: Frame " << frameNumber << " - Expecting pixel data: " << frameMsg.dataSize << " bytes" << std::endl;
+        
+        // Receive frame pixel data (must receive ALL data for this frame)
         UINT32 totalReceived = 0;
         while (totalReceived < frameMsg.dataSize) {
             received = recv(m_Socket, (char*)m_FrameBuffer.data() + totalReceived, 
                            frameMsg.dataSize - totalReceived, 0);
-            if (received <= 0) {
-                std::cerr << "Failed to receive frame data: " << WSAGetLastError() << std::endl;
-                return false;
+            
+            if (received == SOCKET_ERROR) {
+                int error = WSAGetLastError();
+                if (error == WSAEWOULDBLOCK) {
+                    // No data available, wait a bit and try again
+                    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                    continue;
+                }
+                std::cout << "CLIENT ERROR: Frame " << frameNumber << " - Socket error receiving pixel data at offset " 
+                         << totalReceived << "/" << frameMsg.dataSize << ": " << error << std::endl;
+                std::cout << "ABORTING on first bad frame for debugging" << std::endl;
+                exit(1);
             }
+            
+            if (received == 0) {
+                std::cout << "CLIENT ERROR: Frame " << frameNumber << " - Server disconnected during pixel data at offset " 
+                         << totalReceived << "/" << frameMsg.dataSize << std::endl;
+                std::cout << "ABORTING on first bad frame for debugging" << std::endl;
+                exit(1);
+            }
+            
             totalReceived += received;
+        }
+        
+        std::cout << "CLIENT RECV: Frame " << frameNumber << " - Pixel data received: " << totalReceived << " bytes - COMPLETE" << std::endl;
+        
+        // Debug: Show last few bytes of pixel data to check for corruption
+        if (totalReceived >= 16) {
+            HexDump((char*)m_FrameBuffer.data() + totalReceived - 16, 16, "CLIENT RECV: Last 16 bytes of pixel data");
         }
         
         // Copy frame data
         frameData.clear();
         frameData.resize(frameMsg.dataSize);
         memcpy(frameData.data(), m_FrameBuffer.data(), frameMsg.dataSize);
+        
+        // Debug: Check if there are any pending bytes in the socket buffer
+        u_long bytesAvailable = 0;
+        if (ioctlsocket(m_Socket, FIONREAD, &bytesAvailable) == 0) {
+            std::cout << "CLIENT DEBUG: Frame " << frameNumber << " - Bytes still in socket buffer: " << bytesAvailable << std::endl;
+            
+            if (bytesAvailable > 0) {
+                std::cout << "CLIENT WARNING: Frame " << frameNumber << " - Unexpected extra data in buffer!" << std::endl;
+                
+                // Peek at the extra data
+                char peekBuffer[32];
+                u_long peekSize = (bytesAvailable < 32) ? bytesAvailable : 32;
+                int peeked = recv(m_Socket, peekBuffer, peekSize, MSG_PEEK);
+                if (peeked > 0) {
+                    HexDump(peekBuffer, peeked, "CLIENT DEBUG: Extra buffer data");
+                }
+            }
+        }
         
         return true;
     }
@@ -332,15 +441,15 @@ int main(int argc, char* argv[]) {
                         std::cout << "Mouse right" << std::endl;
                         break;
                     case ' ': // Space - left click
-                        inputSender.SendMouseClick(MouseClickMessage::LEFT_BUTTON, TRUE);
+                        inputSender.SendMouseClick(MouseClickMessage::LEFT_BUTTON, 1);
                         std::this_thread::sleep_for(std::chrono::milliseconds(50));
-                        inputSender.SendMouseClick(MouseClickMessage::LEFT_BUTTON, FALSE);
+                        inputSender.SendMouseClick(MouseClickMessage::LEFT_BUTTON, 0);
                         std::cout << "Left click" << std::endl;
                         break;
                     case '\r': // Enter - right click
-                        inputSender.SendMouseClick(MouseClickMessage::RIGHT_BUTTON, TRUE);
+                        inputSender.SendMouseClick(MouseClickMessage::RIGHT_BUTTON, 1);
                         std::this_thread::sleep_for(std::chrono::milliseconds(50));
-                        inputSender.SendMouseClick(MouseClickMessage::RIGHT_BUTTON, FALSE);
+                        inputSender.SendMouseClick(MouseClickMessage::RIGHT_BUTTON, 0);
                         std::cout << "Right click" << std::endl;
                         break;
                     case 'q': case 'Q': // Scroll up
@@ -360,7 +469,7 @@ int main(int argc, char* argv[]) {
         }
         
         // Try to receive frame (non-blocking)
-        if (receiver.ReceiveFrame(frameMsg, frameData)) {
+        if (receiver.ReceiveFrame(frameMsg, frameData, frameCount + 1)) {
             frameCount++;
             
             // Log frame for debugging if enabled

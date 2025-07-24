@@ -1,6 +1,9 @@
 #pragma once
 #include <windows.h>
 
+// Ensure consistent struct packing across machines
+#pragma pack(push, 1)
+
 // Message types for client-server communication
 enum MessageType : UINT32 {
     MSG_FRAME_DATA = 1,
@@ -29,7 +32,7 @@ struct MouseMoveMessage {
     MessageHeader header;
     INT32 deltaX;
     INT32 deltaY;
-    BOOL absolute;  // If true, x/y are absolute coordinates, otherwise relative
+    UINT32 absolute;  // If true, x/y are absolute coordinates, otherwise relative
     INT32 x;        // Used if absolute is true
     INT32 y;        // Used if absolute is true
 };
@@ -42,7 +45,7 @@ struct MouseClickMessage {
         RIGHT_BUTTON = 2,
         MIDDLE_BUTTON = 4
     } button;
-    BOOL pressed;   // True for press, false for release
+    UINT32 pressed;   // True for press, false for release
 };
 
 // Mouse scroll message
@@ -51,3 +54,6 @@ struct MouseScrollMessage {
     INT32 deltaX;   // Horizontal scroll
     INT32 deltaY;   // Vertical scroll
 };
+
+// Restore default packing
+#pragma pack(pop)
