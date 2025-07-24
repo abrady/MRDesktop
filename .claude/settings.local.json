@@ -19,7 +19,10 @@
       "Bash(build/debug/bin/Debug/MRDesktopClient.exe)",
       "Bash(run.bat:*)",
       "Bash(powershell:*)",
-      "Bash(build/debug/bin/Debug/MRDesktopClient.exe --ip=192.168.1.209 --port=8080)"
+      "Bash(build/debug/bin/Debug/MRDesktopClient.exe --ip=192.168.1.209 --port=8080)",
+      "Bash(build/debug/bin/Debug/MRDesktopClient.exe --ip=192.168.1.209)",
+      "Bash(mv:*)",
+      "Bash(cp:*)"
     ],
     "deny": []
   }

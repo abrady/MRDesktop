@@ -225,7 +225,7 @@ HRESULT VideoRenderer::RenderFrame(const FrameMessage& frameMsg, const std::vect
     // Draw text
     m_pRenderTarget->DrawText(
         statsText,
-        wcslen(statsText),
+        static_cast<UINT32>(wcslen(statsText)),
         m_pTextFormat,
         textRect,
         m_pTextBrush

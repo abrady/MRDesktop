@@ -38,7 +38,7 @@ bool NetworkClient::Connect(const std::string& serverIP, int port) {
     // Setup server address
     sockaddr_in serverAddr;
     serverAddr.sin_family = AF_INET;
-    serverAddr.sin_port = htons(port);
+    serverAddr.sin_port = htons(static_cast<u_short>(port));
     
     if (inet_pton(AF_INET, serverIP.c_str(), &serverAddr.sin_addr) <= 0) {
         if (m_onError) {

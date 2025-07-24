@@ -47,7 +47,7 @@ if(PLATFORM_DESKTOP)
     
     # Add Windows GUI client as a subdirectory
     if(WIN32)
-        add_subdirectory(windowsClient)
+        add_subdirectory(src/clients/windows)
     endif()
 endif()
 
