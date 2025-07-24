@@ -86,7 +86,7 @@ public:
         return true;
     }
     
-    bool CaptureFrame(std::vector<BYTE>& frameData) {
+    bool CaptureFrame(std::vector<BYTE>& pixelData, UINT32& width, UINT32& height, UINT32& dataSize) {
         if (!m_DeskDupl) return false;
         
         DXGI_OUTDUPL_FRAME_INFO frameInfo;
@@ -135,33 +135,24 @@ public:
         D3D11_MAPPED_SUBRESOURCE mappedResource;
         hr = m_Context->Map(stagingTexture, 0, D3D11_MAP_READ, 0, &mappedResource);
         if (SUCCEEDED(hr)) {
-            // Simple frame header: width, height, data size
-            struct FrameHeader {
-                UINT32 width;
-                UINT32 height;
-                UINT32 dataSize;
-            };
-            
-            FrameHeader header;
-            header.width = textureDesc.Width;
-            header.height = textureDesc.Height;
-            header.dataSize = mappedResource.RowPitch * textureDesc.Height;
+            // Set frame dimensions and data size
+            width = textureDesc.Width;
+            height = textureDesc.Height;
+            dataSize = mappedResource.RowPitch * textureDesc.Height;
             
             // Debug: Log frame capture details
-            std::cout << "Capturing frame - Width: " << header.width 
-                     << ", Height: " << header.height 
+            std::cout << "Capturing frame - Width: " << width 
+                     << ", Height: " << height 
                      << ", RowPitch: " << mappedResource.RowPitch
-                     << ", DataSize: " << header.dataSize << std::endl;
+                     << ", DataSize: " << dataSize << std::endl;
             
-            frameData.clear();
-            frameData.resize(sizeof(FrameHeader) + header.dataSize);
+            // Resize buffer for pixel data only
+            pixelData.clear();
+            pixelData.resize(dataSize);
             
-            // Copy header
-            memcpy(frameData.data(), &header, sizeof(FrameHeader));
-            
-            // Copy pixel data
+            // Copy pixel data directly
             BYTE* srcData = (BYTE*)mappedResource.pData;
-            BYTE* dstData = frameData.data() + sizeof(FrameHeader);
+            BYTE* dstData = pixelData.data();
             
             for (UINT row = 0; row < textureDesc.Height; ++row) {
                 memcpy(dstData + row * mappedResource.RowPitch, 
@@ -283,6 +274,37 @@ public:
     }
 };
 
+// Helper function to ensure all data is sent over the network
+bool SendAllData(SOCKET socket, const char* data, size_t size) {
+    size_t totalSent = 0;
+    
+    while (totalSent < size) {
+        int sent = send(socket, data + totalSent, static_cast<int>(size - totalSent), 0);
+        
+        if (sent == SOCKET_ERROR) {
+            int error = WSAGetLastError();
+            if (error == WSAEWOULDBLOCK) {
+                // Non-blocking socket would block, try again
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                continue;
+            }
+            // Real error
+            std::cerr << "Send error: " << error << std::endl;
+            return false;
+        }
+        
+        if (sent == 0) {
+            // Connection closed
+            std::cerr << "Connection closed during send" << std::endl;
+            return false;
+        }
+        
+        totalSent += sent;
+    }
+    
+    return true;
+}
+
 int main() {
     std::cout << "MRDesktop Server - Desktop Duplication Service" << std::endl;
     std::cout << "=============================================" << std::endl;
@@ -365,7 +387,8 @@ int main() {
     ioctlsocket(clientSocket, FIONBIO, &mode);
     
     // Streaming and input handling loop
-    std::vector<BYTE> frameData;
+    std::vector<BYTE> pixelData;
+    UINT32 frameWidth, frameHeight, frameDataSize;
     int frameCount = 0;
     auto startTime = std::chrono::high_resolution_clock::now();
     
@@ -412,56 +435,35 @@ int main() {
         }
         
         // Capture and send frame
-        if (duplicator.CaptureFrame(frameData)) {
+        if (duplicator.CaptureFrame(pixelData, frameWidth, frameHeight, frameDataSize)) {
+            // Validate frame dimensions are reasonable
+            if (frameWidth == 0 || frameHeight == 0 ||
+                frameWidth > 10000 || frameHeight > 10000 ||
+                frameDataSize > 100000000) {
+                std::cerr << "Invalid frame data - Width: " << frameWidth 
+                         << ", Height: " << frameHeight 
+                         << ", DataSize: " << frameDataSize << std::endl;
+                continue;
+            }
+            
             // Create frame message
             FrameMessage frameMsg;
             frameMsg.header.type = MSG_FRAME_DATA;
-            frameMsg.header.size = sizeof(FrameMessage) + frameData.size();
+            frameMsg.header.size = sizeof(FrameMessage);
+            frameMsg.width = frameWidth;
+            frameMsg.height = frameHeight;
+            frameMsg.dataSize = frameDataSize;
             
-            // Extract frame info from existing data
-            struct OldFrameHeader {
-                UINT32 width;
-                UINT32 height;
-                UINT32 dataSize;
-            };
-            
-            // Validate frameData has minimum required size
-            if (frameData.size() < sizeof(OldFrameHeader)) {
-                std::cerr << "Invalid frameData size: " << frameData.size() << std::endl;
-                continue;
-            }
-            
-            OldFrameHeader* oldHeader = (OldFrameHeader*)frameData.data();
-            
-            // Validate frame dimensions are reasonable
-            if (oldHeader->width == 0 || oldHeader->height == 0 ||
-                oldHeader->width > 10000 || oldHeader->height > 10000 ||
-                oldHeader->dataSize > 100000000) {
-                std::cerr << "Invalid frame data - Width: " << oldHeader->width 
-                         << ", Height: " << oldHeader->height 
-                         << ", DataSize: " << oldHeader->dataSize << std::endl;
-                continue;
-            }
-            
-            frameMsg.width = oldHeader->width;
-            frameMsg.height = oldHeader->height;
-            frameMsg.dataSize = oldHeader->dataSize;
-            
-            // Send frame message header
-            int sent = send(clientSocket, (char*)&frameMsg, sizeof(FrameMessage), 0);
-            if (sent == SOCKET_ERROR && WSAGetLastError() != WSAEWOULDBLOCK) {
-                std::cerr << "Failed to send frame header: " << WSAGetLastError() << std::endl;
+            // Send frame message header (ensure complete transmission)
+            if (!SendAllData(clientSocket, (char*)&frameMsg, sizeof(FrameMessage))) {
+                std::cerr << "Failed to send frame header completely" << std::endl;
                 break;
             }
             
-            // Send frame pixel data
-            if (sent == sizeof(FrameMessage)) {
-                sent = send(clientSocket, (char*)frameData.data() + sizeof(OldFrameHeader), 
-                           frameMsg.dataSize, 0);
-                if (sent == SOCKET_ERROR && WSAGetLastError() != WSAEWOULDBLOCK) {
-                    std::cerr << "Failed to send frame data: " << WSAGetLastError() << std::endl;
-                    break;
-                }
+            // Send frame pixel data (ensure complete transmission)
+            if (!SendAllData(clientSocket, (char*)pixelData.data(), frameDataSize)) {
+                std::cerr << "Failed to send frame data completely" << std::endl;
+                break;
             }
             
             frameCount++;
@@ -469,7 +471,7 @@ int main() {
                 auto currentTime = std::chrono::high_resolution_clock::now();
                 auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - startTime);
                 double fps = (frameCount * 1000.0) / duration.count();
-                std::cout << "Sent " << frameCount << " frames, FPS: " << fps << ", Frame size: " << formatBytes(frameMsg.dataSize) << std::endl;
+                std::cout << "Sent " << frameCount << " frames, FPS: " << fps << ", Frame size: " << formatBytes(frameDataSize) << std::endl;
             }
         }
         
