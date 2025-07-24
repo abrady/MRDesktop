@@ -21,7 +21,7 @@ set NDK_ZIP=%TOOLS_DIR%\android-ndk-%NDK_VERSION%-windows.zip
 
 if not exist "%TOOLS_DIR%\android-ndk-%NDK_VERSION%" (
     echo   Downloading NDK from: %NDK_URL%
-    powershell -Command "Invoke-WebRequest -Uri '%NDK_URL%' -OutFile '%NDK_ZIP%'"
+    curl -L -o "%NDK_ZIP%" "%NDK_URL%"
     
     if %errorlevel% neq 0 (
         echo   ERROR: Failed to download NDK
