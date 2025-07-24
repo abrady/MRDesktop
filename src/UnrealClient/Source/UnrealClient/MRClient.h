@@ -8,6 +8,8 @@
 #include "HAL/Runnable.h"
 #include "HAL/RunnableThread.h"
 #include "Templates/SharedPointer.h"
+#include "Engine/Texture2D.h"
+#include "Engine/Texture2DDynamic.h"
 
 // Forward declarations
 struct FrameMessage;
@@ -31,10 +33,19 @@ public:
 	// Input sending
 	bool SendMouseMove(int32 DeltaX, int32 DeltaY, bool bAbsolute = false, int32 X = 0, int32 Y = 0);
 	bool SendMouseClick(int32 Button, bool bPressed);
-	bool SendMouseScroll(int32 DeltaX, int32 DeltaY);
+        bool SendMouseScroll(int32 DeltaX, int32 DeltaY);
 
-	// Frame data callback
-	FOnFrameReceived OnFrameReceived;
+        /** Get the dynamically updated desktop texture */
+        UTexture2D* GetRemoteTexture() const { return RemoteTex; }
+
+        // Frame data callback
+        FOnFrameReceived OnFrameReceived;
+
+        /** Create the texture used for remote desktop frames */
+        void CreateRemoteTexture(int32 Width, int32 Height);
+
+        /** Push a new frame's pixel data to the texture */
+        void PushFrame(const uint8* Data, int32 W, int32 H, int32 PitchBytes);
 
 	// FRunnable interface
 	virtual bool Init() override;
@@ -56,7 +67,10 @@ private:
 	bool ReceiveExactBytes(uint8* Buffer, int32 BytesToReceive);
 	
 	// Current frame info
-	uint32 CurrentFrameWidth;
-	uint32 CurrentFrameHeight;
-	uint32 CurrentFrameDataSize;
+        uint32 CurrentFrameWidth;
+        uint32 CurrentFrameHeight;
+        uint32 CurrentFrameDataSize;
+
+        /** Texture that receives remote desktop pixels */
+        UTexture2D* RemoteTex;
 };

@@ -6,6 +6,8 @@
 #include "Interfaces/IPv4/IPv4Address.h"
 #include "HAL/RunnableThread.h"
 #include "Engine/Engine.h"
+#include "Engine/Texture2D.h"
+#include "Rendering/Texture2DResource.h"
 
 // Include protocol definitions
 #pragma pack(push, 1)
@@ -64,6 +66,7 @@ MRClient::MRClient()
     , CurrentFrameWidth(0)
     , CurrentFrameHeight(0)
     , CurrentFrameDataSize(0)
+    , RemoteTex(nullptr)
 {
 }
 
@@ -280,6 +283,9 @@ bool MRClient::ReceiveFrameData()
         return false;
     }
 
+    // Push the frame pixels to the dynamic texture
+    PushFrame(FrameData.GetData(), CurrentFrameWidth, CurrentFrameHeight, CurrentFrameWidth * 4);
+
     // Call the frame received callback on the game thread
     AsyncTask(ENamedThreads::GameThread, [this, FrameData = MoveTemp(FrameData)]()
     {
@@ -333,4 +339,36 @@ bool MRClient::ReceiveExactBytes(uint8* Buffer, int32 BytesToReceive)
     }
 
     return TotalBytesReceived == BytesToReceive;
+}
+
+void MRClient::CreateRemoteTexture(int32 Width, int32 Height)
+{
+    if (RemoteTex && RemoteTex->GetSizeX() == Width && RemoteTex->GetSizeY() == Height)
+    {
+        return;
+    }
+
+    RemoteTex = UTexture2D::CreateTransient(Width, Height, PF_B8G8R8A8);
+    if (RemoteTex)
+    {
+        RemoteTex->NeverStream = true;
+        RemoteTex->SRGB = false;
+        RemoteTex->UpdateResource();
+    }
+}
+
+void MRClient::PushFrame(const uint8* Data, int32 W, int32 H, int32 PitchBytes)
+{
+    TSharedPtr<TArray<uint8>, ESPMode::ThreadSafe> Buffer = MakeShared<TArray<uint8>>();
+    Buffer->Append(Data, W * H * 4);
+
+    AsyncTask(ENamedThreads::GameThread, [this, Buffer, W, H, PitchBytes]()
+    {
+        CreateRemoteTexture(W, H);
+        static FUpdateTextureRegion2D Region(0, 0, 0, 0, W, H);
+        if (RemoteTex)
+        {
+            RemoteTex->UpdateTextureRegions(0, 1, &Region, PitchBytes, 4, Buffer->GetData(), nullptr);
+        }
+    });
 }
