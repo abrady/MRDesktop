@@ -1,0 +1,35 @@
+# Unreal Engine Build Files
+Binaries/
+Build/
+Intermediate/
+DerivedDataCache/
+
+# Saved Files
+Saved/Logs/
+Saved/Config/WindowsEditor/
+Saved/Config/CrashReportClient/
+Saved/Autosaves/
+Saved/AutoScreenshot.png
+Saved/Cooked/
+Saved/MaterialStats*/
+Saved/ShaderDebugInfo/
+Saved/Shaders/
+Saved/StagedBuilds/
+Saved/UnrealBuildTool/
+Saved/SourceControl/
+
+# Visual Studio Files
+*.sln
+UnrealClient.sln
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+
+# Temporary Files
+*.tmp
+*.log
+*.tlog
+
+# OS Generated Files
+.DS_Store
+Thumbs.db
