@@ -32,8 +32,8 @@ if(PLATFORM_DESKTOP)
     target_include_directories(MRDesktopServer PRIVATE ${COMMON_INCLUDES})
 
     # Create console client executable
-    add_executable(MRDesktopClient src/client/main.cpp)
-    target_include_directories(MRDesktopClient PRIVATE ${COMMON_INCLUDES})
+    add_executable(MRDesktopConsoleClient src/clients/console/main.cpp)
+    target_include_directories(MRDesktopConsoleClient PRIVATE ${COMMON_INCLUDES})
 
     if(WIN32)
         # Server needs DXGI and other Windows APIs
@@ -41,8 +41,8 @@ if(PLATFORM_DESKTOP)
         target_link_libraries(MRDesktopServer PRIVATE dxgi d3d11 ws2_32)
         
         # Console client
-        target_compile_definitions(MRDesktopClient PRIVATE WIN32_LEAN_AND_MEAN)
-        target_link_libraries(MRDesktopClient PRIVATE ws2_32)
+        target_compile_definitions(MRDesktopConsoleClient PRIVATE WIN32_LEAN_AND_MEAN)
+        target_link_libraries(MRDesktopConsoleClient PRIVATE ws2_32)
     endif()
     
     # Add Windows GUI client as a subdirectory
