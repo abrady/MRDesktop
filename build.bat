@@ -31,5 +31,11 @@ if %errorlevel% neq 0 (
 )
 
 echo Build successful!
-echo Run 'run.bat' to execute the program
+echo.
+echo To run the applications:
+echo   run_server.bat           - Start the desktop server
+echo   run_client.bat           - Connect to localhost
+echo   run_client.bat [IP]      - Connect to specific IP
+echo.
+echo Example: run_client.bat 192.168.1.100
 pause

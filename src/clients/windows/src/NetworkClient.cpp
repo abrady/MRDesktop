@@ -38,7 +38,7 @@ bool NetworkClient::Connect(const std::string& serverIP, int port) {
     // Setup server address
     sockaddr_in serverAddr;
     serverAddr.sin_family = AF_INET;
-    serverAddr.sin_port = htons(port);
+    serverAddr.sin_port = htons(static_cast<u_short>(port));
     
     if (inet_pton(AF_INET, serverIP.c_str(), &serverAddr.sin_addr) <= 0) {
         if (m_onError) {
@@ -92,11 +92,18 @@ void NetworkClient::ReceiveThreadProc() {
             break;
         }
         
-        // Verify this is a frame message
-        if (frameMsg.header.type != MSG_FRAME_DATA) {
-            if (m_onError) {
-                m_onError("Unexpected message type: " + std::to_string(frameMsg.header.type));
-            }
+        // Debug: Print received message details
+        std::cout << "Received message - Type: " << frameMsg.header.type 
+                  << ", Size: " << frameMsg.header.size 
+                  << ", Width: " << frameMsg.width 
+                  << ", Height: " << frameMsg.height << std::endl;
+        
+        // Verify this is a frame message with reasonable values
+        if (frameMsg.header.type != MSG_FRAME_DATA || 
+            frameMsg.width > 10000 || frameMsg.height > 10000 ||
+            frameMsg.dataSize > 100000000) {  // Skip obviously corrupted frames
+            
+            std::cout << "Skipping corrupted frame (Type: " << frameMsg.header.type << ")" << std::endl;
             continue;
         }
         

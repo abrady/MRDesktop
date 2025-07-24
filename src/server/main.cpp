@@ -147,6 +147,12 @@ public:
             header.height = textureDesc.Height;
             header.dataSize = mappedResource.RowPitch * textureDesc.Height;
             
+            // Debug: Log frame capture details
+            std::cout << "Capturing frame - Width: " << header.width 
+                     << ", Height: " << header.height 
+                     << ", RowPitch: " << mappedResource.RowPitch
+                     << ", DataSize: " << header.dataSize << std::endl;
+            
             frameData.clear();
             frameData.resize(sizeof(FrameHeader) + header.dataSize);
             
@@ -418,7 +424,24 @@ int main() {
                 UINT32 height;
                 UINT32 dataSize;
             };
+            
+            // Validate frameData has minimum required size
+            if (frameData.size() < sizeof(OldFrameHeader)) {
+                std::cerr << "Invalid frameData size: " << frameData.size() << std::endl;
+                continue;
+            }
+            
             OldFrameHeader* oldHeader = (OldFrameHeader*)frameData.data();
+            
+            // Validate frame dimensions are reasonable
+            if (oldHeader->width == 0 || oldHeader->height == 0 ||
+                oldHeader->width > 10000 || oldHeader->height > 10000 ||
+                oldHeader->dataSize > 100000000) {
+                std::cerr << "Invalid frame data - Width: " << oldHeader->width 
+                         << ", Height: " << oldHeader->height 
+                         << ", DataSize: " << oldHeader->dataSize << std::endl;
+                continue;
+            }
             
             frameMsg.width = oldHeader->width;
             frameMsg.height = oldHeader->height;

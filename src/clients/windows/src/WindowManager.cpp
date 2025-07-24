@@ -234,8 +234,8 @@ void WindowManager::OnCreate() {
         }
     });
     
-    // Show connection dialog
-    ShowConnectionDialog();
+    // Connect automatically
+    ConnectToServer(m_serverIP, m_serverPort);
 }
 
 void WindowManager::OnDestroy() {
@@ -258,7 +258,7 @@ void WindowManager::OnPaint() {
         
         std::string statusText = "MRDesktop Windows Client\\n\\nStatus: " + m_statusMessage;
         if (m_connectionState == ConnectionState::Disconnected) {
-            statusText += "\\n\\nPress SPACE to connect\\nPress F11 for fullscreen\\nPress ESC to toggle mouse capture";
+            statusText += "\\n\\nPress F11 for fullscreen\\nPress ESC to toggle mouse capture";
         }
         
         DrawTextA(hdc, statusText.c_str(), -1, &clientRect, 
@@ -278,12 +278,6 @@ void WindowManager::OnSize(UINT width, UINT height) {
 
 void WindowManager::OnKeyDown(WPARAM key) {
     switch (key) {
-        case VK_SPACE:
-            if (m_connectionState == ConnectionState::Disconnected) {
-                ConnectToServer(m_serverIP, m_serverPort);
-            }
-            break;
-            
         case VK_F11:
             ToggleFullscreen();
             break;

@@ -81,5 +81,5 @@ endif()
 # Set output directory
 set_target_properties(MRDesktopWindowsClient PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
-    OUTPUT_NAME "MRDesktopClient"
+    OUTPUT_NAME "MRDesktopWindowsClient"
 )
