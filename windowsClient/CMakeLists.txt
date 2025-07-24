@@ -11,6 +11,7 @@ find_package(PkgConfig QUIET)
 set(CLIENT_SOURCES
     src/main.cpp
     src/VideoRenderer.cpp
+    src/SimpleVideoRenderer.cpp
     src/NetworkClient.cpp
     src/InputHandler.cpp
     src/WindowManager.cpp
@@ -19,6 +20,7 @@ set(CLIENT_SOURCES
 # Header files  
 set(CLIENT_HEADERS
     include/VideoRenderer.h
+    include/SimpleVideoRenderer.h
     include/NetworkClient.h
     include/InputHandler.h
     include/WindowManager.h

@@ -9,6 +9,7 @@
 
 // Forward declarations
 class VideoRenderer;
+class SimpleVideoRenderer;
 class NetworkClient;
 class InputHandler;
 
@@ -25,8 +26,10 @@ private:
     
     // Components
     std::unique_ptr<VideoRenderer> m_videoRenderer;
+    std::unique_ptr<SimpleVideoRenderer> m_simpleVideoRenderer;
     std::unique_ptr<NetworkClient> m_networkClient;
     std::unique_ptr<InputHandler> m_inputHandler;
+    bool m_usingSimpleRenderer;
     
     // Connection state
     enum class ConnectionState {

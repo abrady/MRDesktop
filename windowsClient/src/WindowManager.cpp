@@ -1,5 +1,6 @@
 #include "WindowManager.h"
 #include "VideoRenderer.h"
+#include "SimpleVideoRenderer.h"
 #include "NetworkClient.h"
 #include "InputHandler.h"
 #include "Protocol.h"
@@ -10,6 +11,7 @@ WindowManager::WindowManager()
     : m_hInstance(nullptr)
     , m_hwnd(nullptr)
     , m_isFullscreen(false)
+    , m_usingSimpleRenderer(false)
     , m_connectionState(ConnectionState::Disconnected)
     , m_serverIP("127.0.0.1")
     , m_serverPort(8080)
@@ -175,14 +177,24 @@ LRESULT WindowManager::WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lP
 void WindowManager::OnCreate() {
     // Initialize components
     m_videoRenderer = std::make_unique<VideoRenderer>();
+    m_simpleVideoRenderer = std::make_unique<SimpleVideoRenderer>();
     m_networkClient = std::make_unique<NetworkClient>();
     m_inputHandler = std::make_unique<InputHandler>();
     
-    // Initialize video renderer
-    if (FAILED(m_videoRenderer->Initialize(m_hwnd))) {
-        MessageBoxW(m_hwnd, L"Failed to initialize video renderer", L"Error", MB_OK | MB_ICONERROR);
-        PostQuitMessage(1);
-        return;
+    // Try to initialize Direct2D video renderer first
+    HRESULT hr = m_videoRenderer->Initialize(m_hwnd);
+    if (FAILED(hr)) {
+        // Fall back to simple GDI renderer
+        hr = m_simpleVideoRenderer->Initialize(m_hwnd);
+        if (FAILED(hr)) {
+            MessageBoxW(m_hwnd, L"Failed to initialize both Direct2D and GDI video renderers.\nThis is a critical error.", L"Video Renderer Error", MB_OK | MB_ICONERROR);
+            PostQuitMessage(1);
+            return;
+        }
+        m_usingSimpleRenderer = true;
+        MessageBoxW(m_hwnd, L"Direct2D not available - using GDI fallback renderer.\nPerformance may be reduced.", L"Renderer Notice", MB_OK | MB_ICONINFORMATION);
+    } else {
+        m_usingSimpleRenderer = false;
     }
     
     // Initialize input handler
@@ -256,7 +268,9 @@ void WindowManager::OnPaint() {
 }
 
 void WindowManager::OnSize(UINT width, UINT height) {
-    if (m_videoRenderer) {
+    if (m_usingSimpleRenderer && m_simpleVideoRenderer) {
+        m_simpleVideoRenderer->OnResize(width, height);
+    } else if (!m_usingSimpleRenderer && m_videoRenderer) {
         m_videoRenderer->OnResize(width, height);
     }
 }
@@ -326,7 +340,9 @@ void WindowManager::DisconnectFromServer() {
 }
 
 void WindowManager::OnFrameReceived(const FrameMessage& frameMsg, const std::vector<BYTE>& frameData) {
-    if (m_videoRenderer) {
+    if (m_usingSimpleRenderer && m_simpleVideoRenderer) {
+        m_simpleVideoRenderer->RenderFrame(frameMsg, frameData);
+    } else if (!m_usingSimpleRenderer && m_videoRenderer) {
         m_videoRenderer->RenderFrame(frameMsg, frameData);
     }
 }
@@ -347,14 +363,24 @@ void WindowManager::OnNetworkDisconnected() {
 void WindowManager::UpdateWindowTitle() {
     std::wstring title = WINDOW_TITLE;
     
-    if (m_connectionState == ConnectionState::Connected && m_videoRenderer) {
-        double fps = m_videoRenderer->GetFPS();
-        uint32_t frames = m_videoRenderer->GetFrameCount();
-        uint32_t width, height;
-        m_videoRenderer->GetCurrentResolution(width, height);
+    if (m_connectionState == ConnectionState::Connected) {
+        double fps = 0.0;
+        uint32_t frames = 0;
+        uint32_t width = 0, height = 0;
+        
+        if (m_usingSimpleRenderer && m_simpleVideoRenderer) {
+            fps = m_simpleVideoRenderer->GetFPS();
+            frames = m_simpleVideoRenderer->GetFrameCount();
+            m_simpleVideoRenderer->GetCurrentResolution(width, height);
+        } else if (!m_usingSimpleRenderer && m_videoRenderer) {
+            fps = m_videoRenderer->GetFPS();
+            frames = m_videoRenderer->GetFrameCount();
+            m_videoRenderer->GetCurrentResolution(width, height);
+        }
         
         wchar_t stats[256];
-        swprintf_s(stats, L" - Connected - %.1f FPS - %ux%u - %u frames", fps, width, height, frames);
+        swprintf_s(stats, L" - Connected%s - %.1f FPS - %ux%u - %u frames", 
+                   m_usingSimpleRenderer ? L" (GDI)" : L" (D2D)", fps, width, height, frames);
         title += stats;
     } else {
         std::wstring status(m_statusMessage.begin(), m_statusMessage.end());

@@ -12,7 +12,11 @@
       "Bash(configure.bat)",
       "Bash(cmd:*)",
       "Bash(build/debug/Debug/MRDesktopServer.exe)",
-      "Bash(chmod:*)"
+      "Bash(chmod:*)",
+      "Bash(taskkill:*)",
+      "Bash(cl test_client.cpp:*)",
+      "Bash(./run.bat client)",
+      "Bash(build/debug/bin/Debug/MRDesktopClient.exe)"
     ],
     "deny": []
   }
