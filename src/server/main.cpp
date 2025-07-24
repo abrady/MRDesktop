@@ -190,6 +190,26 @@ public:
     }
 };
 
+// Helper function to format bytes in human-readable format
+std::string formatBytes(uint64_t bytes) {
+    const char* units[] = {"B", "KB", "MB", "GB"};
+    int unitIndex = 0;
+    double size = static_cast<double>(bytes);
+    
+    while (size >= 1024.0 && unitIndex < 3) {
+        size /= 1024.0;
+        unitIndex++;
+    }
+    
+    char buffer[32];
+    if (unitIndex == 0) {
+        snprintf(buffer, sizeof(buffer), "%.0f %s", size, units[unitIndex]);
+    } else {
+        snprintf(buffer, sizeof(buffer), "%.2f %s", size, units[unitIndex]);
+    }
+    return std::string(buffer);
+}
+
 class InputInjector {
 public:
     static bool InjectMouseMove(INT32 deltaX, INT32 deltaY, BOOL absolute = FALSE, INT32 x = 0, INT32 y = 0) {
@@ -449,7 +469,7 @@ int main() {
                 auto currentTime = std::chrono::high_resolution_clock::now();
                 auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - startTime);
                 double fps = (frameCount * 1000.0) / duration.count();
-                std::cout << "Sent " << frameCount << " frames, FPS: " << fps << ", Frame size: " << frameMsg.dataSize << " bytes" << std::endl;
+                std::cout << "Sent " << frameCount << " frames, FPS: " << fps << ", Frame size: " << formatBytes(frameMsg.dataSize) << std::endl;
             }
         }
         

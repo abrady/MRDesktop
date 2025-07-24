@@ -50,7 +50,7 @@ void InputHandler::StopMouseCapture() {
     m_isCapturingMouse = false;
 }
 
-LRESULT InputHandler::HandleMouseMove(WPARAM wParam, LPARAM lParam) {
+LRESULT InputHandler::HandleMouseMove(WPARAM /*wParam*/, LPARAM lParam) {
     if (!m_isCapturingMouse || !m_onMouseMove) return 0;
     
     POINT currentPos = {GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)};
@@ -68,7 +68,7 @@ LRESULT InputHandler::HandleMouseMove(WPARAM wParam, LPARAM lParam) {
     return 0;
 }
 
-LRESULT InputHandler::HandleMouseButton(UINT message, WPARAM wParam, LPARAM lParam) {
+LRESULT InputHandler::HandleMouseButton(UINT message, WPARAM /*wParam*/, LPARAM /*lParam*/) {
     if (!m_isCapturingMouse || !m_onMouseClick) return 0;
     
     int button = 0;
@@ -107,7 +107,7 @@ LRESULT InputHandler::HandleMouseButton(UINT message, WPARAM wParam, LPARAM lPar
     return 0;
 }
 
-LRESULT InputHandler::HandleMouseWheel(WPARAM wParam, LPARAM lParam) {
+LRESULT InputHandler::HandleMouseWheel(WPARAM wParam, LPARAM /*lParam*/) {
     if (!m_isCapturingMouse || !m_onMouseScroll) return 0;
     
     int32_t delta = GET_WHEEL_DELTA_WPARAM(wParam);
@@ -119,7 +119,7 @@ LRESULT InputHandler::HandleMouseWheel(WPARAM wParam, LPARAM lParam) {
     return 0;
 }
 
-LRESULT InputHandler::HandleKeyboard(UINT message, WPARAM wParam, LPARAM lParam) {
+LRESULT InputHandler::HandleKeyboard(UINT message, WPARAM wParam, LPARAM /*lParam*/) {
     if (!m_onKeyPress) return 0;
     
     bool pressed = (message == WM_KEYDOWN || message == WM_SYSKEYDOWN);

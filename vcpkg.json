@@ -3,7 +3,6 @@
   "version": "0.1.0",
   "description": "VR/MR Virtual Desktop for Meta Quest 3",
   "dependencies": [
-    "openxr-loader"
   ],
   "builtin-baseline": "3426db05b996481ca31e95fff3734cf23931f6b0"
 }
