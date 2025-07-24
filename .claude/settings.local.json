@@ -11,7 +11,8 @@
       "Bash(build/debug/Debug/mrdesktop.exe)",
       "Bash(configure.bat)",
       "Bash(cmd:*)",
-      "Bash(build/debug/Debug/MRDesktopServer.exe)"
+      "Bash(build/debug/Debug/MRDesktopServer.exe)",
+      "Bash(chmod:*)"
     ],
     "deny": []
   }

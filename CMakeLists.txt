@@ -4,29 +4,69 @@ project(MRDesktop)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Create server executable
-add_executable(MRDesktopServer src/server/main.cpp)
+# Option to build Android client
+option(BUILD_ANDROID_CLIENT "Build Android native client library" OFF)
 
-# Create client executable
-add_executable(MRDesktopClient src/client/main.cpp)
+# Platform detection
+if(ANDROID)
+    set(PLATFORM_ANDROID TRUE)
+    set(PLATFORM_DESKTOP FALSE)
+elseif(WIN32 OR APPLE OR UNIX)
+    set(PLATFORM_ANDROID FALSE)
+    set(PLATFORM_DESKTOP TRUE)
+else()
+    message(FATAL_ERROR "Unsupported platform")
+endif()
 
-# Set up include directories
-target_include_directories(MRDesktopServer PRIVATE 
+# Common include directories
+set(COMMON_INCLUDES 
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/src/shared
 )
 
-target_include_directories(MRDesktopClient PRIVATE 
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/shared
-)
+# Build desktop applications
+if(PLATFORM_DESKTOP)
+    # Create server executable
+    add_executable(MRDesktopServer src/server/main.cpp)
+    target_include_directories(MRDesktopServer PRIVATE ${COMMON_INCLUDES})
 
-if(WIN32)
-    # Server needs DXGI and other Windows APIs
-    target_compile_definitions(MRDesktopServer PRIVATE WIN32_LEAN_AND_MEAN)
-    target_link_libraries(MRDesktopServer PRIVATE dxgi d3d11 ws2_32)
+    # Create client executable
+    add_executable(MRDesktopClient src/client/main.cpp)
+    target_include_directories(MRDesktopClient PRIVATE ${COMMON_INCLUDES})
+
+    if(WIN32)
+        # Server needs DXGI and other Windows APIs
+        target_compile_definitions(MRDesktopServer PRIVATE WIN32_LEAN_AND_MEAN)
+        target_link_libraries(MRDesktopServer PRIVATE dxgi d3d11 ws2_32)
+        
+        # Client for now just basic Windows
+        target_compile_definitions(MRDesktopClient PRIVATE WIN32_LEAN_AND_MEAN)
+        target_link_libraries(MRDesktopClient PRIVATE ws2_32)
+    endif()
+endif()
+
+# Build Android client
+if(PLATFORM_ANDROID OR BUILD_ANDROID_CLIENT)
+    # Android native client library
+    add_library(MRDesktopAndroidClient SHARED
+        android/app/src/main/cpp/native_client.cpp
+        android/app/src/main/cpp/frame_receiver.cpp
+        android/app/src/main/cpp/input_sender.cpp
+    )
     
-    # Client for now just basic Windows
-    target_compile_definitions(MRDesktopClient PRIVATE WIN32_LEAN_AND_MEAN)
-    target_link_libraries(MRDesktopClient PRIVATE ws2_32)
+    target_include_directories(MRDesktopAndroidClient PRIVATE 
+        ${COMMON_INCLUDES}
+        android/app/src/main/cpp
+    )
+    
+    if(ANDROID)
+        # Find required Android libraries
+        find_library(log-lib log)
+        find_library(android-lib android)
+        
+        target_link_libraries(MRDesktopAndroidClient 
+            ${log-lib}
+            ${android-lib}
+        )
+    endif()
 endif()
