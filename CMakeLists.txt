@@ -30,7 +30,7 @@ if(PLATFORM_DESKTOP)
     add_executable(MRDesktopServer src/server/main.cpp)
     target_include_directories(MRDesktopServer PRIVATE ${COMMON_INCLUDES})
 
-    # Create client executable
+    # Create console client executable
     add_executable(MRDesktopClient src/client/main.cpp)
     target_include_directories(MRDesktopClient PRIVATE ${COMMON_INCLUDES})
 
@@ -39,9 +39,14 @@ if(PLATFORM_DESKTOP)
         target_compile_definitions(MRDesktopServer PRIVATE WIN32_LEAN_AND_MEAN)
         target_link_libraries(MRDesktopServer PRIVATE dxgi d3d11 ws2_32)
         
-        # Client for now just basic Windows
+        # Console client
         target_compile_definitions(MRDesktopClient PRIVATE WIN32_LEAN_AND_MEAN)
         target_link_libraries(MRDesktopClient PRIVATE ws2_32)
+    endif()
+    
+    # Add Windows GUI client as a subdirectory
+    if(WIN32)
+        add_subdirectory(windowsClient)
     endif()
 endif()
 
