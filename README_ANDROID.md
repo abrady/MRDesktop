@@ -67,6 +67,11 @@ cmake --preset android-arm64-debug
 # Build
 cmake --build --preset android-arm64-debug
 
+# OpenXR build for Quest (ARM64)
+# Requires `vcpkg` with the `openxr-loader` package installed (set `VCPKG_ROOT` to your vcpkg directory)
+cmake --preset android-openxr-arm64-debug
+cmake --build --preset android-openxr-arm64-debug
+
 # For emulator (x86_64)
 cmake --preset android-x86_64-debug
 cmake --build --preset android-x86_64-debug
@@ -98,7 +103,8 @@ The build scripts automatically copy the compiled `.so` library to the correct J
 
 ### Available Presets
 - `android-arm64-debug` - ARM64 debug build (most devices)
-- `android-arm64-release` - ARM64 release build  
+- `android-arm64-release` - ARM64 release build
+- `android-openxr-arm64-debug` - OpenXR debug build for Quest 3 (requires `vcpkg` `openxr-loader`)
 - `android-x86_64-debug` - x86_64 debug build (emulator)
 
 ### Android Build Settings
@@ -108,6 +114,7 @@ ANDROID_ABI=arm64-v8a           # Target architecture
 ANDROID_NATIVE_API_LEVEL=24     # Android 7.0+ (API 24)
 ANDROID_STL=c++_shared          # Shared C++ runtime
 BUILD_ANDROID_CLIENT=ON         # Enable Android client build
+BUILD_OPENXR_CLIENT=ON          # Enable OpenXR Quest build
 ```
 
 ## 🔄 vcpkg Integration (Future)

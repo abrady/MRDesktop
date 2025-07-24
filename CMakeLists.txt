@@ -6,6 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Option to build Android client
 option(BUILD_ANDROID_CLIENT "Build Android native client library" OFF)
+option(BUILD_OPENXR_CLIENT "Build OpenXR native client" OFF)
 
 # Platform detection
 if(ANDROID)
@@ -69,4 +70,14 @@ if(PLATFORM_ANDROID OR BUILD_ANDROID_CLIENT)
             ${android-lib}
         )
     endif()
+endif()
+
+# Build OpenXR client
+if(BUILD_OPENXR_CLIENT)
+    find_package(OpenXR REQUIRED)
+    add_executable(MRDesktopOpenXR src/openxr/main.cpp)
+    target_include_directories(MRDesktopOpenXR PRIVATE
+        ${COMMON_INCLUDES}
+    )
+    target_link_libraries(MRDesktopOpenXR PRIVATE OpenXR::openxr_loader)
 endif()

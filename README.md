@@ -6,6 +6,7 @@
 * if this fails because you don't have android studio installed (and you don't want to) run:
   * `tools\download_android_tools.bat`
   * `tools\build_apk_standalone.bat`
+* for an OpenXR build targeting Quest 3 use the `android-openxr-arm64-debug` preset (requires `vcpkg` and the `openxr-loader` package)
 
 ## Testing
 
