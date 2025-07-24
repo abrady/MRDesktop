@@ -4,14 +4,26 @@ project(MRDesktop)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# find_package(PkgConfig REQUIRED)
+# Create server executable
+add_executable(MRDesktopServer src/server/main.cpp)
 
-add_executable(mrdesktop src/main.cpp)
+# Create client executable
+add_executable(MRDesktopClient src/client/main.cpp)
 
-target_include_directories(mrdesktop PRIVATE 
+# Set up include directories
+target_include_directories(MRDesktopServer PRIVATE 
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+target_include_directories(MRDesktopClient PRIVATE 
     ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
 if(WIN32)
-    target_compile_definitions(mrdesktop PRIVATE WIN32_LEAN_AND_MEAN)
+    # Server needs DXGI and other Windows APIs
+    target_compile_definitions(MRDesktopServer PRIVATE WIN32_LEAN_AND_MEAN)
+    target_link_libraries(MRDesktopServer PRIVATE dxgi d3d11)
+    
+    # Client for now just basic Windows
+    target_compile_definitions(MRDesktopClient PRIVATE WIN32_LEAN_AND_MEAN)
 endif()
