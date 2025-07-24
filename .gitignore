@@ -40,3 +40,18 @@ Thumbs.db
 
 # debug stuff
 first_frame.bmp
+
+# Android tools (downloaded by scripts)
+tools/android-tools/
+tools/android-standalone/
+
+# Android build artifacts
+android/app/build/
+android/app/.cxx/
+android/.gradle/
+android/local.properties
+android/app/src/main/jniLibs/
+
+# Android Studio
+android/.idea/
+*.iml
