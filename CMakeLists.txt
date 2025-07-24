@@ -13,10 +13,12 @@ add_executable(MRDesktopClient src/client/main.cpp)
 # Set up include directories
 target_include_directories(MRDesktopServer PRIVATE 
     ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/shared
 )
 
 target_include_directories(MRDesktopClient PRIVATE 
     ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/shared
 )
 
 if(WIN32)
