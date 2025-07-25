@@ -319,9 +319,22 @@ bool SendAllData(SOCKET socket, const char* data, size_t size) {
     return true;
 }
 
-int main() {
+int main(int argc, char* argv[]) {
+    bool testMode = false;
+    
+    // Parse command line arguments
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "--test") == 0) {
+            testMode = true;
+        }
+    }
+    
     std::cout << "MRDesktop Server - Desktop Duplication Service" << std::endl;
     std::cout << "=============================================" << std::endl;
+    
+    if (testMode) {
+        std::cout << "RUNNING IN TEST MODE" << std::endl;
+    }
     
     // Initialize COM
     HRESULT hr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
@@ -341,9 +354,9 @@ int main() {
     
     std::cout << "Network and COM initialized successfully" << std::endl;
     
-    // Initialize desktop duplicator
+    // Initialize desktop duplicator (skip in test mode)
     DesktopDuplicator duplicator;
-    if (!duplicator.Initialize()) {
+    if (!testMode && !duplicator.Initialize()) {
         std::cerr << "Failed to initialize desktop duplicator" << std::endl;
         WSACleanup();
         CoUninitialize();
@@ -465,8 +478,38 @@ int main() {
             }
         }
         
-        // Capture and send frame
-        if (duplicator.CaptureFrame(pixelData, frameWidth, frameHeight, frameDataSize)) {
+        // Capture or generate test frame
+        bool frameReady = false;
+        if (testMode) {
+            // Generate test frame data
+            frameWidth = 640;
+            frameHeight = 480;
+            frameDataSize = frameWidth * frameHeight * 4; // BGRA format
+            
+            pixelData.clear();
+            pixelData.resize(frameDataSize);
+            
+            // Create test pattern: red-green gradient with frame counter
+            for (uint32_t y = 0; y < frameHeight; y++) {
+                for (uint32_t x = 0; x < frameWidth; x++) {
+                    uint32_t index = (y * frameWidth + x) * 4;
+                    uint8_t red = static_cast<uint8_t>((x * 255) / frameWidth);
+                    uint8_t green = static_cast<uint8_t>((y * 255) / frameHeight);
+                    uint8_t blue = static_cast<uint8_t>(frameCount % 256);
+                    
+                    pixelData[index + 0] = blue;   // B
+                    pixelData[index + 1] = green;  // G
+                    pixelData[index + 2] = red;    // R
+                    pixelData[index + 3] = 255;    // A
+                }
+            }
+            frameReady = true;
+            std::cout << "Generated test frame " << frameCount + 1 << " (640x480)" << std::endl;
+        } else {
+            frameReady = duplicator.CaptureFrame(pixelData, frameWidth, frameHeight, frameDataSize);
+        }
+        
+        if (frameReady) {
             // Validate frame dimensions are reasonable
             if (frameWidth == 0 || frameHeight == 0 ||
                 frameWidth > 10000 || frameHeight > 10000 ||
@@ -556,6 +599,12 @@ int main() {
                 auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - startTime);
                 double fps = (frameCount * 1000.0) / duration.count();
                 std::cout << "Sent " << frameCount << " frames, FPS: " << fps << ", Frame size: " << formatBytes(frameDataSize) << std::endl;
+            }
+            
+            // In test mode, exit after sending 3 frames
+            if (testMode && frameCount >= 3) {
+                std::cout << "TEST MODE: Sent 3 frames, exiting successfully" << std::endl;
+                break;
             }
         }
         

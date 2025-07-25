@@ -55,6 +55,7 @@ void PrintUsage()
     std::cout << "  --port=<port>      Server port (default: 8080)" << std::endl;
     std::cout << "  --compression=<none|h264|h265|av1>  Preferred compression (default: h265)" << std::endl;
     std::cout << "  --debug-frames[=N] Save first N frames for debugging (default: 5)" << std::endl;
+    std::cout << "  --test             Run in test mode (validate frames and exit)" << std::endl;
     std::cout << "  --help             Show this help message" << std::endl;
 }
 
@@ -66,6 +67,7 @@ int main(int argc, char *argv[])
     CompressionType compression = COMPRESSION_H265;
     bool debugFrames = false;
     int maxDebugFrames = 5;
+    bool testMode = false;
 
     for (int i = 1; i < argc; i++)
     {
@@ -106,6 +108,10 @@ int main(int argc, char *argv[])
             debugFrames = true;
             maxDebugFrames = std::stoi(arg.substr(15));
         }
+        else if (arg == "--test")
+        {
+            testMode = true;
+        }
         else
         {
             std::cerr << "Unknown option: " << arg << std::endl;
@@ -120,6 +126,10 @@ int main(int argc, char *argv[])
     if (debugFrames)
     {
         std::cout << "Debug mode: Will save first " << maxDebugFrames << " frames" << std::endl;
+    }
+    if (testMode)
+    {
+        std::cout << "TEST MODE: Will validate frames and exit after receiving 3 frames" << std::endl;
     }
     std::cout << std::endl;
 
@@ -146,13 +156,16 @@ int main(int argc, char *argv[])
     std::cout << "Requested compression mode: " << compression << std::endl;
     std::cout << "Receiving desktop stream..." << std::endl;
     std::cout << std::endl;
-    std::cout << "=== MOUSE CONTROL MODE ===" << std::endl;
-    std::cout << "WASD / Arrow Keys: Move mouse" << std::endl;
-    std::cout << "Space: Left click" << std::endl;
-    std::cout << "Enter: Right click" << std::endl;
-    std::cout << "Q/E: Scroll up/down" << std::endl;
-    std::cout << "ESC: Exit control mode" << std::endl;
-    std::cout << "===========================" << std::endl;
+    
+    if (!testMode) {
+        std::cout << "=== MOUSE CONTROL MODE ===" << std::endl;  
+        std::cout << "WASD / Arrow Keys: Move mouse" << std::endl;
+        std::cout << "Space: Left click" << std::endl;
+        std::cout << "Enter: Right click" << std::endl;
+        std::cout << "Q/E: Scroll up/down" << std::endl;
+        std::cout << "ESC: Exit control mode" << std::endl;
+        std::cout << "===========================" << std::endl;
+    }
 
     // Input will be sent directly through receiver methods
 
@@ -166,10 +179,54 @@ int main(int argc, char *argv[])
     int frameCount = 0;
     bool savedFirstFrame = false;
     auto startTime = std::chrono::high_resolution_clock::now();
+    bool testPassed = true;
+    bool exitRequested = false;
     
     // Set up frame callback
     receiver.SetFrameCallback([&](const FrameMessage& frameMsg, const std::vector<uint8_t>& frameData) {
         frameCount++;
+
+        // Test mode validation
+        if (testMode) {
+            std::cout << "TEST: Received frame " << frameCount << " - " << frameMsg.width << "x" << frameMsg.height 
+                      << " (" << frameData.size() << " bytes)" << std::endl;
+            
+            // Validate expected dimensions
+            if (frameMsg.width != 640 || frameMsg.height != 480) {
+                std::cerr << "TEST FAILED: Expected 640x480, got " << frameMsg.width << "x" << frameMsg.height << std::endl;
+                testPassed = false;
+            }
+            
+            // Validate data size
+            uint32_t expectedSize = 640 * 480 * 4;
+            if (frameData.size() != expectedSize) {
+                std::cerr << "TEST FAILED: Expected " << expectedSize << " bytes, got " << frameData.size() << std::endl;
+                testPassed = false;
+            }
+            
+            // Validate test pattern - check a few key pixels
+            if (frameData.size() >= expectedSize) {
+                // Check top-left corner (should be mostly black with blue frame counter)
+                uint8_t blue = frameData[0];  // B
+                uint8_t green = frameData[1]; // G  
+                uint8_t red = frameData[2];   // R
+                uint8_t alpha = frameData[3]; // A
+                
+                if (alpha != 255) {
+                    std::cerr << "TEST FAILED: Alpha channel not 255 at (0,0)" << std::endl;
+                    testPassed = false;
+                }
+                
+                std::cout << "TEST: Frame " << frameCount << " pixel (0,0) = R:" << (int)red 
+                          << " G:" << (int)green << " B:" << (int)blue << " A:" << (int)alpha << std::endl;
+            }
+            
+            // Exit after 3 frames in test mode
+            if (frameCount >= 3) {
+                exitRequested = true;
+                std::cout << "TEST: Received all 3 frames, exiting..." << std::endl;
+            }
+        }
 
         // Log frame for debugging if enabled
         if (frameLogger && frameLogger->IsLogging())
@@ -205,12 +262,11 @@ int main(int argc, char *argv[])
     });
 
     const int MOUSE_SPEED = 10; // Pixels per keypress
-    bool exitRequested = false;
 
     while (!exitRequested)
     {
-        // Check for keyboard input
-        if (_kbhit())
+        // Check for keyboard input (skip in test mode)
+        if (!testMode && _kbhit())
         {
             int key = _getch();
 
@@ -304,5 +360,16 @@ int main(int argc, char *argv[])
     SetConsoleMode(hStdin, originalMode);
 
     std::cout << "Streaming ended. Total frames received: " << frameCount << std::endl;
+    
+    if (testMode) {
+        if (testPassed && frameCount >= 3) {
+            std::cout << "TEST PASSED: All frames validated successfully!" << std::endl;
+            return 0; // Success
+        } else {
+            std::cout << "TEST FAILED: Frame validation failed or insufficient frames received" << std::endl;
+            return 1; // Failure
+        }
+    }
+    
     return 0;
 }

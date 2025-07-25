@@ -61,7 +61,8 @@
       "Bash(./MRDesktopServer.exe)",
       "Bash(./test_framereceiver.exe)",
       "Bash(./test_network_receiver.exe)",
-      "Bash(./test_server_connection.exe)"
+      "Bash(./test_server_connection.exe)",
+      "Bash(.build.bat)"
     ],
     "deny": []
   }
