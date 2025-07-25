@@ -26,7 +26,7 @@ configure_file(
 # Source files
 set(NATIVE_SRCS
     native_client.cpp
-    frame_receiver.cpp
+    ../../../src/shared/FrameReceiver.cpp
     input_sender.cpp
 )
 
