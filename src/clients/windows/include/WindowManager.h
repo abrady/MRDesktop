@@ -10,7 +10,7 @@
 // Forward declarations
 class VideoRenderer;
 class SimpleVideoRenderer;
-class NetworkClient;
+class NetworkReceiver;
 class InputHandler;
 
 class WindowManager {
@@ -27,7 +27,7 @@ private:
     // Components
     std::unique_ptr<VideoRenderer> m_videoRenderer;
     std::unique_ptr<SimpleVideoRenderer> m_simpleVideoRenderer;
-    std::unique_ptr<NetworkClient> m_networkClient;
+    std::unique_ptr<NetworkReceiver> m_networkReceiver;
     std::unique_ptr<InputHandler> m_inputHandler;
     bool m_usingSimpleRenderer;
     
@@ -59,7 +59,7 @@ private:
     void ShowConnectionDialog();
     void ConnectToServer(const std::string& ip, int port);
     void DisconnectFromServer();
-    void OnFrameReceived(const struct FrameMessage& frameMsg, const std::vector<BYTE>& frameData);
+    void OnFrameReceived(const struct FrameMessage& frameMsg, const std::vector<uint8_t>& frameData);
     void OnNetworkError(const std::string& error);
     void OnNetworkDisconnected();
     

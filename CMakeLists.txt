@@ -43,7 +43,7 @@ if(PLATFORM_DESKTOP)
     add_executable(MRDesktopConsoleClient
         src/clients/console/main.cpp
         src/shared/FrameLogger.cpp
-        src/shared/FrameReceiver.cpp
+        src/shared/NetworkReceiver.cpp
     )
     target_include_directories(MRDesktopConsoleClient PRIVATE ${COMMON_INCLUDES} ${FFMPEG_INCLUDE_DIRS})
 

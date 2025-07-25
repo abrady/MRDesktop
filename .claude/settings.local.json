@@ -59,7 +59,9 @@
       "Bash(builddebugbin:*)",
       "Bash(build/debug/bin/Debug/MRDesktopWindowsClient.exe --ip=127.0.0.1)",
       "Bash(./MRDesktopServer.exe)",
-      "Bash(./test_framereceiver.exe)"
+      "Bash(./test_framereceiver.exe)",
+      "Bash(./test_network_receiver.exe)",
+      "Bash(./test_server_connection.exe)"
     ],
     "deny": []
   }

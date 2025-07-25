@@ -12,22 +12,20 @@ set(CLIENT_SOURCES
     src/main.cpp
     src/VideoRenderer.cpp
     src/SimpleVideoRenderer.cpp
-    src/NetworkClient.cpp
     src/InputHandler.cpp
     src/WindowManager.cpp
     # Shared library files
-    ../../shared/FrameReceiver.cpp
+    ../../shared/NetworkReceiver.cpp
 )
 
 # Header files  
 set(CLIENT_HEADERS
     include/VideoRenderer.h
     include/SimpleVideoRenderer.h
-    include/NetworkClient.h
     include/InputHandler.h
     include/WindowManager.h
     # Shared library headers
-    ../../shared/FrameReceiver.h
+    ../../shared/NetworkReceiver.h
     ../../shared/FrameUtils.h
     ../../shared/protocol.h
 )

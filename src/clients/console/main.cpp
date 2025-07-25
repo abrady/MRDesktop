@@ -10,7 +10,7 @@
 #include <algorithm>
 #include "protocol.h"
 #include "../shared/FrameLogger.h"
-#include "../shared/FrameReceiver.h"
+#include "../shared/NetworkReceiver.h"
 
 #pragma comment(lib, "ws2_32.lib")
 
@@ -131,29 +131,16 @@ int main(int argc, char *argv[])
         std::cout << "Frame logging enabled - will save to debug_frames/ directory" << std::endl;
     }
 
-    // Initialize Winsock
-    WSADATA wsaData;
-    int result = WSAStartup(MAKEWORD(2, 2), &wsaData);
-    if (result != 0)
-    {
-        std::cerr << "WSAStartup failed: " << result << std::endl;
-        return 1;
-    }
-
-    std::cout << "Winsock initialized successfully" << std::endl;
+    std::cout << "Initializing network connection..." << std::endl;
 
     // Connect to server
-    FrameReceiver receiver;
+    NetworkReceiver receiver;
     receiver.SetCompression(compression);
-    if (!receiver.Connect(serverIP.c_str(), serverPort))
+    if (!receiver.Connect(serverIP, serverPort))
     {
         std::cerr << "Failed to connect to server" << std::endl;
-        WSACleanup();
         return 1;
     }
-
-    // Send compression request
-    receiver.SendCompressionRequest(compression);
 
     std::cout << "Connected to MRDesktop Server!" << std::endl;
     std::cout << "Requested compression mode: " << compression << std::endl;
@@ -176,11 +163,46 @@ int main(int argc, char *argv[])
     SetConsoleMode(hStdin, 0); // Disable line input and echo
 
     // Variables for frame receiving and input handling
-    FrameMessage frameMsg;
-    std::vector<uint8_t> frameData;
     int frameCount = 0;
     bool savedFirstFrame = false;
     auto startTime = std::chrono::high_resolution_clock::now();
+    
+    // Set up frame callback
+    receiver.SetFrameCallback([&](const FrameMessage& frameMsg, const std::vector<uint8_t>& frameData) {
+        frameCount++;
+
+        // Log frame for debugging if enabled
+        if (frameLogger && frameLogger->IsLogging())
+        {
+            frameLogger->LogFrame(frameMsg.width, frameMsg.height, frameMsg.dataSize, frameData.data());
+
+            // Print stats when logging is complete
+            if (!frameLogger->IsLogging())
+            {
+                frameLogger->PrintFrameStats();
+                std::cout << "Frame logging complete. Files saved to debug_frames/ directory." << std::endl;
+            }
+        }
+
+        // Save first frame as BMP for verification (legacy behavior)
+        if (!savedFirstFrame)
+        {
+            SaveFrameAsBMP(frameMsg, frameData, "first_frame.bmp");
+            savedFirstFrame = true;
+            std::cout << "First frame saved as first_frame.bmp" << std::endl;
+        }
+
+        // Display stats every 60 frames (less frequent to avoid spam)
+        if (frameCount % 60 == 0)
+        {
+            auto currentTime = std::chrono::high_resolution_clock::now();
+            auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - startTime);
+            double fps = (frameCount * 1000.0) / duration.count();
+
+            std::cout << "Status: " << frameCount << " frames, FPS: " << fps
+                      << ", Resolution: " << frameMsg.width << "x" << frameMsg.height << std::endl;
+        }
+    });
 
     const int MOUSE_SPEED = 10; // Pixels per keypress
     bool exitRequested = false;
@@ -271,43 +293,8 @@ int main(int argc, char *argv[])
             }
         }
 
-        // Try to receive frame (non-blocking)
-        if (receiver.ReceiveFrame(frameMsg, frameData, frameCount + 1))
-        {
-            frameCount++;
-
-            // Log frame for debugging if enabled
-            if (frameLogger && frameLogger->IsLogging())
-            {
-                frameLogger->LogFrame(frameMsg.width, frameMsg.height, frameMsg.dataSize, frameData.data());
-
-                // Print stats when logging is complete
-                if (!frameLogger->IsLogging())
-                {
-                    frameLogger->PrintFrameStats();
-                    std::cout << "Frame logging complete. Files saved to debug_frames/ directory." << std::endl;
-                }
-            }
-
-            // Save first frame as BMP for verification (legacy behavior)
-            if (!savedFirstFrame)
-            {
-                SaveFrameAsBMP(frameMsg, frameData, "first_frame.bmp");
-                savedFirstFrame = true;
-                std::cout << "First frame saved as first_frame.bmp" << std::endl;
-            }
-
-            // Display stats every 60 frames (less frequent to avoid spam)
-            if (frameCount % 60 == 0)
-            {
-                auto currentTime = std::chrono::high_resolution_clock::now();
-                auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - startTime);
-                double fps = (frameCount * 1000.0) / duration.count();
-
-                std::cout << "Status: " << frameCount << " frames, FPS: " << fps
-                          << ", Resolution: " << frameMsg.width << "x" << frameMsg.height << std::endl;
-            }
-        }
+        // Poll for frames (non-blocking)
+        receiver.PollFrame();
 
         // Small delay to prevent busy waiting
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
@@ -317,7 +304,5 @@ int main(int argc, char *argv[])
     SetConsoleMode(hStdin, originalMode);
 
     std::cout << "Streaming ended. Total frames received: " << frameCount << std::endl;
-
-    WSACleanup();
     return 0;
 }

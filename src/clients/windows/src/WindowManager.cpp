@@ -1,7 +1,7 @@
 #include "WindowManager.h"
 #include "VideoRenderer.h"
 #include "SimpleVideoRenderer.h"
-#include "NetworkClient.h"
+#include "NetworkReceiver.h"
 #include "InputHandler.h"
 #include "protocol.h"
 #include <commdlg.h>
@@ -89,10 +89,26 @@ void WindowManager::Cleanup() {
 
 int WindowManager::Run() {
     MSG msg;
+    bool running = true;
     
-    while (GetMessage(&msg, nullptr, 0, 0)) {
-        TranslateMessage(&msg);
-        DispatchMessage(&msg);
+    while (running) {
+        // Poll for Windows messages (non-blocking)
+        while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
+            if (msg.message == WM_QUIT) {
+                running = false;
+                break;
+            }
+            TranslateMessage(&msg);
+            DispatchMessage(&msg);
+        }
+        
+        // Poll for network frames
+        if (m_networkReceiver && m_networkReceiver->IsConnected()) {
+            m_networkReceiver->PollFrame();
+        }
+        
+        // Small delay to prevent busy waiting
+        Sleep(1);
     }
     
     return static_cast<int>(msg.wParam);
@@ -181,7 +197,7 @@ void WindowManager::OnCreate() {
     // Initialize components
     m_videoRenderer = std::make_unique<VideoRenderer>();
     m_simpleVideoRenderer = std::make_unique<SimpleVideoRenderer>();
-    m_networkClient = std::make_unique<NetworkClient>();
+    m_networkReceiver = std::make_unique<NetworkReceiver>();
     m_inputHandler = std::make_unique<InputHandler>();
     
     // Initialize GDI renderer as fallback (always works)
@@ -202,35 +218,35 @@ void WindowManager::OnCreate() {
     m_inputHandler->Initialize(m_hwnd);
     
     // Set up network callbacks
-    m_networkClient->SetFrameCallback([this](const FrameMessage& frameMsg, const std::vector<BYTE>& frameData) {
+    m_networkReceiver->SetFrameCallback([this](const FrameMessage& frameMsg, const std::vector<uint8_t>& frameData) {
         OnFrameReceived(frameMsg, frameData);
     });
     
-    m_networkClient->SetErrorCallback([this](const std::string& error) {
+    m_networkReceiver->SetErrorCallback([this](const std::string& error) {
         OnNetworkError(error);
     });
     
-    m_networkClient->SetDisconnectedCallback([this]() {
+    m_networkReceiver->SetDisconnectedCallback([this]() {
         OnNetworkDisconnected();
     });
     
     // Set up input callbacks
     m_inputHandler->SetMouseMoveCallback([this](int32_t deltaX, int32_t deltaY) {
-        if (m_networkClient && m_networkClient->IsConnected()) {
-            m_networkClient->SendMouseMove(deltaX, deltaY);
+        if (m_networkReceiver && m_networkReceiver->IsConnected()) {
+            m_networkReceiver->SendMouseMove(deltaX, deltaY);
         }
     });
     
     m_inputHandler->SetMouseClickCallback([this](int button, bool pressed) {
-        if (m_networkClient && m_networkClient->IsConnected()) {
+        if (m_networkReceiver && m_networkReceiver->IsConnected()) {
             MouseClickMessage::MouseButton btn = static_cast<MouseClickMessage::MouseButton>(button);
-            m_networkClient->SendMouseClick(btn, pressed);
+            m_networkReceiver->SendMouseClick(btn, pressed);
         }
     });
     
     m_inputHandler->SetMouseScrollCallback([this](int32_t deltaX, int32_t deltaY) {
-        if (m_networkClient && m_networkClient->IsConnected()) {
-            m_networkClient->SendMouseScroll(deltaX, deltaY);
+        if (m_networkReceiver && m_networkReceiver->IsConnected()) {
+            m_networkReceiver->SendMouseScroll(deltaX, deltaY);
         }
     });
     
@@ -316,7 +332,7 @@ void WindowManager::ConnectToServer(const std::string& ip, int port) {
     
     // Connect in background thread to avoid blocking UI
     std::thread connectThread([this, ip, port]() {
-        bool success = m_networkClient->Connect(ip, port);
+        bool success = m_networkReceiver->Connect(ip, port);
         
         // Post result back to main thread
         PostMessage(m_hwnd, WM_USER + 1, success ? 1 : 0, 0);
@@ -328,7 +344,7 @@ void WindowManager::DisconnectFromServer() {
     if (m_connectionState == ConnectionState::Disconnected) return;
     
     m_inputHandler->StopMouseCapture();
-    m_networkClient->Disconnect();
+    m_networkReceiver->Disconnect();
     
     m_connectionState = ConnectionState::Disconnected;
     m_statusMessage = "Disconnected";
@@ -336,7 +352,7 @@ void WindowManager::DisconnectFromServer() {
     InvalidateRect(m_hwnd, nullptr, TRUE);
 }
 
-void WindowManager::OnFrameReceived(const FrameMessage& frameMsg, const std::vector<BYTE>& frameData) {
+void WindowManager::OnFrameReceived(const FrameMessage& frameMsg, const std::vector<uint8_t>& frameData) {
     // Try to upgrade to Direct2D renderer if we're still using GDI and haven't tried yet
     static bool triedDirect2DUpgrade = false;
     if (m_usingSimpleRenderer && !triedDirect2DUpgrade) {
