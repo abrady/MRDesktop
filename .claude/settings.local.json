@@ -40,7 +40,13 @@
       "Bash(cd:*)",
       "Bash(build\\debug\\bin\\Debug\\MRDesktopWindowsClient.exe)",
       "Bash(./build/debug/bin/Debug/MRDesktopWindowsClient.exe)",
-      "Bash(start build\\debug\\bin\\Debug\\MRDesktopWindowsClient.exe)"
+      "Bash(start build\\debug\\bin\\Debug\\MRDesktopWindowsClient.exe)",
+      "Bash(builddebugDebugMRDesktopServer.exe)",
+      "Bash(cd:*)",
+      "Bash(./build/debug/Debug/MRDesktopServer.exe)",
+      "Bash(./build.bat)",
+      "Bash(\"build/debug/Debug/MRDesktopServer.exe\")",
+      "Bash(start:*)"
     ],
     "deny": []
   }

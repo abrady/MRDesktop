@@ -39,9 +39,11 @@ private:
     bool m_initialized;
     bool m_forceKeyframe;
     LONGLONG m_frameTime;
+    GUID m_inputFormat;
     
     // Helper methods
     HRESULT CreateInputMediaType();
     HRESULT CreateOutputMediaType();
     HRESULT ProcessFrame(const uint8_t* frameData, std::vector<uint8_t>& compressedData, bool& isKeyframe);
+    void ConvertBGRAtoNV12(const uint8_t* bgra, uint8_t* nv12, int width, int height);
 };

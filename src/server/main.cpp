@@ -409,6 +409,7 @@ int main() {
     // Initialize H.264 encoder
     H264Encoder encoder;
     bool encoderInitialized = false;
+    bool encoderInitAttempted = false;
     std::cout << "H.264 encoder ready for initialization on first frame" << std::endl;
     
     while (true) {
@@ -465,13 +466,14 @@ int main() {
                 continue;
             }
             
-            // Initialize encoder on first frame
-            if (!encoderInitialized) {
+            // Initialize encoder on first frame (only try once)
+            if (!encoderInitialized && !encoderInitAttempted) {
+                encoderInitAttempted = true;
                 if (encoder.Initialize(frameWidth, frameHeight, 60)) {
                     encoderInitialized = true;
                     std::cout << "H.264 encoder initialized for " << frameWidth << "x" << frameHeight << std::endl;
                 } else {
-                    std::cerr << "Failed to initialize H.264 encoder, falling back to uncompressed" << std::endl;
+                    std::cerr << "Failed to initialize H.264 encoder, falling back to uncompressed for session" << std::endl;
                 }
             }
             

@@ -18,7 +18,8 @@ H264Encoder::H264Encoder()
     , m_frameCount(0)
     , m_initialized(false)
     , m_forceKeyframe(false)
-    , m_frameTime(0) {
+    , m_frameTime(0)
+    , m_inputFormat(MFVideoFormat_RGB32) {
 }
 
 H264Encoder::~H264Encoder() {
@@ -27,7 +28,8 @@ H264Encoder::~H264Encoder() {
 
 bool H264Encoder::Initialize(int width, int height, int fps) {
     if (m_initialized) {
-        Cleanup();
+        std::cout << "H.264: Already initialized, skipping" << std::endl;
+        return true;
     }
     
     m_width = width;
@@ -44,12 +46,32 @@ bool H264Encoder::Initialize(int width, int height, int fps) {
         return false;
     }
     
-    // Create H.264 encoder
-    hr = CoCreateInstance(CLSID_CMSH264EncoderMFT, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&m_encoder));
+    // Create H.264 encoder - try software encoder first for better compatibility
+    hr = CoCreateInstance(CLSID_MSH264EncoderMFT, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&m_encoder));
     if (FAILED(hr)) {
         std::cerr << "H.264: Failed to create encoder: " << std::hex << hr << std::endl;
         MFShutdown();
         return false;
+    }
+    
+    // Query supported input types for debugging
+    std::cout << "H.264: Querying supported input types..." << std::endl;
+    for (DWORD i = 0; ; i++) {
+        IMFMediaType* supportedType = nullptr;
+        hr = m_encoder->GetInputAvailableType(0, i, &supportedType);
+        if (FAILED(hr)) break;
+        
+        GUID subtype;
+        if (SUCCEEDED(supportedType->GetGUID(MF_MT_SUBTYPE, &subtype))) {
+            if (subtype == MFVideoFormat_NV12) {
+                std::cout << "H.264: Encoder supports NV12" << std::endl;
+            } else if (subtype == MFVideoFormat_YUY2) {
+                std::cout << "H.264: Encoder supports YUY2" << std::endl;
+            } else if (subtype == MFVideoFormat_RGB32) {
+                std::cout << "H.264: Encoder supports RGB32" << std::endl;
+            }
+        }
+        supportedType->Release();
     }
     
     // Create input media type
@@ -63,10 +85,12 @@ bool H264Encoder::Initialize(int width, int height, int fps) {
     // Create output media type
     hr = CreateOutputMediaType();
     if (FAILED(hr)) {
-        std::cerr << "H.264: Failed to create output media type: " << std::hex << hr << std::endl;
+        std::cerr << "H.264: Failed to create output media type: " << std::hex << hr << std::dec << std::endl;
         Cleanup();
         return false;
     }
+    
+    std::cout << "H.264: Output media type created successfully" << std::endl;
     
     // Set encoder properties for low latency
     ICodecAPI* codecAPI = nullptr;
@@ -99,9 +123,29 @@ bool H264Encoder::Initialize(int width, int height, int fps) {
     }
     
     // Process messages to start encoder
+    std::cout << "H.264: Starting encoder with ProcessMessage calls..." << std::endl;
     hr = m_encoder->ProcessMessage(MFT_MESSAGE_COMMAND_FLUSH, 0);
+    if (FAILED(hr)) {
+        std::cerr << "H.264: ProcessMessage FLUSH failed: " << std::hex << hr << std::dec << std::endl;
+        Cleanup();
+        return false;
+    }
+    
     hr = m_encoder->ProcessMessage(MFT_MESSAGE_NOTIFY_BEGIN_STREAMING, 0);
+    if (FAILED(hr)) {
+        std::cerr << "H.264: ProcessMessage BEGIN_STREAMING failed: " << std::hex << hr << std::dec << std::endl;
+        Cleanup();
+        return false;
+    }
+    
     hr = m_encoder->ProcessMessage(MFT_MESSAGE_NOTIFY_START_OF_STREAM, 0);
+    if (FAILED(hr)) {
+        std::cerr << "H.264: ProcessMessage START_OF_STREAM failed: " << std::hex << hr << std::dec << std::endl;
+        Cleanup();
+        return false;
+    }
+    
+    std::cout << "H.264: ProcessMessage calls completed successfully" << std::endl;
     
     m_initialized = true;
     std::cout << "H.264 Encoder initialized: " << width << "x" << height << " @ " << fps << " FPS" << std::endl;
@@ -112,22 +156,47 @@ HRESULT H264Encoder::CreateInputMediaType() {
     HRESULT hr = MFCreateMediaType(&m_inputType);
     if (FAILED(hr)) return hr;
     
+    // Start simple with RGB32 format which matches our BGRA input
     hr = m_inputType->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Video);
-    if (FAILED(hr)) return hr;
+    if (FAILED(hr)) {
+        std::cerr << "H.264: Failed to set major type: " << std::hex << hr << std::dec << std::endl;
+        return hr;
+    }
     
     hr = m_inputType->SetGUID(MF_MT_SUBTYPE, MFVideoFormat_RGB32);
-    if (FAILED(hr)) return hr;
+    if (FAILED(hr)) {
+        std::cerr << "H.264: Failed to set RGB32 subtype: " << std::hex << hr << std::dec << std::endl;
+        return hr;
+    }
     
     hr = MFSetAttributeSize(m_inputType, MF_MT_FRAME_SIZE, m_width, m_height);
-    if (FAILED(hr)) return hr;
+    if (FAILED(hr)) {
+        std::cerr << "H.264: Failed to set frame size: " << std::hex << hr << std::dec << std::endl;
+        return hr;
+    }
     
     hr = MFSetAttributeRatio(m_inputType, MF_MT_FRAME_RATE, 60, 1);
-    if (FAILED(hr)) return hr;
+    if (FAILED(hr)) {
+        std::cerr << "H.264: Failed to set frame rate: " << std::hex << hr << std::dec << std::endl;
+        return hr;
+    }
     
     hr = m_inputType->SetUINT32(MF_MT_INTERLACE_MODE, MFVideoInterlace_Progressive);
-    if (FAILED(hr)) return hr;
+    if (FAILED(hr)) {
+        std::cerr << "H.264: Failed to set interlace mode: " << std::hex << hr << std::dec << std::endl;
+        return hr;
+    }
     
-    return m_encoder->SetInputType(0, m_inputType, 0);
+    std::cout << "H.264: Setting RGB32 input type on encoder..." << std::endl;
+    hr = m_encoder->SetInputType(0, m_inputType, 0);
+    if (FAILED(hr)) {
+        std::cerr << "H.264: Failed to set RGB32 input type: " << std::hex << hr << std::dec << std::endl;
+        return hr;
+    }
+    
+    m_inputFormat = MFVideoFormat_RGB32;
+    std::cout << "H.264: RGB32 input type set successfully" << std::endl;
+    return S_OK;
 }
 
 HRESULT H264Encoder::CreateOutputMediaType() {
@@ -149,7 +218,14 @@ HRESULT H264Encoder::CreateOutputMediaType() {
     hr = m_outputType->SetUINT32(MF_MT_INTERLACE_MODE, MFVideoInterlace_Progressive);
     if (FAILED(hr)) return hr;
     
-    return m_encoder->SetOutputType(0, m_outputType, 0);
+    std::cout << "H.264: Setting output media type..." << std::endl;
+    hr = m_encoder->SetOutputType(0, m_outputType, 0);
+    if (FAILED(hr)) {
+        std::cerr << "H.264: Failed to set output type: " << std::hex << hr << std::dec << std::endl;
+        return hr;
+    }
+    std::cout << "H.264: Output media type set successfully" << std::endl;
+    return S_OK;
 }
 
 bool H264Encoder::EncodeFrame(const uint8_t* frameData, std::vector<uint8_t>& compressedData, bool& isKeyframe) {
@@ -164,7 +240,8 @@ bool H264Encoder::EncodeFrame(const uint8_t* frameData, std::vector<uint8_t>& co
         hr = MFCreateSample(&m_inputSample);
         if (FAILED(hr)) return false;
         
-        DWORD bufferSize = m_width * m_height * 4; // BGRA
+        // RGB32 format: 4 bytes per pixel (BGRA)
+        DWORD bufferSize = m_width * m_height * 4;
         hr = MFCreateMemoryBuffer(bufferSize, &m_inputBuffer);
         if (FAILED(hr)) return false;
         
@@ -172,12 +249,13 @@ bool H264Encoder::EncodeFrame(const uint8_t* frameData, std::vector<uint8_t>& co
         if (FAILED(hr)) return false;
     }
     
-    // Copy frame data to buffer
+    // Copy frame data directly (BGRA matches RGB32)
     BYTE* bufferData = nullptr;
     DWORD maxLength = 0;
     hr = m_inputBuffer->Lock(&bufferData, &maxLength, nullptr);
     if (FAILED(hr)) return false;
     
+    // Direct copy since BGRA input matches RGB32 format
     DWORD frameSize = m_width * m_height * 4;
     memcpy(bufferData, frameData, frameSize);
     
@@ -299,5 +377,55 @@ void H264Encoder::Cleanup() {
         
         MFShutdown();
         m_initialized = false;
+    }
+}
+
+void H264Encoder::ConvertBGRAtoNV12(const uint8_t* bgra, uint8_t* nv12, int width, int height) {
+    // NV12 format: Y plane followed by interleaved UV plane
+    uint8_t* yPlane = nv12;
+    uint8_t* uvPlane = nv12 + (width * height);
+    
+    // Convert BGRA to Y (luminance) plane
+    for (int y = 0; y < height; y++) {
+        for (int x = 0; x < width; x++) {
+            int bgraIdx = (y * width + x) * 4;
+            int yIdx = y * width + x;
+            
+            uint8_t b = bgra[bgraIdx + 0];
+            uint8_t g = bgra[bgraIdx + 1];
+            uint8_t r = bgra[bgraIdx + 2];
+            
+            // ITU-R BT.709 Y conversion
+            yPlane[yIdx] = (uint8_t)(0.2126 * r + 0.7152 * g + 0.0722 * b + 0.5);
+        }
+    }
+    
+    // Convert BGRA to UV (chrominance) plane (NV12 = interleaved U,V at half resolution)
+    for (int y = 0; y < height; y += 2) {
+        for (int x = 0; x < width; x += 2) {
+            // Sample 2x2 block and average
+            float rSum = 0, gSum = 0, bSum = 0;
+            for (int dy = 0; dy < 2 && (y + dy) < height; dy++) {
+                for (int dx = 0; dx < 2 && (x + dx) < width; dx++) {
+                    int bgraIdx = ((y + dy) * width + (x + dx)) * 4;
+                    bSum += bgra[bgraIdx + 0];
+                    gSum += bgra[bgraIdx + 1];
+                    rSum += bgra[bgraIdx + 2];
+                }
+            }
+            
+            float rAvg = rSum / 4.0f;
+            float gAvg = gSum / 4.0f;
+            float bAvg = bSum / 4.0f;
+            
+            // ITU-R BT.709 UV conversion
+            uint8_t u = (uint8_t)(128 + (-0.1146 * rAvg - 0.3854 * gAvg + 0.5000 * bAvg) + 0.5);
+            uint8_t v = (uint8_t)(128 + (0.5000 * rAvg - 0.4542 * gAvg - 0.0458 * bAvg) + 0.5);
+            
+            // NV12 stores UV interleaved
+            int uvIdx = (y / 2) * width + x;
+            uvPlane[uvIdx + 0] = u;
+            uvPlane[uvIdx + 1] = v;
+        }
     }
 }
