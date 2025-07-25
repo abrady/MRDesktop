@@ -93,7 +93,7 @@ void NetworkClient::ReceiveThreadProc() {
         }
         
         // Debug: Print received message details
-        std::cout << "Received message - Type: " << frameMsg.header.type 
+        std::cout << "Received message - Type: " << std::dec << frameMsg.header.type 
                   << ", Size: " << frameMsg.header.size 
                   << ", Width: " << frameMsg.width 
                   << ", Height: " << frameMsg.height << std::endl;

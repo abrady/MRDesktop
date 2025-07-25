@@ -3,6 +3,11 @@
 #include <iomanip>
 #include <sstream>
 #include <filesystem>
+#include <algorithm>
+#ifdef _WIN32
+#define NOMINMAX
+#include <windows.h>
+#endif
 
 FrameLogger::FrameLogger(uint32_t maxFrames, const std::string& outputDir)
     : m_maxFrames(maxFrames)
@@ -43,6 +48,47 @@ bool FrameLogger::LogFrame(uint32_t width, uint32_t height, uint32_t dataSize, c
     return true;
 }
 
+bool FrameLogger::SaveFrameAsBMP(uint32_t width, uint32_t height, const std::vector<uint8_t>& frameData, const std::string& filename) {
+#ifdef _WIN32
+    // Create BMP file headers (assumes BGRA format)
+    BITMAPFILEHEADER fileHeader = {};
+    BITMAPINFOHEADER infoHeader = {};
+
+    fileHeader.bfType = 0x4D42; // "BM"
+    fileHeader.bfSize = sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER) + frameData.size();
+    fileHeader.bfOffBits = sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER);
+
+    infoHeader.biSize = sizeof(BITMAPINFOHEADER);
+    infoHeader.biWidth = width;
+    infoHeader.biHeight = -(int)height; // Top-down DIB
+    infoHeader.biPlanes = 1;
+    infoHeader.biBitCount = 32;
+    infoHeader.biCompression = BI_RGB;
+    infoHeader.biSizeImage = frameData.size();
+
+    HANDLE hFile = CreateFileA(filename.c_str(), GENERIC_WRITE, 0, nullptr,
+                               CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (hFile != INVALID_HANDLE_VALUE) {
+        DWORD written;
+        bool success = WriteFile(hFile, &fileHeader, sizeof(fileHeader), &written, nullptr) &&
+                       WriteFile(hFile, &infoHeader, sizeof(infoHeader), &written, nullptr) &&
+                       WriteFile(hFile, frameData.data(), frameData.size(), &written, nullptr);
+        CloseHandle(hFile);
+        return success;
+    }
+    return false;
+#else
+    // For non-Windows platforms, save as raw data for now
+    std::ofstream file(filename, std::ios::binary);
+    if (file.is_open()) {
+        file.write(reinterpret_cast<const char*>(frameData.data()), frameData.size());
+        file.close();
+        return true;
+    }
+    return false;
+#endif
+}
+
 void FrameLogger::SaveFramesToDisk() {
     if (m_loggedFrames.empty()) {
         std::cout << "FrameLogger: No frames to save" << std::endl;
@@ -51,13 +97,10 @@ void FrameLogger::SaveFramesToDisk() {
     
     EnsureOutputDirectory();
     
-    // Save frame data files
+    // Save frame data files as BMP
     for (const auto& frame : m_loggedFrames) {
         std::string framePath = m_outputDir + "/" + frame.filename;
-        std::ofstream file(framePath, std::ios::binary);
-        if (file.is_open()) {
-            file.write(reinterpret_cast<const char*>(frame.frameData.data()), frame.dataSize);
-            file.close();
+        if (SaveFrameAsBMP(frame.width, frame.height, frame.frameData, framePath)) {
             std::cout << "FrameLogger: Saved " << framePath << std::endl;
         } else {
             std::cerr << "FrameLogger: Failed to save " << framePath << std::endl;
@@ -147,6 +190,6 @@ void FrameLogger::EnsureOutputDirectory() {
 std::string FrameLogger::GenerateFrameFilename(uint32_t frameIndex, uint32_t width, uint32_t height) {
     std::ostringstream oss;
     oss << "frame_" << std::setfill('0') << std::setw(3) << frameIndex 
-        << "_" << width << "x" << height << ".bgra";
+        << "_" << width << "x" << height << ".bmp";
     return oss.str();
 }

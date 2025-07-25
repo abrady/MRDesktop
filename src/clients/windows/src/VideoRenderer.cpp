@@ -50,29 +50,40 @@ void VideoRenderer::Cleanup() {
 HRESULT VideoRenderer::CreateDeviceIndependentResources() {
     // Create Direct2D factory
     HRESULT hr = D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &m_pD2DFactory);
-    
-    if (SUCCEEDED(hr)) {
-        // Create DirectWrite factory
-        hr = DWriteCreateFactory(
-            DWRITE_FACTORY_TYPE_SHARED,
-            __uuidof(m_pDWriteFactory),
-            reinterpret_cast<IUnknown**>(&m_pDWriteFactory)
-        );
+    if (FAILED(hr)) {
+        std::cout << "Failed to create Direct2D factory. HRESULT: 0x" << std::hex << hr << std::dec << std::endl;
+        return hr;
     }
+    std::cout << "Direct2D factory created successfully" << std::endl;
     
-    if (SUCCEEDED(hr)) {
-        // Create text format
-        hr = m_pDWriteFactory->CreateTextFormat(
-            L"Segoe UI",
-            nullptr,
-            DWRITE_FONT_WEIGHT_NORMAL,
-            DWRITE_FONT_STYLE_NORMAL,
-            DWRITE_FONT_STRETCH_NORMAL,
-            12.0f,
-            L"",
-            &m_pTextFormat
-        );
+    // Create DirectWrite factory
+    hr = DWriteCreateFactory(
+        DWRITE_FACTORY_TYPE_SHARED,
+        __uuidof(m_pDWriteFactory),
+        reinterpret_cast<IUnknown**>(&m_pDWriteFactory)
+    );
+    if (FAILED(hr)) {
+        std::cout << "Failed to create DirectWrite factory. HRESULT: 0x" << std::hex << hr << std::dec << std::endl;
+        return hr;
     }
+    std::cout << "DirectWrite factory created successfully" << std::endl;
+    
+    // Create text format
+    hr = m_pDWriteFactory->CreateTextFormat(
+        L"Segoe UI",
+        nullptr,
+        DWRITE_FONT_WEIGHT_NORMAL,
+        DWRITE_FONT_STYLE_NORMAL,
+        DWRITE_FONT_STRETCH_NORMAL,
+        12.0f,
+        L"",
+        &m_pTextFormat
+    );
+    if (FAILED(hr)) {
+        std::cout << "Failed to create text format. HRESULT: 0x" << std::hex << hr << std::dec << std::endl;
+        return hr;
+    }
+    std::cout << "Text format created successfully" << std::endl;
     
     return hr;
 }
@@ -88,6 +99,14 @@ HRESULT VideoRenderer::CreateDeviceResources() {
         rc.bottom - rc.top
     );
     
+    std::cout << "Creating render target for window size: " << std::dec << size.width << "x" << size.height << std::endl;
+    
+    // Check for invalid window size
+    if (size.width == 0 || size.height == 0) {
+        std::cout << "Window has zero size, cannot create render target yet" << std::endl;
+        return E_FAIL;
+    }
+    
     // Create render target
     HRESULT hr = m_pD2DFactory->CreateHwndRenderTarget(
         D2D1::RenderTargetProperties(),
@@ -95,13 +114,22 @@ HRESULT VideoRenderer::CreateDeviceResources() {
         &m_pRenderTarget
     );
     
-    if (SUCCEEDED(hr)) {
-        // Create text brush
-        hr = m_pRenderTarget->CreateSolidColorBrush(
-            D2D1::ColorF(D2D1::ColorF::White),
-            &m_pTextBrush
-        );
+    if (FAILED(hr)) {
+        std::cout << "Failed to create HWND render target. HRESULT: 0x" << std::hex << hr << std::dec << std::endl;
+        return hr;
     }
+    std::cout << "HWND render target created successfully" << std::endl;
+    
+    // Create text brush
+    hr = m_pRenderTarget->CreateSolidColorBrush(
+        D2D1::ColorF(D2D1::ColorF::White),
+        &m_pTextBrush
+    );
+    if (FAILED(hr)) {
+        std::cout << "Failed to create text brush. HRESULT: 0x" << std::hex << hr << std::dec << std::endl;
+        return hr;
+    }
+    std::cout << "Text brush created successfully" << std::endl;
     
     return hr;
 }
