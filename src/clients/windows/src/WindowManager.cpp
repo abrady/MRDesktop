@@ -299,9 +299,7 @@ void WindowManager::OnKeyDown(WPARAM key) {
             break;
             
         case VK_ESCAPE:
-            if (m_connectionState == ConnectionState::Connected) {
-                DisconnectFromServer();
-            }
+            PostQuitMessage(0);
             break;
     }
 }
