@@ -418,6 +418,7 @@ int main() {
     int frameCount = 0;
     auto startTime = std::chrono::high_resolution_clock::now();
     
+
     // Initialize encoders
     H264Encoder h264Encoder;
     AV1Encoder av1Encoder;
