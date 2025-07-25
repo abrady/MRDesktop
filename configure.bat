@@ -8,6 +8,28 @@ if "%1"=="Release" set BUILD_TYPE=Release
 
 echo Build type: %BUILD_TYPE%
 
+REM Initialize vcpkg submodule if not already done
+if not exist "extern\vcpkg\.git" (
+    echo Initializing vcpkg submodule...
+    git submodule update --init --recursive extern/vcpkg
+    if %errorlevel% neq 0 (
+        echo Failed to initialize vcpkg submodule!
+        pause
+        exit /b 1
+    )
+)
+
+REM Bootstrap vcpkg if not already done
+if not exist "extern\vcpkg\vcpkg.exe" (
+    echo Bootstrapping vcpkg...
+    call extern\vcpkg\bootstrap-vcpkg.bat
+    if %errorlevel% neq 0 (
+        echo Failed to bootstrap vcpkg!
+        pause
+        exit /b 1
+    )
+)
+
 REM Configure with the appropriate preset
 if "%BUILD_TYPE%"=="Debug" (
     cmake --preset windows-debug
