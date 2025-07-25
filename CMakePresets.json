@@ -20,6 +20,9 @@
                 "CMAKE_BUILD_TYPE": "Debug",
                 "CMAKE_INSTALL_PREFIX": "${sourceDir}/install/debug"
             },
+            "environment": {
+                "VCPKG_BUILD_TYPE": "release"
+            },
             "condition": {
                 "type": "equals",
                 "lhs": "${hostSystemName}",
@@ -62,6 +65,9 @@
                 "CMAKE_BUILD_TYPE": "Debug",
                 "CMAKE_INSTALL_PREFIX": "${sourceDir}/install/debug"
             },
+            "environment": {
+                "VCPKG_BUILD_TYPE": "release"
+            },
             "condition": {
                 "type": "equals",
                 "lhs": "${hostSystemName}",
@@ -101,7 +107,8 @@
             },
             "toolchainFile": "$env{CMAKE_ANDROID_NDK}/build/cmake/android.toolchain.cmake",
             "environment": {
-                "CMAKE_ANDROID_NDK": "$env{ANDROID_NDK_HOME}"
+                "CMAKE_ANDROID_NDK": "$env{ANDROID_NDK_HOME}",
+                "VCPKG_BUILD_TYPE": "release"
             }
         },
         {
@@ -121,7 +128,8 @@
             },
             "toolchainFile": "${sourceDir}/extern/vcpkg/scripts/buildsystems/vcpkg.cmake",
             "environment": {
-                "CMAKE_ANDROID_NDK": "$env{ANDROID_NDK_HOME}"
+                "CMAKE_ANDROID_NDK": "$env{ANDROID_NDK_HOME}",
+                "VCPKG_BUILD_TYPE": "release"
             }
         },
         {
@@ -159,7 +167,8 @@
             },
             "toolchainFile": "$env{CMAKE_ANDROID_NDK}/build/cmake/android.toolchain.cmake",
             "environment": {
-                "CMAKE_ANDROID_NDK": "$env{ANDROID_NDK_HOME}"
+                "CMAKE_ANDROID_NDK": "$env{ANDROID_NDK_HOME}",
+                "VCPKG_BUILD_TYPE": "release"
             }
         }
     ],

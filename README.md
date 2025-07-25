@@ -10,6 +10,8 @@
   * `tools\build_apk_standalone.bat`
 * for an OpenXR build targeting Quest 3 use the `android-openxr-arm64-debug` preset (requires `vcpkg` and the `openxr-loader` package)
 
+This repository always links against the release build of FFmpeg. The build scripts set the environment variable `VCPKG_BUILD_TYPE=release` so that vcpkg provides release libraries even when the project itself is compiled in debug mode.
+
 [README_ANDROID.md](README_ANDROID.md)
 
 ## Testing
