@@ -34,6 +34,9 @@ fi
 
 echo "Found Android NDK at: $ANDROID_NDK_HOME"
 
+# Always use release libraries from vcpkg (e.g. FFmpeg)
+export VCPKG_BUILD_TYPE=release
+
 # Set environment variables
 export CMAKE_ANDROID_NDK="$ANDROID_NDK_HOME"
 

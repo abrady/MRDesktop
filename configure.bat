@@ -8,6 +8,9 @@ if "%1"=="Release" set BUILD_TYPE=Release
 
 echo Build type: %BUILD_TYPE%
 
+REM Always use release libraries from vcpkg (e.g. FFmpeg)
+set VCPKG_BUILD_TYPE=release
+
 REM Initialize vcpkg submodule if not already done
 if not exist "extern\vcpkg\.git" (
     echo Initializing vcpkg submodule...
