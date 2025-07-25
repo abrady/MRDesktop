@@ -100,6 +100,7 @@ void PrintUsage()
     std::cout << "Options:" << std::endl;
     std::cout << "  --ip=<address>     Server IP address (default: 127.0.0.1)" << std::endl;
     std::cout << "  --port=<port>      Server port (default: 8080)" << std::endl;
+    std::cout << "  --compression=<none|h264|av1>  Preferred compression (default: av1)" << std::endl;
     std::cout << "  --debug-frames[=N] Save first N frames for debugging (default: 5)" << std::endl;
     std::cout << "  --help             Show this help message" << std::endl;
 }
@@ -109,6 +110,7 @@ int main(int argc, char *argv[])
     // Parse command line arguments
     std::string serverIP = "127.0.0.1";
     int serverPort = 8080;
+    CompressionType compression = COMPRESSION_AV1;
     bool debugFrames = false;
     int maxDebugFrames = 5;
 
@@ -128,6 +130,17 @@ int main(int argc, char *argv[])
         else if (arg.find("--port=") == 0)
         {
             serverPort = std::stoi(arg.substr(7));
+        }
+        else if (arg.find("--compression=") == 0)
+        {
+            std::string mode = arg.substr(14);
+            std::transform(mode.begin(), mode.end(), mode.begin(), ::tolower);
+            if (mode == "av1")
+                compression = COMPRESSION_AV1;
+            else if (mode == "none")
+                compression = COMPRESSION_NONE;
+            else
+                compression = COMPRESSION_H264;
         }
         else if (arg == "--debug-frames")
         {
@@ -183,7 +196,15 @@ int main(int argc, char *argv[])
         return 1;
     }
 
+    // Send compression request
+    CompressionRequestMessage req;
+    req.header.type = MSG_COMPRESSION_REQUEST;
+    req.header.size = sizeof(CompressionRequestMessage);
+    req.compression = compression;
+    send(receiver.GetSocket(), reinterpret_cast<char*>(&req), sizeof(req), 0);
+
     std::cout << "Connected to MRDesktop Server!" << std::endl;
+    std::cout << "Requested compression mode: " << compression << std::endl;
     std::cout << "Receiving desktop stream..." << std::endl;
     std::cout << std::endl;
     std::cout << "=== MOUSE CONTROL MODE ===" << std::endl;
