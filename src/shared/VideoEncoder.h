@@ -1,5 +1,10 @@
 #pragma once
 
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable: 4244) // Disable conversion warnings from FFmpeg headers
+#endif
+
 extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
@@ -7,6 +12,10 @@ extern "C" {
 #include <libavutil/opt.h>
 #include <libavutil/frame.h>
 }
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 
 #include <vector>
 #include <memory>
