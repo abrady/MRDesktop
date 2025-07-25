@@ -55,7 +55,9 @@
       "Bash(./configure.bat)",
       "Bash(echo $SHELL)",
       "Bash(/c/Windows/system32/cmd.exe /c configure.bat)",
-      "Bash(/c/Windows/system32/cmd.exe /c \"build.bat\")"
+      "Bash(/c/Windows/system32/cmd.exe /c \"build.bat\")",
+      "Bash(builddebugbin:*)",
+      "Bash(build/debug/bin/Debug/MRDesktopWindowsClient.exe --ip=127.0.0.1)"
     ],
     "deny": []
   }

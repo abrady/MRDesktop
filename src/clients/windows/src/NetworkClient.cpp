@@ -60,6 +60,24 @@ bool NetworkClient::Connect(const std::string& serverIP, int port) {
         return false;
     }
     
+    // Send compression negotiation message to server
+    CompressionRequestMessage compressionMsg;
+    compressionMsg.header.type = MSG_COMPRESSION_REQUEST;
+    compressionMsg.header.size = sizeof(CompressionRequestMessage);
+    compressionMsg.compression = COMPRESSION_NONE; // Request no compression for now
+    
+    int sent = send(m_socket, reinterpret_cast<const char*>(&compressionMsg), sizeof(compressionMsg), 0);
+    if (sent != sizeof(compressionMsg)) {
+        if (m_onError) {
+            m_onError("Failed to send compression negotiation message");
+        }
+        closesocket(m_socket);
+        m_socket = INVALID_SOCKET;
+        return false;
+    }
+    
+    std::cout << "Sent compression negotiation message (COMPRESSION_NONE)" << std::endl;
+    
     // Start receiving thread
     m_isConnected = true;
     m_shouldStop = false;
