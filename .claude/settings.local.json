@@ -58,7 +58,8 @@
       "Bash(/c/Windows/system32/cmd.exe /c \"build.bat\")",
       "Bash(builddebugbin:*)",
       "Bash(build/debug/bin/Debug/MRDesktopWindowsClient.exe --ip=127.0.0.1)",
-      "Bash(./MRDesktopServer.exe)"
+      "Bash(./MRDesktopServer.exe)",
+      "Bash(./test_framereceiver.exe)"
     ],
     "deny": []
   }

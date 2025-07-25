@@ -14,53 +14,6 @@
 
 #pragma comment(lib, "ws2_32.lib")
 
-class InputSender
-{
-private:
-    SOCKET m_Socket = INVALID_SOCKET;
-
-public:
-    InputSender(SOCKET socket) : m_Socket(socket) {}
-
-    bool SendMouseMove(INT32 deltaX, INT32 deltaY, UINT32 absolute = 0, INT32 x = 0, INT32 y = 0)
-    {
-        MouseMoveMessage msg;
-        msg.header.type = MSG_MOUSE_MOVE;
-        msg.header.size = sizeof(MouseMoveMessage);
-        msg.deltaX = deltaX;
-        msg.deltaY = deltaY;
-        msg.absolute = absolute;
-        msg.x = x;
-        msg.y = y;
-
-        int sent = send(m_Socket, (char *)&msg, sizeof(msg), 0);
-        return sent == sizeof(msg);
-    }
-
-    bool SendMouseClick(MouseClickMessage::MouseButton button, UINT32 pressed)
-    {
-        MouseClickMessage msg;
-        msg.header.type = MSG_MOUSE_CLICK;
-        msg.header.size = sizeof(MouseClickMessage);
-        msg.button = button;
-        msg.pressed = pressed;
-
-        int sent = send(m_Socket, (char *)&msg, sizeof(msg), 0);
-        return sent == sizeof(msg);
-    }
-
-    bool SendMouseScroll(INT32 deltaX, INT32 deltaY)
-    {
-        MouseScrollMessage msg;
-        msg.header.type = MSG_MOUSE_SCROLL;
-        msg.header.size = sizeof(MouseScrollMessage);
-        msg.deltaX = deltaX;
-        msg.deltaY = deltaY;
-
-        int sent = send(m_Socket, (char *)&msg, sizeof(msg), 0);
-        return sent == sizeof(msg);
-    }
-};
 
 void SaveFrameAsBMP(const FrameMessage &frameMsg, const std::vector<uint8_t> &frameData, const std::string &filename)
 {
@@ -200,11 +153,7 @@ int main(int argc, char *argv[])
     }
 
     // Send compression request
-    CompressionRequestMessage req;
-    req.header.type = MSG_COMPRESSION_REQUEST;
-    req.header.size = sizeof(CompressionRequestMessage);
-    req.compression = compression;
-    send(receiver.GetSocket(), reinterpret_cast<char*>(&req), sizeof(req), 0);
+    receiver.SendCompressionRequest(compression);
 
     std::cout << "Connected to MRDesktop Server!" << std::endl;
     std::cout << "Requested compression mode: " << compression << std::endl;
@@ -218,8 +167,7 @@ int main(int argc, char *argv[])
     std::cout << "ESC: Exit control mode" << std::endl;
     std::cout << "===========================" << std::endl;
 
-    // Create input sender
-    InputSender inputSender(receiver.GetSocket());
+    // Input will be sent directly through receiver methods
 
     // Set console to raw input mode
     HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
@@ -251,19 +199,19 @@ int main(int argc, char *argv[])
                 switch (key)
                 {
                 case 72: // Up arrow
-                    inputSender.SendMouseMove(0, -MOUSE_SPEED);
+                    receiver.SendMouseMove(0, -MOUSE_SPEED);
                     std::cout << "Mouse up" << std::endl;
                     break;
                 case 80: // Down arrow
-                    inputSender.SendMouseMove(0, MOUSE_SPEED);
+                    receiver.SendMouseMove(0, MOUSE_SPEED);
                     std::cout << "Mouse down" << std::endl;
                     break;
                 case 75: // Left arrow
-                    inputSender.SendMouseMove(-MOUSE_SPEED, 0);
+                    receiver.SendMouseMove(-MOUSE_SPEED, 0);
                     std::cout << "Mouse left" << std::endl;
                     break;
                 case 77: // Right arrow
-                    inputSender.SendMouseMove(MOUSE_SPEED, 0);
+                    receiver.SendMouseMove(MOUSE_SPEED, 0);
                     std::cout << "Mouse right" << std::endl;
                     break;
                 }
@@ -275,44 +223,44 @@ int main(int argc, char *argv[])
                 {
                 case 'w':
                 case 'W':
-                    inputSender.SendMouseMove(0, -MOUSE_SPEED);
+                    receiver.SendMouseMove(0, -MOUSE_SPEED);
                     std::cout << "Mouse up" << std::endl;
                     break;
                 case 's':
                 case 'S':
-                    inputSender.SendMouseMove(0, MOUSE_SPEED);
+                    receiver.SendMouseMove(0, MOUSE_SPEED);
                     std::cout << "Mouse down" << std::endl;
                     break;
                 case 'a':
                 case 'A':
-                    inputSender.SendMouseMove(-MOUSE_SPEED, 0);
+                    receiver.SendMouseMove(-MOUSE_SPEED, 0);
                     std::cout << "Mouse left" << std::endl;
                     break;
                 case 'd':
                 case 'D':
-                    inputSender.SendMouseMove(MOUSE_SPEED, 0);
+                    receiver.SendMouseMove(MOUSE_SPEED, 0);
                     std::cout << "Mouse right" << std::endl;
                     break;
                 case ' ': // Space - left click
-                    inputSender.SendMouseClick(MouseClickMessage::LEFT_BUTTON, 1);
+                    receiver.SendMouseClick(MouseClickMessage::LEFT_BUTTON, true);
                     std::this_thread::sleep_for(std::chrono::milliseconds(50));
-                    inputSender.SendMouseClick(MouseClickMessage::LEFT_BUTTON, 0);
+                    receiver.SendMouseClick(MouseClickMessage::LEFT_BUTTON, false);
                     std::cout << "Left click" << std::endl;
                     break;
                 case '\r': // Enter - right click
-                    inputSender.SendMouseClick(MouseClickMessage::RIGHT_BUTTON, 1);
+                    receiver.SendMouseClick(MouseClickMessage::RIGHT_BUTTON, true);
                     std::this_thread::sleep_for(std::chrono::milliseconds(50));
-                    inputSender.SendMouseClick(MouseClickMessage::RIGHT_BUTTON, 0);
+                    receiver.SendMouseClick(MouseClickMessage::RIGHT_BUTTON, false);
                     std::cout << "Right click" << std::endl;
                     break;
                 case 'q':
                 case 'Q': // Scroll up
-                    inputSender.SendMouseScroll(0, 1);
+                    receiver.SendMouseScroll(0, 1);
                     std::cout << "Scroll up" << std::endl;
                     break;
                 case 'e':
                 case 'E': // Scroll down
-                    inputSender.SendMouseScroll(0, -1);
+                    receiver.SendMouseScroll(0, -1);
                     std::cout << "Scroll down" << std::endl;
                     break;
                 case 27: // ESC

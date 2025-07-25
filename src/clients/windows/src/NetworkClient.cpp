@@ -34,7 +34,10 @@ bool NetworkClient::Connect(const std::string& serverIP, int port) {
     }
     
     // Send compression negotiation message to server
-    if (!SendCompressionRequest()) {
+    if (!m_frameReceiver.SendCompressionRequest(COMPRESSION_H264)) {
+        if (m_onError) {
+            m_onError("Failed to send compression negotiation message");
+        }
         m_frameReceiver.Disconnect();
         return false;
     }
@@ -107,64 +110,18 @@ void NetworkClient::ReceiveThreadProc() {
     }
 }
 
-bool NetworkClient::SendCompressionRequest() {
-    CompressionRequestMessage compressionMsg;
-    compressionMsg.header.type = MSG_COMPRESSION_REQUEST;
-    compressionMsg.header.size = sizeof(CompressionRequestMessage);
-    compressionMsg.compression = COMPRESSION_H264; // Request H.264 compression
-    
-    SOCKET socket = m_frameReceiver.GetSocket();
-    int sent = send(socket, reinterpret_cast<const char*>(&compressionMsg), sizeof(compressionMsg), 0);
-    if (sent != sizeof(compressionMsg)) {
-        if (m_onError) {
-            m_onError("Failed to send compression negotiation message");
-        }
-        return false;
-    }
-    return true;
-}
 
 bool NetworkClient::SendMouseMove(int32_t deltaX, int32_t deltaY, bool absolute, int32_t x, int32_t y) {
     if (!m_isConnected) return false;
-    
-    MouseMoveMessage msg;
-    msg.header.type = MSG_MOUSE_MOVE;
-    msg.header.size = sizeof(MouseMoveMessage);
-    msg.deltaX = deltaX;
-    msg.deltaY = deltaY;
-    msg.absolute = absolute;
-    msg.x = x;
-    msg.y = y;
-    
-    SOCKET socket = m_frameReceiver.GetSocket();
-    int sent = send(socket, reinterpret_cast<const char*>(&msg), sizeof(msg), 0);
-    return sent == sizeof(msg);
+    return m_frameReceiver.SendMouseMove(deltaX, deltaY, absolute, x, y);
 }
 
 bool NetworkClient::SendMouseClick(MouseClickMessage::MouseButton button, bool pressed) {
     if (!m_isConnected) return false;
-    
-    MouseClickMessage msg;
-    msg.header.type = MSG_MOUSE_CLICK;
-    msg.header.size = sizeof(MouseClickMessage);
-    msg.button = button;
-    msg.pressed = pressed;
-    
-    SOCKET socket = m_frameReceiver.GetSocket();
-    int sent = send(socket, reinterpret_cast<const char*>(&msg), sizeof(msg), 0);
-    return sent == sizeof(msg);
+    return m_frameReceiver.SendMouseClick(button, pressed);
 }
 
 bool NetworkClient::SendMouseScroll(int32_t deltaX, int32_t deltaY) {
     if (!m_isConnected) return false;
-    
-    MouseScrollMessage msg;
-    msg.header.type = MSG_MOUSE_SCROLL;
-    msg.header.size = sizeof(MouseScrollMessage);
-    msg.deltaX = deltaX;
-    msg.deltaY = deltaY;
-    
-    SOCKET socket = m_frameReceiver.GetSocket();
-    int sent = send(socket, reinterpret_cast<const char*>(&msg), sizeof(msg), 0);
-    return sent == sizeof(msg);
+    return m_frameReceiver.SendMouseScroll(deltaX, deltaY);
 }

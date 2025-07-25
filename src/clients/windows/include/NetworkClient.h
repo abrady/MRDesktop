@@ -25,7 +25,6 @@ private:
     std::function<void()> m_onDisconnected;
     
     void ReceiveThreadProc();
-    bool SendCompressionRequest();
     
 public:
     NetworkClient();

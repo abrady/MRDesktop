@@ -34,7 +34,13 @@ public:
     bool Connect(const char* serverIP, int port);
     void SetCompression(CompressionType compression) { m_compression = compression; }
     bool ReceiveFrame(FrameMessage& frameMsg, std::vector<uint8_t>& frameData, int frameNumber = 0);
+    
+    // Input message sending methods
+    bool SendCompressionRequest(CompressionType compression);
+    bool SendMouseMove(int32_t deltaX, int32_t deltaY, bool absolute = false, int32_t x = 0, int32_t y = 0);
+    bool SendMouseClick(MouseClickMessage::MouseButton button, bool pressed);
+    bool SendMouseScroll(int32_t deltaX, int32_t deltaY);
+    
     void Disconnect();
-    SocketType GetSocket() const { return m_socket; }
     ~FrameReceiver();
 };

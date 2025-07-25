@@ -103,6 +103,60 @@ void FrameReceiver::Disconnect() {
     }
 }
 
+bool FrameReceiver::SendCompressionRequest(CompressionType compression) {
+    if (m_socket == INVALID_SOCKET) return false;
+    
+    CompressionRequestMessage msg;
+    msg.header.type = MSG_COMPRESSION_REQUEST;
+    msg.header.size = sizeof(CompressionRequestMessage);
+    msg.compression = compression;
+    
+    int sent = send(m_socket, reinterpret_cast<const char*>(&msg), sizeof(msg), 0);
+    return sent == sizeof(msg);
+}
+
+bool FrameReceiver::SendMouseMove(int32_t deltaX, int32_t deltaY, bool absolute, int32_t x, int32_t y) {
+    if (m_socket == INVALID_SOCKET) return false;
+    
+    MouseMoveMessage msg;
+    msg.header.type = MSG_MOUSE_MOVE;
+    msg.header.size = sizeof(MouseMoveMessage);
+    msg.deltaX = deltaX;
+    msg.deltaY = deltaY;
+    msg.absolute = absolute ? 1 : 0;
+    msg.x = x;
+    msg.y = y;
+    
+    int sent = send(m_socket, reinterpret_cast<const char*>(&msg), sizeof(msg), 0);
+    return sent == sizeof(msg);
+}
+
+bool FrameReceiver::SendMouseClick(MouseClickMessage::MouseButton button, bool pressed) {
+    if (m_socket == INVALID_SOCKET) return false;
+    
+    MouseClickMessage msg;
+    msg.header.type = MSG_MOUSE_CLICK;
+    msg.header.size = sizeof(MouseClickMessage);
+    msg.button = button;
+    msg.pressed = pressed ? 1 : 0;
+    
+    int sent = send(m_socket, reinterpret_cast<const char*>(&msg), sizeof(msg), 0);
+    return sent == sizeof(msg);
+}
+
+bool FrameReceiver::SendMouseScroll(int32_t deltaX, int32_t deltaY) {
+    if (m_socket == INVALID_SOCKET) return false;
+    
+    MouseScrollMessage msg;
+    msg.header.type = MSG_MOUSE_SCROLL;
+    msg.header.size = sizeof(MouseScrollMessage);
+    msg.deltaX = deltaX;
+    msg.deltaY = deltaY;
+    
+    int sent = send(m_socket, reinterpret_cast<const char*>(&msg), sizeof(msg), 0);
+    return sent == sizeof(msg);
+}
+
 FrameReceiver::~FrameReceiver() {
     Disconnect();
 }
