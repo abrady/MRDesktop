@@ -2,7 +2,7 @@
 #include <windows.h>
 #include <vector>
 #include <algorithm>
-#include "Protocol.h"
+#include "protocol.h"
 
 class SimpleVideoRenderer {
 private:

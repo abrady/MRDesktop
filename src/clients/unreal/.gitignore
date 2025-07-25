@@ -1,22 +1,10 @@
 # Unreal Engine .gitignore
 
-# Binaries
 Binaries/
-
-# Build output
 Build/
-
-# Intermediate files
 Intermediate/
-
-# Cache
+Saved/
 DerivedDataCache/
-
-# Logs
-Saved/Logs/
-
-# Crash reports
-Saved/Crashes/
 
 # User settings
 Saved/Config/WindowsEditor/

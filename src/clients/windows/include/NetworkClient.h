@@ -7,7 +7,7 @@
 #include <atomic>
 #include <functional>
 #include <string>
-#include "Protocol.h"
+#include "protocol.h"
 
 #pragma comment(lib, "ws2_32.lib")
 
