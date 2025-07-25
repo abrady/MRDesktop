@@ -105,5 +105,4 @@ void FrameReceiver::Disconnect() {
 
 FrameReceiver::~FrameReceiver() {
     Disconnect();
-    m_h265Decoder.Cleanup();
 }

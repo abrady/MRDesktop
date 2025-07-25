@@ -1,9 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
 project(MRDesktop)
 
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(SVTAV1 REQUIRED IMPORTED_TARGET SvtAv1Enc)
-pkg_check_modules(FFMPEG REQUIRED IMPORTED_TARGET libavcodec libavformat libavutil libswresample libswscale)
+find_package(FFMPEG REQUIRED)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -38,9 +36,8 @@ if(PLATFORM_DESKTOP)
     add_executable(MRDesktopServer
         src/server/main.cpp
         src/shared/H264Encoder.cpp
-        src/shared/AV1Encoder.cpp
     )
-    target_include_directories(MRDesktopServer PRIVATE ${COMMON_INCLUDES} ${SVTAV1_INCLUDE_DIRS} ${FFMPEG_INCLUDE_DIRS})
+    target_include_directories(MRDesktopServer PRIVATE ${COMMON_INCLUDES} ${FFMPEG_INCLUDE_DIRS})
 
     # Create console client executable
     add_executable(MRDesktopConsoleClient
@@ -48,29 +45,21 @@ if(PLATFORM_DESKTOP)
         src/shared/FrameLogger.cpp
         src/shared/FrameReceiver.cpp
     )
-    target_include_directories(MRDesktopConsoleClient PRIVATE ${COMMON_INCLUDES} ${SVTAV1_INCLUDE_DIRS} ${FFMPEG_INCLUDE_DIRS})
+    target_include_directories(MRDesktopConsoleClient PRIVATE ${COMMON_INCLUDES} ${FFMPEG_INCLUDE_DIRS})
 
     if(WIN32)
         # Server needs DXGI, Media Foundation and other Windows APIs
         target_compile_definitions(MRDesktopServer PRIVATE WIN32_LEAN_AND_MEAN)
-        target_link_libraries(MRDesktopServer PRIVATE dxgi d3d11 ws2_32 mf mfplat mfuuid wmcodecdspuuid
-            PkgConfig::libavcodec PkgConfig::libavformat PkgConfig::libavutil PkgConfig::libswresample PkgConfig::libswscale
-            SvtAv1Enc)
+        target_link_libraries(MRDesktopServer PRIVATE dxgi d3d11 ws2_32 mf mfplat mfuuid wmcodecdspuuid ${FFMPEG_LIBRARIES})
         
         # Console client
         target_compile_definitions(MRDesktopConsoleClient PRIVATE WIN32_LEAN_AND_MEAN)
-        target_link_libraries(MRDesktopConsoleClient PRIVATE ws2_32
-            PkgConfig::libavcodec PkgConfig::libavformat PkgConfig::libavutil PkgConfig::libswresample PkgConfig::libswscale
-            SvtAv1Enc)
+        target_link_libraries(MRDesktopConsoleClient PRIVATE ws2_32 ${FFMPEG_LIBRARIES})
     endif()
 
     if(NOT WIN32)
-        target_link_libraries(MRDesktopServer PRIVATE
-            PkgConfig::libavcodec PkgConfig::libavformat PkgConfig::libavutil PkgConfig::libswresample PkgConfig::libswscale
-            SvtAv1Enc)
-        target_link_libraries(MRDesktopConsoleClient PRIVATE
-            PkgConfig::libavcodec PkgConfig::libavformat PkgConfig::libavutil PkgConfig::libswresample PkgConfig::libswscale
-            SvtAv1Enc)
+        target_link_libraries(MRDesktopServer PRIVATE ${FFMPEG_LIBRARIES})
+        target_link_libraries(MRDesktopConsoleClient PRIVATE ${FFMPEG_LIBRARIES})
     endif()
     
     # Add Windows GUI client as a subdirectory

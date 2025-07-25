@@ -11,8 +11,6 @@
 #include <algorithm>
 #include "protocol.h"
 #include "H264Encoder.h"
-#include "AV1Encoder.h"
-#include "H265Encoder.h"
 
 #pragma comment(lib, "ws2_32.lib")
 
@@ -422,11 +420,7 @@ int main() {
 
     // Initialize encoders
     H264Encoder h264Encoder;
-    AV1Encoder av1Encoder;
-    H265Encoder h265Encoder;
     bool h264Initialized = false;
-    bool av1Initialized = false;
-    bool h265Initialized = false;
     std::cout << "Encoder objects created" << std::endl;
     
     while (true) {
@@ -483,17 +477,7 @@ int main() {
                 continue;
             }
             
-            // Initialize chosen encoder on first frame
-            if (compressionMode == COMPRESSION_AV1 && !av1Initialized) {
-                if (av1Encoder.Initialize(frameWidth, frameHeight, 60)) {
-                    av1Initialized = true;
-                    std::cout << "AV1 encoder initialized for " << frameWidth << "x" << frameHeight << std::endl;
-                } else {
-                    std::cerr << "Failed to initialize AV1 encoder, falling back to H.264" << std::endl;
-                    compressionMode = COMPRESSION_H264;
-                }
-            }
-
+            // Initialize H.264 encoder on first frame
             if (compressionMode == COMPRESSION_H264 && !h264Initialized) {
                 if (h264Encoder.Initialize(frameWidth, frameHeight, 60)) {
                     h264Initialized = true;
@@ -504,31 +488,12 @@ int main() {
                 }
             }
 
-            if (compressionMode == COMPRESSION_H265 && !h265Initialized) {
-                if (h265Encoder.Initialize(frameWidth, frameHeight, 60)) {
-                    h265Initialized = true;
-                    std::cout << "H.265 encoder initialized for " << frameWidth << "x" << frameHeight << std::endl;
-                } else {
-                    std::cerr << "Failed to initialize H.265 encoder, falling back to uncompressed" << std::endl;
-                    compressionMode = COMPRESSION_NONE;
-                }
-            }
-
-            // Try to compress frame
-            if ((compressionMode == COMPRESSION_H264 && h264Initialized) ||
-                (compressionMode == COMPRESSION_AV1 && av1Initialized) ||
-                (compressionMode == COMPRESSION_H265 && h265Initialized)) {
+            // Try to compress frame with H.264
+            if (compressionMode == COMPRESSION_H264 && h264Initialized) {
                 std::vector<uint8_t> compressedData;
                 bool isKeyframe = false;
 
-                bool ok = false;
-                if (compressionMode == COMPRESSION_H264) {
-                    ok = h264Encoder.EncodeFrame(pixelData.data(), compressedData, isKeyframe);
-                } else if (compressionMode == COMPRESSION_AV1) {
-                    ok = av1Encoder.EncodeFrame(pixelData.data(), compressedData, isKeyframe);
-                } else if (compressionMode == COMPRESSION_H265) {
-                    ok = h265Encoder.EncodeFrame(pixelData.data(), compressedData, isKeyframe);
-                }
+                bool ok = h264Encoder.EncodeFrame(pixelData.data(), compressedData, isKeyframe);
 
                 if (ok) {
                     // Send compressed frame
@@ -540,10 +505,7 @@ int main() {
                     compressedMsg.compressedSize = compressedData.size();
                     compressedMsg.isKeyframe = isKeyframe ? 1 : 0;
 
-                    const char* label = "H.264";
-                    if (compressionMode == COMPRESSION_AV1) label = "AV1";
-                    else if (compressionMode == COMPRESSION_H265) label = "H.265";
-                    std::cout << "SERVER SEND: Frame " << frameCount + 1 << " - " << label << " compressed: "
+                    std::cout << "SERVER SEND: Frame " << frameCount + 1 << " - H.264 compressed: "
                              << frameDataSize << " -> " << compressedData.size() << " bytes"
                              << (isKeyframe ? " (KEYFRAME)" : " (DELTA)") << std::endl;
                     
@@ -560,7 +522,7 @@ int main() {
                     }
                 } else {
                     // Compression failed, send uncompressed
-                    std::cerr << label << " encoding failed, sending uncompressed frame" << std::endl;
+                    std::cerr << "H.264 encoding failed, sending uncompressed frame" << std::endl;
                     goto send_uncompressed;
                 }
             } else {

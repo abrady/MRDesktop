@@ -32,7 +32,7 @@ add_executable(MRDesktopWindowsClient WIN32 ${CLIENT_SOURCES} ${CLIENT_HEADERS})
 # Include directories
 target_include_directories(MRDesktopWindowsClient PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/../src/shared
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../shared
 )
 
 # Windows-specific libraries

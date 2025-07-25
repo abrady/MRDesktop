@@ -52,7 +52,10 @@
       "Bash(extern\\vcpkg\\bootstrap-vcpkg.bat:*)",
       "Bash(ls:*)",
       "Bash(./bootstrap-vcpkg.bat)",
-      "Bash(./configure.bat)"
+      "Bash(./configure.bat)",
+      "Bash(echo $SHELL)",
+      "Bash(/c/Windows/system32/cmd.exe /c configure.bat)",
+      "Bash(/c/Windows/system32/cmd.exe /c \"build.bat\")"
     ],
     "deny": []
   }

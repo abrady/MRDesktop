@@ -3,7 +3,6 @@
 #include "protocol.h"
 #include <vector>
 #include <chrono>
-#include "H265Decoder.h"
 #ifdef _WIN32
 #include <winsock2.h>
 #include <ws2tcpip.h>
@@ -30,8 +29,6 @@ private:
     SocketType m_socket = INVALID_SOCKET;
     std::vector<uint8_t> m_frameBuffer;
     CompressionType m_compression = COMPRESSION_NONE;
-    H265Decoder m_h265Decoder;
-    bool m_decoderInitialized = false;
 
 public:
     bool Connect(const char* serverIP, int port);
