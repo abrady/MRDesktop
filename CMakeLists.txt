@@ -19,11 +19,8 @@ else()
     message(FATAL_ERROR "Unsupported platform")
 endif()
 
-# Find AV1 libraries for compression
-if(PLATFORM_DESKTOP)
-    find_package(libaom CONFIG REQUIRED)
-    find_package(dav1d CONFIG REQUIRED)
-endif()
+# Note: H.264 compression uses Windows Media Foundation (built into Windows)
+# No external codec libraries needed for H.264 support
 
 # Common include directories
 set(COMMON_INCLUDES 
@@ -36,7 +33,7 @@ if(PLATFORM_DESKTOP)
     # Create server executable
     add_executable(MRDesktopServer 
         src/server/main.cpp
-        src/shared/AV1Encoder.cpp
+        src/shared/H264Encoder.cpp
     )
     target_include_directories(MRDesktopServer PRIVATE ${COMMON_INCLUDES})
 
@@ -45,18 +42,17 @@ if(PLATFORM_DESKTOP)
         src/clients/console/main.cpp
         src/shared/FrameLogger.cpp
         src/shared/FrameReceiver.cpp
-        src/shared/AV1Decoder.cpp
     )
     target_include_directories(MRDesktopConsoleClient PRIVATE ${COMMON_INCLUDES})
 
     if(WIN32)
-        # Server needs DXGI and other Windows APIs
+        # Server needs DXGI, Media Foundation and other Windows APIs
         target_compile_definitions(MRDesktopServer PRIVATE WIN32_LEAN_AND_MEAN)
-        target_link_libraries(MRDesktopServer PRIVATE dxgi d3d11 ws2_32 aom)
+        target_link_libraries(MRDesktopServer PRIVATE dxgi d3d11 ws2_32 mf mfplat mfuuid wmcodecdspuuid)
         
         # Console client
         target_compile_definitions(MRDesktopConsoleClient PRIVATE WIN32_LEAN_AND_MEAN)
-        target_link_libraries(MRDesktopConsoleClient PRIVATE ws2_32 dav1d)
+        target_link_libraries(MRDesktopConsoleClient PRIVATE ws2_32)
     endif()
     
     # Add Windows GUI client as a subdirectory

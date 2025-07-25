@@ -15,7 +15,6 @@ set(CLIENT_SOURCES
     src/NetworkClient.cpp
     src/InputHandler.cpp
     src/WindowManager.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../shared/AV1Decoder.cpp
 )
 
 # Header files  
@@ -61,8 +60,10 @@ if(WIN32)
         uuid
         comdlg32
         advapi32
-        # AV1 codec
-        dav1d
+        # Media Foundation for H.264 decoding (when implemented)
+        mf
+        mfplat
+        mfuuid
     )
 endif()
 
