@@ -290,7 +290,7 @@ void WindowManager::OnKeyDown(WPARAM key) {
     }
 }
 
-void WindowManager::OnCommand(WPARAM wParam) {
+void WindowManager::OnCommand(WPARAM) {
     // Handle menu commands if needed
 }
 
