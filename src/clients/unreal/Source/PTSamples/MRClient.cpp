@@ -238,10 +238,7 @@ bool MRClient::ReceiveFrameData()
     // Call the frame received callback on the game thread
     AsyncTask(ENamedThreads::GameThread, [this, FrameData = MoveTemp(FrameData)]()
     {
-        if (OnFrameReceived.IsBound())
-        {
-            OnFrameReceived.Execute(FrameData);
-        }
+        OnFrameReceived.ExecuteIfBound(FrameData);
     });
 
     return true;
