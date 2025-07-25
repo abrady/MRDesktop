@@ -7,7 +7,8 @@ enum MessageType : uint32_t {
     MSG_FRAME_DATA = 1,
     MSG_MOUSE_MOVE = 2,
     MSG_MOUSE_CLICK = 3,
-    MSG_MOUSE_SCROLL = 4
+    MSG_MOUSE_SCROLL = 4,
+    MSG_COMPRESSED_FRAME = 5
 };
 
 // Base message header
@@ -16,13 +17,23 @@ struct MessageHeader {
     uint32_t size;
 };
 
-// Frame data message
+// Frame data message (uncompressed)
 struct FrameMessage {
     MessageHeader header;
     uint32_t width;
     uint32_t height;
     uint32_t dataSize;
     // Pixel data follows (BGRA format)
+};
+
+// Compressed frame data message
+struct CompressedFrameMessage {
+    MessageHeader header;
+    uint32_t width;
+    uint32_t height;
+    uint32_t compressedSize;
+    uint32_t isKeyframe;  // 1 for keyframe, 0 for delta frame
+    // Compressed H.264 data follows
 };
 
 // Mouse movement message

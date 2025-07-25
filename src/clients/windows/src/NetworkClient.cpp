@@ -98,10 +98,14 @@ void NetworkClient::ReceiveThreadProc() {
                   << ", Width: " << frameMsg.width 
                   << ", Height: " << frameMsg.height << std::endl;
         
-        // Verify this is a frame message with reasonable values
-        if (frameMsg.header.type != MSG_FRAME_DATA || 
-            frameMsg.width > 10000 || frameMsg.height > 10000 ||
-            frameMsg.dataSize > 100000000) {  // Skip obviously corrupted frames
+        // Handle different message types
+        if (frameMsg.header.type == MSG_COMPRESSED_FRAME) {
+            std::cout << "Received compressed frame (skipping - no decoder yet)" << std::endl;
+            // For now, skip compressed frames - the server will fall back to uncompressed if encoder fails
+            continue;
+        } else if (frameMsg.header.type != MSG_FRAME_DATA || 
+                   frameMsg.width > 10000 || frameMsg.height > 10000 ||
+                   frameMsg.dataSize > 100000000) {  // Skip obviously corrupted frames
             
             std::cout << "Skipping corrupted frame (Type: " << frameMsg.header.type << ")" << std::endl;
             continue;

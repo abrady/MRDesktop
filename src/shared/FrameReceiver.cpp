@@ -66,11 +66,10 @@ bool FrameReceiver::Connect(const char* serverIP, int port) {
 
 bool FrameReceiver::ReceiveFrame(FrameMessage& frameMsg, std::vector<uint8_t>& frameData, int frameNumber) {
     if (m_socket == INVALID_SOCKET) return false;
-    // std::cout << "CLIENT RECV: Frame " << frameNumber << " - Expecting header size: " << sizeof(FrameMessage) << std::endl;
 
-    // Receive frame message header
-    int received = recv(m_socket, reinterpret_cast<char*>(&frameMsg), sizeof(FrameMessage), 0);
-    // std::cout << "CLIENT RECV: Frame " << frameNumber << " - Header received: " << received << " bytes" << std::endl;
+    // First receive the basic message header to determine type
+    MessageHeader msgHeader;
+    int received = recv(m_socket, reinterpret_cast<char*>(&msgHeader), sizeof(MessageHeader), 0);
 
     if (received == SOCKET_ERROR) {
 #ifdef _WIN32
@@ -86,56 +85,105 @@ bool FrameReceiver::ReceiveFrame(FrameMessage& frameMsg, std::vector<uint8_t>& f
         return false;
     }
 
-    if (received != sizeof(FrameMessage)) {
+    if (received != sizeof(MessageHeader)) {
         if (received <= 0) {
             return false;
         }
         return false;
     }
 
-    if (frameMsg.header.type != MSG_FRAME_DATA) {
-        return false;
-    }
+    // Handle different message types
+    if (msgHeader.type == MSG_FRAME_DATA) {
+        // Receive rest of uncompressed frame message
+        char* remainingData = reinterpret_cast<char*>(&frameMsg) + sizeof(MessageHeader);
+        int remainingSize = sizeof(FrameMessage) - sizeof(MessageHeader);
+        
+        received = recv(m_socket, remainingData, remainingSize, 0);
+        if (received != remainingSize) {
+            return false;
+        }
+        
+        // Copy header into frameMsg
+        frameMsg.header = msgHeader;
 
-    if (frameMsg.width == 0 || frameMsg.height == 0 ||
-        frameMsg.width > 10000 || frameMsg.height > 10000 ||
-        frameMsg.dataSize > 100000000) {
-        return false;
-    }
+        if (frameMsg.width == 0 || frameMsg.height == 0 ||
+            frameMsg.width > 10000 || frameMsg.height > 10000 ||
+            frameMsg.dataSize > 100000000) {
+            return false;
+        }
 
-    if (m_frameBuffer.size() < frameMsg.dataSize) {
-        m_frameBuffer.resize(frameMsg.dataSize);
-    }
+        if (m_frameBuffer.size() < frameMsg.dataSize) {
+            m_frameBuffer.resize(frameMsg.dataSize);
+        }
 
-    uint32_t totalReceived = 0;
-    while (totalReceived < frameMsg.dataSize) {
-        received = recv(m_socket,
-                        reinterpret_cast<char*>(m_frameBuffer.data()) + totalReceived,
-                        frameMsg.dataSize - totalReceived, 0);
-        if (received == SOCKET_ERROR) {
+        uint32_t totalReceived = 0;
+        while (totalReceived < frameMsg.dataSize) {
+            received = recv(m_socket,
+                            reinterpret_cast<char*>(m_frameBuffer.data()) + totalReceived,
+                            frameMsg.dataSize - totalReceived, 0);
+            if (received == SOCKET_ERROR) {
 #ifdef _WIN32
-            int error = WSAGetLastError();
-            if (error == WSAEWOULDBLOCK) {
-                std::this_thread::sleep_for(std::chrono::milliseconds(1));
-                continue;
-            }
+                int error = WSAGetLastError();
+                if (error == WSAEWOULDBLOCK) {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                    continue;
+                }
 #else
-            if (errno == EWOULDBLOCK || errno == EAGAIN) {
-                std::this_thread::sleep_for(std::chrono::milliseconds(1));
-                continue;
-            }
+                if (errno == EWOULDBLOCK || errno == EAGAIN) {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                    continue;
+                }
 #endif
+                return false;
+            }
+            if (received == 0) {
+                return false;
+            }
+            totalReceived += received;
+        }
+        
+        // Copy uncompressed data to output
+        frameData.resize(frameMsg.dataSize);
+        memcpy(frameData.data(), m_frameBuffer.data(), frameMsg.dataSize);
+        
+    } else if (msgHeader.type == MSG_COMPRESSED_FRAME) {
+        // For now, just ignore compressed frames since we don't have H.264 decoder yet
+        // This allows the client to keep running when server sends compressed frames
+        std::cout << "CLIENT: Received compressed frame (skipping - no decoder yet)" << std::endl;
+        
+        // Read and discard the compressed frame message
+        CompressedFrameMessage compressedMsg;
+        compressedMsg.header = msgHeader;
+        
+        char* remainingData = reinterpret_cast<char*>(&compressedMsg) + sizeof(MessageHeader);
+        int remainingSize = sizeof(CompressedFrameMessage) - sizeof(MessageHeader);
+        
+        received = recv(m_socket, remainingData, remainingSize, 0);
+        if (received != remainingSize) {
             return false;
         }
-        if (received == 0) {
-            return false;
+        
+        // Read and discard compressed data
+        std::vector<uint8_t> tempBuffer(compressedMsg.compressedSize);
+        uint32_t totalReceived = 0;
+        while (totalReceived < compressedMsg.compressedSize) {
+            received = recv(m_socket,
+                            reinterpret_cast<char*>(tempBuffer.data()) + totalReceived,
+                            compressedMsg.compressedSize - totalReceived, 0);
+            if (received <= 0) {
+                return false;
+            }
+            totalReceived += received;
         }
-        totalReceived += received;
+        
+        // Return false to skip this frame
+        return false;
+        
+    } else {
+        // Unknown message type
+        return false;
     }
 
-    // std::cout << "CLIENT RECV: Frame " << frameNumber << " - Pixel data received: " << totalReceived << " bytes" << std::endl;
-
-    frameData.assign(m_frameBuffer.begin(), m_frameBuffer.begin() + frameMsg.dataSize);
     return true;
 }
 
