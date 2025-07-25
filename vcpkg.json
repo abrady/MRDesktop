@@ -3,6 +3,8 @@
   "version": "0.1.0",
   "description": "VR/MR Virtual Desktop for Meta Quest 3",
   "dependencies": [
+    "x265",
+    "ffmpeg"
   ],
   "builtin-baseline": "dd3097e305afa53f7b4312371f62058d2e665320"
 }

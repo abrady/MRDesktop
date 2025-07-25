@@ -100,7 +100,7 @@ void PrintUsage()
     std::cout << "Options:" << std::endl;
     std::cout << "  --ip=<address>     Server IP address (default: 127.0.0.1)" << std::endl;
     std::cout << "  --port=<port>      Server port (default: 8080)" << std::endl;
-    std::cout << "  --compression=<none|h264|av1>  Preferred compression (default: av1)" << std::endl;
+    std::cout << "  --compression=<none|h264|h265|av1>  Preferred compression (default: h265)" << std::endl;
     std::cout << "  --debug-frames[=N] Save first N frames for debugging (default: 5)" << std::endl;
     std::cout << "  --help             Show this help message" << std::endl;
 }
@@ -110,7 +110,7 @@ int main(int argc, char *argv[])
     // Parse command line arguments
     std::string serverIP = "127.0.0.1";
     int serverPort = 8080;
-    CompressionType compression = COMPRESSION_AV1;
+    CompressionType compression = COMPRESSION_H265;
     bool debugFrames = false;
     int maxDebugFrames = 5;
 
@@ -137,6 +137,8 @@ int main(int argc, char *argv[])
             std::transform(mode.begin(), mode.end(), mode.begin(), ::tolower);
             if (mode == "av1")
                 compression = COMPRESSION_AV1;
+            else if (mode == "h265")
+                compression = COMPRESSION_H265;
             else if (mode == "none")
                 compression = COMPRESSION_NONE;
             else
@@ -189,6 +191,7 @@ int main(int argc, char *argv[])
 
     // Connect to server
     FrameReceiver receiver;
+    receiver.SetCompression(compression);
     if (!receiver.Connect(serverIP.c_str(), serverPort))
     {
         std::cerr << "Failed to connect to server" << std::endl;

@@ -3,6 +3,7 @@
 #include <iostream>
 #include <thread>
 #include <chrono>
+#include <cerrno>
 
 bool FrameReceiver::Connect(const char* serverIP, int port) {
 #ifdef _WIN32
@@ -104,4 +105,5 @@ void FrameReceiver::Disconnect() {
 
 FrameReceiver::~FrameReceiver() {
     Disconnect();
+    m_h265Decoder.Cleanup();
 }
