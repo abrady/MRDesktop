@@ -171,11 +171,11 @@ void SimpleVideoRenderer::CalculateFPS()
     LARGE_INTEGER currentTime;
     QueryPerformanceCounter(&currentTime);
 
-    // Calculate FPS every 30 frames
-    if (m_frameCount % 30 == 0 && m_frameCount > 0)
+    // Calculate FPS every 10 frames for more responsive updates
+    if (m_frameCount % 10 == 0 && m_frameCount > 0)
     {
         double elapsedSeconds = static_cast<double>(currentTime.QuadPart - m_lastFrameTime.QuadPart) / m_frequency.QuadPart;
-        m_fps = 30.0 / elapsedSeconds;
+        m_fps = 10.0 / elapsedSeconds;
         m_lastFrameTime = currentTime;
     }
 }

@@ -236,7 +236,7 @@ HRESULT VideoRenderer::RenderFrame(const FrameMessage& frameMsg, const std::vect
     
     // Draw statistics overlay
     wchar_t statsText[256];
-    swprintf_s(statsText, L"FPS: %.1f\\nFrames: %u\\nResolution: %ux%u\\nData: %.1f MB/s",
+    swprintf_s(statsText, L"FPS: %.1f\nFrames: %u\nResolution: %ux%u\nData: %.1f MB/s",
                m_fps, m_frameCount, m_currentWidth, m_currentHeight,
                (m_fps * frameMsg.dataSize) / (1024.0 * 1024.0));
     
@@ -281,10 +281,10 @@ void VideoRenderer::CalculateFPS() {
     LARGE_INTEGER currentTime;
     QueryPerformanceCounter(&currentTime);
     
-    // Calculate FPS every 30 frames
-    if (m_frameCount % 30 == 0 && m_frameCount > 0) {
+    // Calculate FPS every 10 frames for more responsive updates
+    if (m_frameCount % 10 == 0 && m_frameCount > 0) {
         double elapsedSeconds = static_cast<double>(currentTime.QuadPart - m_lastFrameTime.QuadPart) / m_frequency.QuadPart;
-        m_fps = 30.0 / elapsedSeconds;
+        m_fps = 10.0 / elapsedSeconds;
         m_lastFrameTime = currentTime;
     }
 }

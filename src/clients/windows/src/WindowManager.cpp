@@ -7,6 +7,8 @@
 #include <commdlg.h>
 #include <sstream>
 #include <iostream>
+#include <chrono>
+#include <iomanip>
 
 WindowManager::WindowManager()
     : m_hInstance(nullptr)
@@ -254,9 +256,9 @@ void WindowManager::OnPaint() {
         SetBkColor(hdc, RGB(0, 0, 0));
         SetTextColor(hdc, RGB(255, 255, 255));
         
-        std::string statusText = "MRDesktop Windows Client\\n\\nStatus: " + m_statusMessage;
+        std::string statusText = "MRDesktop Windows Client\n\nStatus: " + m_statusMessage;
         if (m_connectionState == ConnectionState::Disconnected) {
-            statusText += "\\n\\nPress F11 for fullscreen\\nPress ESC to toggle mouse capture";
+            statusText += "\n\nPress F11 for fullscreen\nPress ESC to toggle mouse capture";
         }
         
         DrawTextA(hdc, statusText.c_str(), -1, &clientRect, 
@@ -347,6 +349,19 @@ void WindowManager::OnFrameReceived(const FrameMessage& frameMsg, const std::vec
         } else {
             std::cout << "Direct2D upgrade failed with HRESULT: 0x" << std::hex << hr << std::dec << ". Continuing with GDI renderer." << std::endl;
         }
+    }
+    
+    // Add frame timing diagnostics
+    static auto lastFrameTime = std::chrono::high_resolution_clock::now();
+    static int frameCount = 0;
+    frameCount++;
+    
+    if (frameCount % 60 == 0) {
+        auto currentTime = std::chrono::high_resolution_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - lastFrameTime);
+        double actualFPS = 60000.0 / elapsed.count(); // 60 frames in elapsed milliseconds
+        std::cout << "Frame receive rate: " << std::fixed << std::setprecision(1) << actualFPS << " FPS" << std::endl;
+        lastFrameTime = currentTime;
     }
     
     if (m_usingSimpleRenderer && m_simpleVideoRenderer) {
