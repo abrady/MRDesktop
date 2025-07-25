@@ -2,8 +2,7 @@
 #include <cstring>
 
 AV1Encoder::AV1Encoder()
-    : m_width(0), m_height(0), m_fps(60), m_initialized(false), m_forceKeyframe(false), m_frameCount(0) {
-    std::memset(&m_codec, 0, sizeof(m_codec));
+    : m_width(0), m_height(0), m_fps(60), m_initialized(false), m_forceKeyframe(false), m_frameCount(0), m_handle(nullptr) {
     std::memset(&m_cfg, 0, sizeof(m_cfg));
 }
 
@@ -16,19 +15,20 @@ bool AV1Encoder::Initialize(int width, int height, int fps) {
     m_frameCount = 0;
     m_forceKeyframe = false;
 
-    const aom_codec_iface_t* iface = aom_codec_av1_cx();
-    if (aom_codec_enc_config_default(iface, &m_cfg, 0) != AOM_CODEC_OK)
+    if (svt_av1_enc_init_handle(&m_handle, nullptr, &m_cfg) != EB_ErrorNone)
         return false;
 
-    m_cfg.g_w = width;
-    m_cfg.g_h = height;
-    m_cfg.g_timebase.num = 1;
-    m_cfg.g_timebase.den = fps;
-    m_cfg.rc_target_bitrate = 5000; // kbps
-    m_cfg.g_error_resilient = 0;
-    m_cfg.g_threads = 2;
+    m_cfg.source_width = width;
+    m_cfg.source_height = height;
+    m_cfg.frame_rate_numerator = fps;
+    m_cfg.frame_rate_denominator = 1;
+    m_cfg.target_bit_rate = 5000000; // bits per second
+    m_cfg.enc_mode = 12; // speed vs quality tradeoff
 
-    if (aom_codec_init(&m_codec, iface, &m_cfg, 0) != AOM_CODEC_OK)
+    if (svt_av1_enc_set_parameter(m_handle, &m_cfg) != EB_ErrorNone)
+        return false;
+
+    if (svt_av1_enc_init(m_handle) != EB_ErrorNone)
         return false;
 
     m_initialized = true;
@@ -67,24 +67,25 @@ bool AV1Encoder::EncodeFrame(const uint8_t* frameData, std::vector<uint8_t>& com
     std::vector<uint8_t> yuv;
     BGRAtoI420(frameData, m_width, m_height, yuv);
 
-    aom_image_t raw;
-    aom_img_wrap(&raw, AOM_IMG_FMT_I420, m_width, m_height, 1, yuv.data());
+    EbBufferHeaderType input{};
+    input.size = sizeof(EbBufferHeaderType);
+    input.p_buffer = yuv.data();
+    input.n_filled_len = (uint32_t)yuv.size();
+    input.n_alloc_len = (uint32_t)yuv.size();
+    input.pic_type = m_forceKeyframe ? EB_AV1_KEY_PICTURE : EB_AV1_INVALID_PICTURE;
 
-    int flags = m_forceKeyframe ? AOM_EFLAG_FORCE_KF : 0;
-    if (aom_codec_encode(&m_codec, &raw, m_frameCount, 1, flags) != AOM_CODEC_OK)
+    if (svt_av1_enc_send_picture(m_handle, &input) != EB_ErrorNone)
         return false;
 
     m_forceKeyframe = false;
 
-    aom_codec_iter_t iter = nullptr;
-    const aom_codec_cx_pkt_t* pkt = nullptr;
+    EbBufferHeaderType* output = nullptr;
     compressedData.clear();
-    while ((pkt = aom_codec_get_cx_data(&m_codec, &iter)) != nullptr) {
-        if (pkt->kind == AOM_CODEC_CX_FRAME_PKT) {
-            const uint8_t* buf = static_cast<const uint8_t*>(pkt->data.frame.buf);
-            compressedData.insert(compressedData.end(), buf, buf + pkt->data.frame.sz);
-            isKeyframe = (pkt->data.frame.flags & AOM_FRAME_IS_KEY) != 0;
-        }
+    while (svt_av1_enc_get_packet(m_handle, &output, 0) == EB_ErrorNone && output) {
+        const uint8_t* buf = output->p_buffer;
+        compressedData.insert(compressedData.end(), buf, buf + output->n_filled_len);
+        isKeyframe = (output->pic_type == EB_AV1_KEY_PICTURE);
+        svt_av1_enc_release_out_buffer(&output);
     }
 
     m_frameCount++;
@@ -95,7 +96,9 @@ void AV1Encoder::ForceKeyframe() { m_forceKeyframe = true; }
 
 void AV1Encoder::Cleanup() {
     if (m_initialized) {
-        aom_codec_destroy(&m_codec);
+        svt_av1_enc_deinit(m_handle);
+        svt_av1_enc_deinit_handle(m_handle);
+        m_handle = nullptr;
         m_initialized = false;
     }
 }

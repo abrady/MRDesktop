@@ -147,11 +147,7 @@ bool FrameReceiver::ReceiveFrame(FrameMessage& frameMsg, std::vector<uint8_t>& f
         memcpy(frameData.data(), m_frameBuffer.data(), frameMsg.dataSize);
         
     } else if (msgHeader.type == MSG_COMPRESSED_FRAME) {
-        // For now, just ignore compressed frames since we don't have H.264 decoder yet
-        // This allows the client to keep running when server sends compressed frames
-        std::cout << "CLIENT: Received compressed frame (skipping - no decoder yet)" << std::endl;
-        
-        // Read and discard the compressed frame message
+        // Read compressed frame header
         CompressedFrameMessage compressedMsg;
         compressedMsg.header = msgHeader;
         
@@ -163,7 +159,7 @@ bool FrameReceiver::ReceiveFrame(FrameMessage& frameMsg, std::vector<uint8_t>& f
             return false;
         }
         
-        // Read and discard compressed data
+        // Read compressed data
         std::vector<uint8_t> tempBuffer(compressedMsg.compressedSize);
         uint32_t totalReceived = 0;
         while (totalReceived < compressedMsg.compressedSize) {
@@ -175,10 +171,28 @@ bool FrameReceiver::ReceiveFrame(FrameMessage& frameMsg, std::vector<uint8_t>& f
             }
             totalReceived += received;
         }
-        
-        // Return false to skip this frame
-        return false;
-        
+
+        // Initialize decoder if needed
+        if (!m_decoderInitialized) {
+            m_decoderInitialized = m_decoder.Initialize(compressedMsg.width, compressedMsg.height);
+            if (!m_decoderInitialized) {
+                return false;
+            }
+        }
+
+        std::vector<uint8_t> decoded;
+        if (!m_decoder.DecodeFrame(tempBuffer.data(), tempBuffer.size(), decoded)) {
+            return false;
+        }
+
+        frameMsg.header.type = MSG_FRAME_DATA;
+        frameMsg.header.size = sizeof(FrameMessage);
+        frameMsg.width = compressedMsg.width;
+        frameMsg.height = compressedMsg.height;
+        frameMsg.dataSize = static_cast<uint32_t>(decoded.size());
+
+        frameData.swap(decoded);
+
     } else {
         // Unknown message type
         return false;
@@ -200,4 +214,5 @@ void FrameReceiver::Disconnect() {
 
 FrameReceiver::~FrameReceiver() {
     Disconnect();
+    m_decoder.Cleanup();
 }

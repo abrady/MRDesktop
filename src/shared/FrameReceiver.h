@@ -1,6 +1,7 @@
 #pragma once
 
 #include "protocol.h"
+#include "AV1Decoder.h"
 #include <vector>
 #include <chrono>
 #ifdef _WIN32
@@ -27,6 +28,8 @@ class FrameReceiver {
 private:
     SocketType m_socket = INVALID_SOCKET;
     std::vector<uint8_t> m_frameBuffer;
+    AV1Decoder m_decoder;
+    bool m_decoderInitialized = false;
 
 public:
     bool Connect(const char* serverIP, int port);
