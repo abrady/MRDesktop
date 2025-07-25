@@ -46,7 +46,13 @@
       "Bash(./build/debug/Debug/MRDesktopServer.exe)",
       "Bash(./build.bat)",
       "Bash(\"build/debug/Debug/MRDesktopServer.exe\")",
-      "Bash(start:*)"
+      "Bash(start:*)",
+      "Bash(git submodule:*)",
+      "Bash(call extern\\vcpkg\\bootstrap-vcpkg.bat:*)",
+      "Bash(extern\\vcpkg\\bootstrap-vcpkg.bat:*)",
+      "Bash(ls:*)",
+      "Bash(./bootstrap-vcpkg.bat)",
+      "Bash(./configure.bat)"
     ],
     "deny": []
   }
