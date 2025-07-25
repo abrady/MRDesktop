@@ -24,7 +24,6 @@ set(CLIENT_HEADERS
     include/NetworkClient.h
     include/InputHandler.h
     include/WindowManager.h
-    include/Protocol.h
 )
 
 # Create the Windows client executable

@@ -1,4 +1,5 @@
 #include "FrameReceiver.h"
+#include "FrameUtils.h"
 #include <iostream>
 #include <thread>
 #include <chrono>
@@ -64,127 +65,30 @@ bool FrameReceiver::Connect(const char* serverIP, int port) {
     return true;
 }
 
-bool FrameReceiver::ReceiveFrame(FrameMessage& frameMsg, std::vector<uint8_t>& frameData, int frameNumber) {
+bool FrameReceiver::ReceiveFrame(FrameMessage& frameMsg, std::vector<uint8_t>& frameData, int /*frameNumber*/) {
     if (m_socket == INVALID_SOCKET) return false;
 
-    // First receive the basic message header to determine type
-    MessageHeader msgHeader;
-    int received = recv(m_socket, reinterpret_cast<char*>(&msgHeader), sizeof(MessageHeader), 0);
-
-    if (received == SOCKET_ERROR) {
+    auto recvWrapper = [this](uint8_t* buf, int len) -> int {
+        int r = recv(m_socket, reinterpret_cast<char*>(buf), len, 0);
+        if (r == SOCKET_ERROR) {
 #ifdef _WIN32
-        int error = WSAGetLastError();
-        if (error == WSAEWOULDBLOCK) {
-            return false;
-        }
+            if (WSAGetLastError() == WSAEWOULDBLOCK)
+                return 0;
 #else
-        if (errno == EWOULDBLOCK || errno == EAGAIN) {
-            return false;
-        }
+            if (errno == EWOULDBLOCK || errno == EAGAIN)
+                return 0;
 #endif
-        return false;
+            return -1;
+        }
+        return r;
+    };
+
+    std::vector<uint8_t> temp;
+    bool ok = ReadFrameGeneric(recvWrapper, frameMsg, temp);
+    if (ok) {
+        frameData.swap(temp);
     }
-
-    if (received != sizeof(MessageHeader)) {
-        if (received <= 0) {
-            return false;
-        }
-        return false;
-    }
-
-    // Handle different message types
-    if (msgHeader.type == MSG_FRAME_DATA) {
-        // Receive rest of uncompressed frame message
-        char* remainingData = reinterpret_cast<char*>(&frameMsg) + sizeof(MessageHeader);
-        int remainingSize = sizeof(FrameMessage) - sizeof(MessageHeader);
-        
-        received = recv(m_socket, remainingData, remainingSize, 0);
-        if (received != remainingSize) {
-            return false;
-        }
-        
-        // Copy header into frameMsg
-        frameMsg.header = msgHeader;
-
-        if (frameMsg.width == 0 || frameMsg.height == 0 ||
-            frameMsg.width > 10000 || frameMsg.height > 10000 ||
-            frameMsg.dataSize > 100000000) {
-            return false;
-        }
-
-        if (m_frameBuffer.size() < frameMsg.dataSize) {
-            m_frameBuffer.resize(frameMsg.dataSize);
-        }
-
-        uint32_t totalReceived = 0;
-        while (totalReceived < frameMsg.dataSize) {
-            received = recv(m_socket,
-                            reinterpret_cast<char*>(m_frameBuffer.data()) + totalReceived,
-                            frameMsg.dataSize - totalReceived, 0);
-            if (received == SOCKET_ERROR) {
-#ifdef _WIN32
-                int error = WSAGetLastError();
-                if (error == WSAEWOULDBLOCK) {
-                    std::this_thread::sleep_for(std::chrono::milliseconds(1));
-                    continue;
-                }
-#else
-                if (errno == EWOULDBLOCK || errno == EAGAIN) {
-                    std::this_thread::sleep_for(std::chrono::milliseconds(1));
-                    continue;
-                }
-#endif
-                return false;
-            }
-            if (received == 0) {
-                return false;
-            }
-            totalReceived += received;
-        }
-        
-        // Copy uncompressed data to output
-        frameData.resize(frameMsg.dataSize);
-        memcpy(frameData.data(), m_frameBuffer.data(), frameMsg.dataSize);
-        
-    } else if (msgHeader.type == MSG_COMPRESSED_FRAME) {
-        // For now, just ignore compressed frames since we don't have H.264 decoder yet
-        // This allows the client to keep running when server sends compressed frames
-        std::cout << "CLIENT: Received compressed frame (skipping - no decoder yet)" << std::endl;
-        
-        // Read and discard the compressed frame message
-        CompressedFrameMessage compressedMsg;
-        compressedMsg.header = msgHeader;
-        
-        char* remainingData = reinterpret_cast<char*>(&compressedMsg) + sizeof(MessageHeader);
-        int remainingSize = sizeof(CompressedFrameMessage) - sizeof(MessageHeader);
-        
-        received = recv(m_socket, remainingData, remainingSize, 0);
-        if (received != remainingSize) {
-            return false;
-        }
-        
-        // Read and discard compressed data
-        std::vector<uint8_t> tempBuffer(compressedMsg.compressedSize);
-        uint32_t totalReceived = 0;
-        while (totalReceived < compressedMsg.compressedSize) {
-            received = recv(m_socket,
-                            reinterpret_cast<char*>(tempBuffer.data()) + totalReceived,
-                            compressedMsg.compressedSize - totalReceived, 0);
-            if (received <= 0) {
-                return false;
-            }
-            totalReceived += received;
-        }
-        
-        // Return false to skip this frame
-        return false;
-        
-    } else {
-        // Unknown message type
-        return false;
-    }
-
-    return true;
+    return ok;
 }
 
 void FrameReceiver::Disconnect() {
