@@ -10,6 +10,7 @@
 #include <chrono>
 #include <algorithm>
 #include "protocol.h"
+#include "VideoEncoder.h"
 
 #pragma comment(lib, "ws2_32.lib")
 
@@ -408,8 +409,16 @@ int main(int argc, char* argv[]) {
     
     std::cout << "Client connected! Starting desktop streaming..." << std::endl;
 
-    // No compression negotiation needed - only uncompressed frames
-    std::cout << "Streaming uncompressed frames only" << std::endl;
+    // Wait for compression negotiation from client
+    CompressionType clientCompression = COMPRESSION_NONE;
+    CompressionRequestMessage compressionRequest;
+    int received = recv(clientSocket, (char*)&compressionRequest, sizeof(compressionRequest), 0);
+    if (received == sizeof(compressionRequest) && compressionRequest.header.type == MSG_COMPRESSION_REQUEST) {
+        clientCompression = compressionRequest.compression;
+        std::cout << "Client requested compression type: " << clientCompression << std::endl;
+    } else {
+        std::cout << "No compression request received, using uncompressed frames" << std::endl;
+    }
 
     // Set socket to non-blocking for input checking
     u_long mode = 1;
@@ -421,9 +430,16 @@ int main(int argc, char* argv[]) {
     int frameCount = 0;
     auto startTime = std::chrono::high_resolution_clock::now();
     
-
-    // No encoders needed anymore
-    std::cout << "Ready to stream uncompressed frames" << std::endl;
+    // Initialize video encoder if compression is requested
+    std::unique_ptr<VideoEncoder> encoder;
+    bool useCompression = (clientCompression != COMPRESSION_NONE);
+    
+    if (useCompression) {
+        encoder = std::make_unique<VideoEncoder>();
+        std::cout << "Compression enabled, encoder will be initialized with first frame" << std::endl;
+    } else {
+        std::cout << "Ready to stream uncompressed frames" << std::endl;
+    }
     
     while (true) {
         // Check for incoming input messages
@@ -509,24 +525,73 @@ int main(int argc, char* argv[]) {
                 continue;
             }
             
-            // Send uncompressed frame
-            FrameMessage frameMsg;
-            frameMsg.header.type = MSG_FRAME_DATA;
-            frameMsg.header.size = sizeof(FrameMessage);
-            frameMsg.width = frameWidth;
-            frameMsg.height = frameHeight;
-            frameMsg.dataSize = frameDataSize;
-            
-            std::cout << "SERVER SEND: Frame " << frameCount + 1 << " - Uncompressed: " << frameDataSize << " bytes" << std::endl;
-            
-            if (!SendAllData(clientSocket, (char*)&frameMsg, sizeof(FrameMessage))) {
-                std::cerr << "Failed to send frame header" << std::endl;
-                break;
+            if (useCompression) {
+                // Initialize encoder with first frame dimensions
+                if (!encoder->IsInitialized()) {
+                    if (!encoder->Initialize(frameWidth, frameHeight, clientCompression)) {
+                        std::cerr << "Failed to initialize video encoder" << std::endl;
+                        useCompression = false; // Fall back to uncompressed
+                    } else {
+                        std::cout << "Video encoder initialized successfully" << std::endl;
+                    }
+                }
+                
+                if (encoder->IsInitialized()) {
+                    // Encode frame
+                    std::vector<uint8_t> compressedData;
+                    bool isKeyframe = false;
+                    
+                    if (encoder->EncodeFrame(pixelData.data(), compressedData, isKeyframe)) {
+                        // Send compressed frame
+                        CompressedFrameMessage compFrameMsg;
+                        compFrameMsg.header.type = MSG_COMPRESSED_FRAME;
+                        compFrameMsg.header.size = sizeof(CompressedFrameMessage);
+                        compFrameMsg.width = frameWidth;
+                        compFrameMsg.height = frameHeight;
+                        compFrameMsg.compressedSize = compressedData.size();
+                        compFrameMsg.isKeyframe = isKeyframe ? 1 : 0;
+                        
+                        std::cout << "SERVER SEND: Frame " << frameCount + 1 << " - Compressed: " << compressedData.size() 
+                                  << " bytes (" << (isKeyframe ? "KEY" : "DELTA") << ")" << std::endl;
+                        
+                        if (!SendAllData(clientSocket, (char*)&compFrameMsg, sizeof(CompressedFrameMessage))) {
+                            std::cerr << "Failed to send compressed frame header" << std::endl;
+                            break;
+                        }
+                        
+                        if (!SendAllData(clientSocket, (char*)compressedData.data(), compressedData.size())) {
+                            std::cerr << "Failed to send compressed frame data" << std::endl;
+                            break;
+                        }
+                    } else {
+                        // Skip this frame if encoding failed
+                        continue;
+                    }
+                } else {
+                    useCompression = false; // Fall back to uncompressed
+                }
             }
             
-            if (!SendAllData(clientSocket, (char*)pixelData.data(), frameDataSize)) {
-                std::cerr << "Failed to send frame data" << std::endl;
-                break;
+            if (!useCompression) {
+                // Send uncompressed frame
+                FrameMessage frameMsg;
+                frameMsg.header.type = MSG_FRAME_DATA;
+                frameMsg.header.size = sizeof(FrameMessage);
+                frameMsg.width = frameWidth;
+                frameMsg.height = frameHeight;
+                frameMsg.dataSize = frameDataSize;
+                
+                std::cout << "SERVER SEND: Frame " << frameCount + 1 << " - Uncompressed: " << frameDataSize << " bytes" << std::endl;
+                
+                if (!SendAllData(clientSocket, (char*)&frameMsg, sizeof(FrameMessage))) {
+                    std::cerr << "Failed to send frame header" << std::endl;
+                    break;
+                }
+                
+                if (!SendAllData(clientSocket, (char*)pixelData.data(), frameDataSize)) {
+                    std::cerr << "Failed to send frame data" << std::endl;
+                    break;
+                }
             }
             
             std::cout << "SERVER SEND: Frame " << frameCount + 1 << " - COMPLETE" << std::endl;

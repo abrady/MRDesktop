@@ -32,6 +32,7 @@ if(PLATFORM_DESKTOP)
     # Create server executable
     add_executable(MRDesktopServer
         src/server/main.cpp
+        src/shared/VideoEncoder.cpp
     )
     target_include_directories(MRDesktopServer PRIVATE ${COMMON_INCLUDES} ${FFMPEG_INCLUDE_DIRS})
 
@@ -40,6 +41,7 @@ if(PLATFORM_DESKTOP)
         src/clients/console/main.cpp
         src/shared/FrameLogger.cpp
         src/shared/NetworkReceiver.cpp
+        src/shared/VideoDecoder.cpp
     )
     target_include_directories(MRDesktopConsoleClient PRIVATE ${COMMON_INCLUDES} ${FFMPEG_INCLUDE_DIRS})
 

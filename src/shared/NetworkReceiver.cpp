@@ -1,5 +1,6 @@
 #include "NetworkReceiver.h"
 #include "FrameUtils.h"
+#include "VideoDecoder.h"
 #include <iostream>
 #include <chrono>
 #include <cerrno>
@@ -109,7 +110,7 @@ bool NetworkReceiver::Connect(const std::string& serverIP, int port) {
 #endif
 
     // Send compression negotiation message to server
-    if (!SendCompressionRequest(COMPRESSION_H264)) {
+    if (!SendCompressionRequest(m_compression)) {
         if (m_onError) {
             m_onError("Failed to send compression negotiation message");
         }
@@ -159,8 +160,46 @@ bool NetworkReceiver::PollFrame() {
     
     // Handle different message types
     if (frameMsg.header.type == MSG_COMPRESSED_FRAME) {
-        std::cout << "Received compressed frame (skipping - no decoder yet)" << std::endl;
-        return true; // Frame received but not processed
+        // Cast to CompressedFrameMessage to get additional fields
+        CompressedFrameMessage* compFrame = reinterpret_cast<CompressedFrameMessage*>(&frameMsg);
+        
+        std::cout << "Received compressed frame: " << compFrame->compressedSize << " bytes (" 
+                  << (compFrame->isKeyframe ? "KEY" : "DELTA") << ")" << std::endl;
+        
+        // Initialize decoder if needed
+        if (!m_decoder && m_compression != COMPRESSION_NONE) {
+            m_decoder = std::make_unique<VideoDecoder>();
+            if (!m_decoder->Initialize(compFrame->width, compFrame->height, m_compression)) {
+                std::cerr << "Failed to initialize video decoder" << std::endl;
+                m_decoder.reset();
+                return true; // Skip this frame
+            } else {
+                std::cout << "Video decoder initialized successfully" << std::endl;
+            }
+        }
+        
+        // Decode frame if decoder is available
+        if (m_decoder) {
+            std::vector<uint8_t> decodedFrame;
+            if (m_decoder->DecodeFrame(frameData.data(), frameData.size(), decodedFrame)) {
+                // Create a FrameMessage for the decoded frame
+                FrameMessage decodedFrameMsg;
+                decodedFrameMsg.header.type = MSG_FRAME_DATA;
+                decodedFrameMsg.header.size = sizeof(FrameMessage);
+                decodedFrameMsg.width = compFrame->width;
+                decodedFrameMsg.height = compFrame->height;
+                decodedFrameMsg.dataSize = decodedFrame.size();
+                
+                // Call frame received callback with decoded frame
+                if (m_onFrameReceived) {
+                    m_onFrameReceived(decodedFrameMsg, decodedFrame);
+                }
+            } else {
+                std::cout << "Failed to decode compressed frame" << std::endl;
+            }
+        }
+        
+        return true; // Frame received and processed
     } else if (frameMsg.header.type != MSG_FRAME_DATA || 
                frameMsg.width > 10000 || frameMsg.height > 10000 ||
                frameMsg.dataSize > 100000000) {

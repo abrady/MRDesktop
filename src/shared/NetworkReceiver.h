@@ -6,6 +6,7 @@
 #include <functional>
 #include <string>
 #include <atomic>
+#include <memory>
 #ifdef _WIN32
 #include <winsock2.h>
 #include <ws2tcpip.h>
@@ -27,12 +28,17 @@ using SocketType = int;
 #endif
 #endif
 
+class VideoDecoder;
+
 class NetworkReceiver {
 private:
     SocketType m_socket = INVALID_SOCKET;
     std::vector<uint8_t> m_frameBuffer;
     CompressionType m_compression = COMPRESSION_NONE;
     std::atomic<bool> m_isConnected{false};
+    
+    // Video decoder for compressed frames
+    std::unique_ptr<VideoDecoder> m_decoder;
     
     // Callbacks
     std::function<void(const FrameMessage&, const std::vector<uint8_t>&)> m_onFrameReceived;

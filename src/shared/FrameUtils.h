@@ -40,18 +40,20 @@ inline bool ReadFrameGeneric(const std::function<int(uint8_t*, int)>& recvFunc,
         return false;
 
     if (hdr.type == MSG_COMPRESSED_FRAME) {
-        // Skip compressed frames (no decoder yet)
-        CompressedFrameMessage temp;
-        temp.header = hdr;
+        // Handle compressed frames by reading them into frameMsg as CompressedFrameMessage
+        CompressedFrameMessage* compFrameMsg = reinterpret_cast<CompressedFrameMessage*>(&frameMsg);
+        compFrameMsg->header = hdr;
         int remaining = sizeof(CompressedFrameMessage) - sizeof(MessageHeader);
         if (!ReadExact(recvFunc,
-                       reinterpret_cast<uint8_t*>(&temp) + sizeof(MessageHeader),
+                       reinterpret_cast<uint8_t*>(compFrameMsg) + sizeof(MessageHeader),
                        remaining))
             return false;
-        std::vector<uint8_t> skip(temp.compressedSize);
-        if (!ReadExact(recvFunc, skip.data(), static_cast<int>(temp.compressedSize)))
+        
+        // Read compressed data
+        frameData.resize(compFrameMsg->compressedSize);
+        if (!ReadExact(recvFunc, frameData.data(), static_cast<int>(compFrameMsg->compressedSize)))
             return false;
-        return false; // indicate frame was skipped
+        return true; // Compressed frame successfully read
     }
 
     if (hdr.type != MSG_FRAME_DATA)
