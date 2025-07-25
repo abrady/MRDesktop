@@ -15,6 +15,8 @@ set(CLIENT_SOURCES
     src/NetworkClient.cpp
     src/InputHandler.cpp
     src/WindowManager.cpp
+    # Shared library files
+    ../../shared/FrameReceiver.cpp
 )
 
 # Header files  
@@ -24,6 +26,10 @@ set(CLIENT_HEADERS
     include/NetworkClient.h
     include/InputHandler.h
     include/WindowManager.h
+    # Shared library headers
+    ../../shared/FrameReceiver.h
+    ../../shared/FrameUtils.h
+    ../../shared/protocol.h
 )
 
 # Create the Windows client executable

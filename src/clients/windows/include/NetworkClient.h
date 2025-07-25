@@ -8,16 +8,16 @@
 #include <functional>
 #include <string>
 #include "protocol.h"
+#include "FrameReceiver.h"
 
 #pragma comment(lib, "ws2_32.lib")
 
 class NetworkClient {
 private:
-    SOCKET m_socket;
+    FrameReceiver m_frameReceiver;
     std::thread m_receiveThread;
     std::atomic<bool> m_isConnected;
     std::atomic<bool> m_shouldStop;
-    std::vector<BYTE> m_receiveBuffer;
     
     // Callbacks
     std::function<void(const FrameMessage&, const std::vector<BYTE>&)> m_onFrameReceived;
@@ -25,7 +25,7 @@ private:
     std::function<void()> m_onDisconnected;
     
     void ReceiveThreadProc();
-    bool ReceiveData(void* buffer, size_t size);
+    bool SendCompressionRequest();
     
 public:
     NetworkClient();
