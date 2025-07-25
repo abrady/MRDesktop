@@ -34,7 +34,7 @@ class NetworkReceiver {
 private:
     SocketType m_socket = INVALID_SOCKET;
     std::vector<uint8_t> m_frameBuffer;
-    CompressionType m_compression = COMPRESSION_NONE;
+    CompressionType m_compression = COMPRESSION_H265;
     std::atomic<bool> m_isConnected{false};
     
     // Video decoder for compressed frames
