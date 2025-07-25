@@ -7,8 +7,16 @@
       "name": "ffmpeg",
       "default-features": false,
       "features": [
-        "avcodec", "avformat", "swresample", "swscale",
-        "nvcodec", "nonfree"
+        "amf", 
+        "avcodec", 
+        "avformat", 
+        "gpl",
+        "nvcodec",
+        "qsv",
+        "swresample", 
+        "swscale",
+        "x264",
+        "x265"
       ]
     }
   ]
