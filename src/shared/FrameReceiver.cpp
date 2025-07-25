@@ -147,37 +147,61 @@ bool FrameReceiver::ReceiveFrame(FrameMessage& frameMsg, std::vector<uint8_t>& f
         memcpy(frameData.data(), m_frameBuffer.data(), frameMsg.dataSize);
         
     } else if (msgHeader.type == MSG_COMPRESSED_FRAME) {
-        // For now, just ignore compressed frames since we don't have H.264 decoder yet
-        // This allows the client to keep running when server sends compressed frames
-        std::cout << "CLIENT: Received compressed frame (skipping - no decoder yet)" << std::endl;
-        
-        // Read and discard the compressed frame message
         CompressedFrameMessage compressedMsg;
         compressedMsg.header = msgHeader;
-        
+
         char* remainingData = reinterpret_cast<char*>(&compressedMsg) + sizeof(MessageHeader);
         int remainingSize = sizeof(CompressedFrameMessage) - sizeof(MessageHeader);
-        
+
         received = recv(m_socket, remainingData, remainingSize, 0);
         if (received != remainingSize) {
             return false;
         }
-        
-        // Read and discard compressed data
-        std::vector<uint8_t> tempBuffer(compressedMsg.compressedSize);
+
+        std::vector<uint8_t> compressedBuffer(compressedMsg.compressedSize);
         uint32_t totalReceived = 0;
         while (totalReceived < compressedMsg.compressedSize) {
             received = recv(m_socket,
-                            reinterpret_cast<char*>(tempBuffer.data()) + totalReceived,
+                            reinterpret_cast<char*>(compressedBuffer.data()) + totalReceived,
                             compressedMsg.compressedSize - totalReceived, 0);
-            if (received <= 0) {
+            if (received == SOCKET_ERROR) {
+#ifdef _WIN32
+                int error = WSAGetLastError();
+                if (error == WSAEWOULDBLOCK) {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                    continue;
+                }
+#else
+                if (errno == EWOULDBLOCK || errno == EAGAIN) {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                    continue;
+                }
+#endif
                 return false;
             }
+            if (received <= 0) return false;
             totalReceived += received;
         }
-        
-        // Return false to skip this frame
-        return false;
+
+        if (m_compression == COMPRESSION_H265) {
+            if (!m_decoderInitialized) {
+                m_decoderInitialized = m_h265Decoder.Initialize();
+            }
+            if (!m_decoderInitialized) return false;
+
+            bool keyframe = false;
+            int width = 0, height = 0;
+            if (!m_h265Decoder.DecodeFrame(compressedBuffer.data(), compressedBuffer.size(), frameData, width, height, keyframe))
+                return false;
+            frameMsg.header.type = MSG_FRAME_DATA;
+            frameMsg.header.size = sizeof(FrameMessage);
+            frameMsg.width = static_cast<UINT32>(width);
+            frameMsg.height = static_cast<UINT32>(height);
+            frameMsg.dataSize = static_cast<UINT32>(frameData.size());
+        } else {
+            // Unsupported compression, skip
+            return false;
+        }
         
     } else {
         // Unknown message type
@@ -200,4 +224,5 @@ void FrameReceiver::Disconnect() {
 
 FrameReceiver::~FrameReceiver() {
     Disconnect();
+    m_h265Decoder.Cleanup();
 }

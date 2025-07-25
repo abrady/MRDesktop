@@ -18,7 +18,8 @@ enum MessageType : UINT32 {
 enum CompressionType : UINT32 {
     COMPRESSION_NONE = 0,
     COMPRESSION_H264 = 1,
-    COMPRESSION_AV1  = 2
+    COMPRESSION_AV1  = 2,
+    COMPRESSION_H265 = 3
 };
 
 // Base message header
