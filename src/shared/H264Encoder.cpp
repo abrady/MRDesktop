@@ -74,15 +74,7 @@ bool H264Encoder::Initialize(int width, int height, int fps) {
         supportedType->Release();
     }
     
-    // Create input media type
-    hr = CreateInputMediaType();
-    if (FAILED(hr)) {
-        std::cerr << "H.264: Failed to create input media type: " << std::hex << hr << std::endl;
-        Cleanup();
-        return false;
-    }
-    
-    // Create output media type
+    // Create output media type FIRST (some encoders need this before reporting input types)
     hr = CreateOutputMediaType();
     if (FAILED(hr)) {
         std::cerr << "H.264: Failed to create output media type: " << std::hex << hr << std::dec << std::endl;
@@ -91,6 +83,14 @@ bool H264Encoder::Initialize(int width, int height, int fps) {
     }
     
     std::cout << "H.264: Output media type created successfully" << std::endl;
+    
+    // Create input media type
+    hr = CreateInputMediaType();
+    if (FAILED(hr)) {
+        std::cerr << "H.264: Failed to create input media type: " << std::hex << hr << std::dec << std::endl;
+        Cleanup();
+        return false;
+    }
     
     // Set encoder properties for low latency
     ICodecAPI* codecAPI = nullptr;
@@ -155,6 +155,26 @@ bool H264Encoder::Initialize(int width, int height, int fps) {
 HRESULT H264Encoder::CreateInputMediaType() {
     HRESULT hr = MFCreateMediaType(&m_inputType);
     if (FAILED(hr)) return hr;
+    
+    // First, let's see what input formats the encoder actually supports
+    std::cout << "H.264: Supported input formats:" << std::endl;
+    for (DWORD i = 0; ; i++) {
+        IMFMediaType* supportedType = nullptr;
+        hr = m_encoder->GetInputAvailableType(0, i, &supportedType);
+        if (FAILED(hr)) break;
+        
+        GUID subtype;
+        if (SUCCEEDED(supportedType->GetGUID(MF_MT_SUBTYPE, &subtype))) {
+            if (subtype == MFVideoFormat_NV12) std::cout << "  - NV12" << std::endl;
+            else if (subtype == MFVideoFormat_YUY2) std::cout << "  - YUY2" << std::endl;
+            else if (subtype == MFVideoFormat_RGB32) std::cout << "  - RGB32" << std::endl;
+            else if (subtype == MFVideoFormat_RGB24) std::cout << "  - RGB24" << std::endl;
+            else if (subtype == MFVideoFormat_IYUV) std::cout << "  - IYUV" << std::endl;
+            else if (subtype == MFVideoFormat_I420) std::cout << "  - I420" << std::endl;
+            else std::cout << "  - Unknown format" << std::endl;
+        }
+        supportedType->Release();
+    }
     
     // Start simple with RGB32 format which matches our BGRA input
     hr = m_inputType->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Video);
