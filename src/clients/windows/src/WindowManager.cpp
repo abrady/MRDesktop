@@ -3,7 +3,7 @@
 #include "SimpleVideoRenderer.h"
 #include "NetworkClient.h"
 #include "InputHandler.h"
-#include "Protocol.h"
+#include "protocol.h"
 #include <commdlg.h>
 #include <sstream>
 #include <iostream>

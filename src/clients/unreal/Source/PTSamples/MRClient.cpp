@@ -8,55 +8,8 @@
 #include "Engine/Engine.h"
 #include "Engine/Texture2D.h"
 #include "Rendering/Texture2DResource.h"
-
-// Include protocol definitions
-#pragma pack(push, 1)
-
-enum MessageType : uint32 {
-    MSG_FRAME_DATA = 1,
-    MSG_MOUSE_MOVE = 2,
-    MSG_MOUSE_CLICK = 3,
-    MSG_MOUSE_SCROLL = 4
-};
-
-struct MessageHeader {
-    MessageType type;
-    uint32 size;
-};
-
-struct FrameMessage {
-    MessageHeader header;
-    uint32 width;
-    uint32 height;
-    uint32 dataSize;
-};
-
-struct MouseMoveMessage {
-    MessageHeader header;
-    int32 deltaX;
-    int32 deltaY;
-    int32 absolute;
-    int32 x;
-    int32 y;
-};
-
-struct MouseClickMessage {
-    MessageHeader header;
-    enum MouseButton : uint32 {
-        LEFT_BUTTON = 1,
-        RIGHT_BUTTON = 2,
-        MIDDLE_BUTTON = 4
-    } button;
-    int32 pressed;
-};
-
-struct MouseScrollMessage {
-    MessageHeader header;
-    int32 deltaX;
-    int32 deltaY;
-};
-
-#pragma pack(pop)
+#include "FrameUtils.h"
+#include <vector>
 
 MRClient::MRClient()
     : Socket(nullptr)
@@ -253,35 +206,31 @@ bool MRClient::ReceiveFrameData()
     if (!Socket || !bIsConnected)
         return false;
 
-    // First, receive the frame message header
+    auto recvWrapper = [this](uint8* buffer, int len) -> int
+    {
+        int32 BytesReceived = 0;
+        if (!Socket->Recv(buffer, len, BytesReceived))
+        {
+            ESocketErrors Err = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->GetLastErrorCode();
+            if (Err == SE_EWOULDBLOCK)
+                return 0;
+            return -1;
+        }
+        return BytesReceived;
+    };
+
     FrameMessage frameMsg;
-    if (!ReceiveExactBytes(reinterpret_cast<uint8*>(&frameMsg), sizeof(FrameMessage)))
-    {
+    TArray<uint8> FrameData;
+    std::vector<uint8> Temp;
+    bool ok = ReadFrameGeneric(recvWrapper, frameMsg, Temp);
+    if (!ok)
         return false;
-    }
 
-    // Validate message type
-    if (frameMsg.header.type != MSG_FRAME_DATA)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("MRClient: Received unexpected message type: %d"), frameMsg.header.type);
-        return false;
-    }
+    FrameData.Append(Temp.data(), Temp.size());
 
-    // Update current frame info
     CurrentFrameWidth = frameMsg.width;
     CurrentFrameHeight = frameMsg.height;
     CurrentFrameDataSize = frameMsg.dataSize;
-
-    // Allocate buffer for frame data
-    TArray<uint8> FrameData;
-    FrameData.SetNumUninitialized(CurrentFrameDataSize);
-
-    // Receive the actual frame pixel data
-    if (!ReceiveExactBytes(FrameData.GetData(), CurrentFrameDataSize))
-    {
-        UE_LOG(LogTemp, Error, TEXT("MRClient: Failed to receive frame pixel data"));
-        return false;
-    }
 
     // Push the frame pixels to the dynamic texture
     PushFrame(FrameData.GetData(), CurrentFrameWidth, CurrentFrameHeight, CurrentFrameWidth * 4);
@@ -298,48 +247,6 @@ bool MRClient::ReceiveFrameData()
     return true;
 }
 
-bool MRClient::ReceiveExactBytes(uint8* Buffer, int32 BytesToReceive)
-{
-    if (!Socket || !Buffer || BytesToReceive <= 0)
-        return false;
-
-    int32 TotalBytesReceived = 0;
-    
-    while (TotalBytesReceived < BytesToReceive && !bShouldStop)
-    {
-        int32 BytesReceived = 0;
-        
-        if (!Socket->Recv(Buffer + TotalBytesReceived, 
-                         BytesToReceive - TotalBytesReceived, 
-                         BytesReceived))
-        {
-            // Check if it's a would-block error (non-blocking socket)
-            ESocketErrors SocketError = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->GetLastErrorCode();
-            if (SocketError == SE_EWOULDBLOCK)
-            {
-                // No data available right now, wait a bit
-                FPlatformProcess::Sleep(0.001f);
-                continue;
-            }
-            else
-            {
-                UE_LOG(LogTemp, Error, TEXT("MRClient: Socket receive error: %d"), (int32)SocketError);
-                return false;
-            }
-        }
-
-        if (BytesReceived == 0)
-        {
-            UE_LOG(LogTemp, Warning, TEXT("MRClient: Connection closed by server"));
-            bIsConnected = false;
-            return false;
-        }
-
-        TotalBytesReceived += BytesReceived;
-    }
-
-    return TotalBytesReceived == BytesToReceive;
-}
 
 void MRClient::CreateRemoteTexture(int32 Width, int32 Height)
 {
