@@ -2,12 +2,7 @@
 #include <iostream>
 
 VideoEncoder::VideoEncoder() {
-    // Initialize ffmpeg (only needs to be done once globally)
-    static bool ffmpeg_initialized = false;
-    if (!ffmpeg_initialized) {
-        avcodec_register_all();
-        ffmpeg_initialized = true;
-    }
+    // FFmpeg 4.0+ automatically registers codecs, no need for avcodec_register_all()
 }
 
 VideoEncoder::~VideoEncoder() {
@@ -41,7 +36,7 @@ bool VideoEncoder::Initialize(uint32_t width, uint32_t height, CompressionType c
     }
     
     // Find encoder
-    AVCodec* codec = avcodec_find_encoder_by_name(codecName);
+    const AVCodec* codec = avcodec_find_encoder_by_name(codecName);
     if (!codec) {
         std::cerr << "VideoEncoder: Could not find encoder: " << codecName << std::endl;
         return false;
@@ -141,9 +136,11 @@ bool VideoEncoder::EncodeFrame(const uint8_t* bgraData, std::vector<uint8_t>& co
     sws_scale(m_SwsContext, srcData, srcLinesize, 0, m_Height,
               m_Frame->data, m_Frame->linesize);
     
-    // Set frame PTS
-    static int64_t pts = 0;
-    m_Frame->pts = pts++;
+    // Set frame PTS - let libavcodec handle keyframe decisions
+    m_Frame->pts = m_FrameCount++;
+    
+    // Don't override encoder decisions - let it use GOP settings naturally
+    m_Frame->pict_type = AV_PICTURE_TYPE_NONE;
     
     // Send frame to encoder
     int ret = avcodec_send_frame(m_CodecContext, m_Frame);
@@ -166,8 +163,14 @@ bool VideoEncoder::EncodeFrame(const uint8_t* bgraData, std::vector<uint8_t>& co
     compressedData.resize(m_Packet->size);
     memcpy(compressedData.data(), m_Packet->data, m_Packet->size);
     
-    // Check if this is a keyframe
+    // Check if this is a keyframe (output parameter - reports what encoder actually produced)
     isKeyframe = (m_Packet->flags & AV_PKT_FLAG_KEY) != 0;
+    
+    // Debug: Log frame information
+    std::cout << "VideoEncoder: Frame " << (m_FrameCount-1) << " - PTS=" << m_Packet->pts 
+              << ", Size=" << m_Packet->size << " bytes"
+              << ", Flags=0x" << std::hex << m_Packet->flags << std::dec
+              << " -> " << (isKeyframe ? "KEYFRAME" : "DELTA") << std::endl;
     
     av_packet_unref(m_Packet);
     

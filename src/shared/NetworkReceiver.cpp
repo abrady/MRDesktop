@@ -188,7 +188,7 @@ bool NetworkReceiver::PollFrame() {
                 decodedFrameMsg.header.size = sizeof(FrameMessage);
                 decodedFrameMsg.width = compFrame->width;
                 decodedFrameMsg.height = compFrame->height;
-                decodedFrameMsg.dataSize = decodedFrame.size();
+                decodedFrameMsg.dataSize = static_cast<uint32_t>(decodedFrame.size());
                 
                 // Call frame received callback with decoded frame
                 if (m_onFrameReceived) {

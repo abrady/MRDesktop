@@ -25,6 +25,7 @@ private:
     uint32_t m_Bitrate = 5000000; // 5 Mbps default
     CompressionType m_CompressionType = COMPRESSION_NONE;
     bool m_IsInitialized = false;
+    int64_t m_FrameCount = 0;
     
     const char* GetCodecName(CompressionType type);
     

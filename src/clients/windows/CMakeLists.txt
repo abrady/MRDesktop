@@ -6,6 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Find required packages
 find_package(PkgConfig QUIET)
+find_package(FFMPEG REQUIRED)
 
 # Source files
 set(CLIENT_SOURCES
@@ -16,6 +17,7 @@ set(CLIENT_SOURCES
     src/WindowManager.cpp
     # Shared library files
     ../../shared/NetworkReceiver.cpp
+    ../../shared/VideoDecoder.cpp
 )
 
 # Header files  
@@ -37,6 +39,7 @@ add_executable(MRDesktopWindowsClient WIN32 ${CLIENT_SOURCES} ${CLIENT_HEADERS})
 target_include_directories(MRDesktopWindowsClient PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/../../shared
+    ${FFMPEG_INCLUDE_DIRS}
 )
 
 # Windows-specific libraries
@@ -48,6 +51,8 @@ if(WIN32)
     )
     
     target_link_libraries(MRDesktopWindowsClient PRIVATE
+        # FFmpeg libraries
+        ${FFMPEG_LIBRARIES}
         # Network
         ws2_32
         # Graphics  

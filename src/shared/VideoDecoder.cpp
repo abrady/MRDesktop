@@ -2,12 +2,7 @@
 #include <iostream>
 
 VideoDecoder::VideoDecoder() {
-    // Initialize ffmpeg (only needs to be done once globally)
-    static bool ffmpeg_initialized = false;
-    if (!ffmpeg_initialized) {
-        avcodec_register_all();
-        ffmpeg_initialized = true;
-    }
+    // FFmpeg 4.0+ automatically registers codecs, no need for avcodec_register_all()
 }
 
 VideoDecoder::~VideoDecoder() {
@@ -40,7 +35,7 @@ bool VideoDecoder::Initialize(uint32_t width, uint32_t height, CompressionType c
     }
     
     // Find decoder
-    AVCodec* codec = avcodec_find_decoder_by_name(codecName);
+    const AVCodec* codec = avcodec_find_decoder_by_name(codecName);
     if (!codec) {
         std::cerr << "VideoDecoder: Could not find decoder: " << codecName << std::endl;
         return false;
@@ -108,7 +103,7 @@ bool VideoDecoder::DecodeFrame(const uint8_t* compressedData, size_t dataSize, s
     
     // Set packet data
     m_Packet->data = const_cast<uint8_t*>(compressedData);
-    m_Packet->size = dataSize;
+    m_Packet->size = static_cast<int>(dataSize);
     
     // Send packet to decoder
     int ret = avcodec_send_packet(m_CodecContext, m_Packet);
