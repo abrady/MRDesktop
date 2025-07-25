@@ -116,7 +116,11 @@ public:
     bool ReceiveFrame(FrameMessage& frameMsg, std::vector<BYTE>& frameData, int frameNumber) {
         if (m_Socket == INVALID_SOCKET) return false;
         
-        std::cout << "CLIENT RECV: Frame " << frameNumber << " - Expecting header size: " << sizeof(FrameMessage) << std::endl;
+        static int lastFrameAttempted = -1;
+        if (lastFrameAttempted != frameNumber) {
+            std::cout << "CLIENT RECV: Frame " << frameNumber << " - Expecting header size: " << sizeof(FrameMessage) << std::endl;
+            lastFrameAttempted = frameNumber;
+        }
         
         // Receive frame message header
         int received = recv(m_Socket, (char*)&frameMsg, sizeof(FrameMessage), 0);
@@ -230,14 +234,24 @@ public:
             std::cout << "CLIENT DEBUG: Frame " << frameNumber << " - Bytes still in socket buffer: " << bytesAvailable << std::endl;
             
             if (bytesAvailable > 0) {
-                std::cout << "CLIENT WARNING: Frame " << frameNumber << " - Unexpected extra data in buffer!" << std::endl;
+                std::cout << "CLIENT DEBUG: Frame " << frameNumber << " - Extra data detected (likely next frame)" << std::endl;
                 
-                // Peek at the extra data
+                // Peek at the extra data to see what it is
                 char peekBuffer[32];
                 u_long peekSize = (bytesAvailable < 32) ? bytesAvailable : 32;
                 int peeked = recv(m_Socket, peekBuffer, peekSize, MSG_PEEK);
                 if (peeked > 0) {
                     HexDump(peekBuffer, peeked, "CLIENT DEBUG: Extra buffer data");
+                    
+                    // Check if this looks like a valid frame header
+                    if (peeked >= sizeof(FrameMessage)) {
+                        FrameMessage* nextFrame = (FrameMessage*)peekBuffer;
+                        if (nextFrame->header.type == MSG_FRAME_DATA) {
+                            std::cout << "CLIENT DEBUG: Next frame header detected in buffer - this is normal TCP buffering" << std::endl;
+                        } else {
+                            std::cout << "CLIENT ERROR: Buffer contains invalid data - sync may be lost!" << std::endl;
+                        }
+                    }
                 }
             }
         }
