@@ -74,3 +74,5 @@ Plugins/*/Intermediate/
 
 # Starter Content (if you want to exclude it)
 # Content/StarterContent/
+
+enc_temp_folder/

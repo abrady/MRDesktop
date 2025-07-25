@@ -238,10 +238,7 @@ bool MRClient::ReceiveFrameData()
     // Call the frame received callback on the game thread
     AsyncTask(ENamedThreads::GameThread, [this, FrameData = MoveTemp(FrameData)]()
     {
-        if (OnFrameReceived.IsBound())
-        {
-            OnFrameReceived.Execute(FrameData);
-        }
+        OnFrameReceived.ExecuteIfBound(FrameData);
     });
 
     return true;
@@ -275,7 +272,10 @@ void MRClient::PushFrame(const uint8* Data, int32 W, int32 H, int32 PitchBytes)
         static FUpdateTextureRegion2D Region(0, 0, 0, 0, W, H);
         if (RemoteTex)
         {
-            RemoteTex->UpdateTextureRegions(0, 1, &Region, PitchBytes, 4, Buffer->GetData(), nullptr);
+            RemoteTex->UpdateTextureRegions(
+                0, 1, &Region, PitchBytes, 4, Buffer->GetData(),
+                [Buffer](uint8*, const FUpdateTextureRegion2D*) {}
+            );
         }
     });
 }
