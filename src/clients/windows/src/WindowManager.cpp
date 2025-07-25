@@ -182,21 +182,19 @@ void WindowManager::OnCreate() {
     m_networkClient = std::make_unique<NetworkClient>();
     m_inputHandler = std::make_unique<InputHandler>();
     
-    // Try to initialize Direct2D video renderer first
-    HRESULT hr = m_videoRenderer->Initialize(m_hwnd);
+    // Initialize GDI renderer as fallback (always works)
+    std::cout << "Initializing GDI renderer as fallback..." << std::endl;
+    HRESULT hr = m_simpleVideoRenderer->Initialize(m_hwnd);
     if (FAILED(hr)) {
-        // Fall back to simple GDI renderer
-        hr = m_simpleVideoRenderer->Initialize(m_hwnd);
-        if (FAILED(hr)) {
-            MessageBoxW(m_hwnd, L"Failed to initialize both Direct2D and GDI video renderers.\nThis is a critical error.", L"Video Renderer Error", MB_OK | MB_ICONERROR);
-            PostQuitMessage(1);
-            return;
-        }
-        m_usingSimpleRenderer = true;
-        std::cout << "Direct2D not available - using GDI fallback renderer. Performance may be reduced." << std::endl;
-    } else {
-        m_usingSimpleRenderer = false;
+        std::cout << "GDI renderer initialization failed with HRESULT: 0x" << std::hex << hr << std::dec << std::endl;
+        MessageBoxW(m_hwnd, L"Failed to initialize GDI video renderer.\nThis is a critical error.", L"Video Renderer Error", MB_OK | MB_ICONERROR);
+        PostQuitMessage(1);
+        return;
     }
+    
+    // Start with GDI renderer, will try Direct2D when window is properly sized
+    m_usingSimpleRenderer = true;
+    std::cout << "GDI renderer initialized. Will attempt Direct2D upgrade when window is ready." << std::endl;
     
     // Initialize input handler
     m_inputHandler->Initialize(m_hwnd);
@@ -337,6 +335,20 @@ void WindowManager::DisconnectFromServer() {
 }
 
 void WindowManager::OnFrameReceived(const FrameMessage& frameMsg, const std::vector<BYTE>& frameData) {
+    // Try to upgrade to Direct2D renderer if we're still using GDI and haven't tried yet
+    static bool triedDirect2DUpgrade = false;
+    if (m_usingSimpleRenderer && !triedDirect2DUpgrade) {
+        triedDirect2DUpgrade = true;
+        std::cout << "Attempting to upgrade to Direct2D renderer now that window is ready..." << std::endl;
+        HRESULT hr = m_videoRenderer->Initialize(m_hwnd);
+        if (SUCCEEDED(hr)) {
+            std::cout << "Successfully upgraded to Direct2D renderer!" << std::endl;
+            m_usingSimpleRenderer = false;
+        } else {
+            std::cout << "Direct2D upgrade failed with HRESULT: 0x" << std::hex << hr << std::dec << ". Continuing with GDI renderer." << std::endl;
+        }
+    }
+    
     if (m_usingSimpleRenderer && m_simpleVideoRenderer) {
         m_simpleVideoRenderer->RenderFrame(frameMsg, frameData);
     } else if (!m_usingSimpleRenderer && m_videoRenderer) {
