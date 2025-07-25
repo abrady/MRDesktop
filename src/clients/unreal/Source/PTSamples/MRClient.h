@@ -63,8 +63,7 @@ private:
 	FRunnableThread* Thread;
 	
 	// Frame reception
-	bool ReceiveFrameData();
-	bool ReceiveExactBytes(uint8* Buffer, int32 BytesToReceive);
+        bool ReceiveFrameData();
 	
 	// Current frame info
         uint32 CurrentFrameWidth;

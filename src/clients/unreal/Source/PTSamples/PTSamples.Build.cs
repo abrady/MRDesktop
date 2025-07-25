@@ -4,13 +4,15 @@ using UnrealBuildTool;
 
 public class PTSamples : ModuleRules
 {
-	public PTSamples(ReadOnlyTargetRules Target) : base(Target)
-	{
-		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
+        public PTSamples(ReadOnlyTargetRules Target) : base(Target)
+        {
+                PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
-		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore" });
+                PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore" });
 
-		PrivateDependencyModuleNames.AddRange(new string[] { "Sockets", "Networking" });
+                PrivateDependencyModuleNames.AddRange(new string[] { "Sockets", "Networking" });
+
+                PrivateIncludePaths.Add(System.IO.Path.Combine(ModuleDirectory, "../../../../shared"));
 
 		// Uncomment if you are using Slate UI
 		// PrivateDependencyModuleNames.AddRange(new string[] { "Slate", "SlateCore" });

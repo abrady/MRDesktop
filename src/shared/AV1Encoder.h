@@ -1,7 +1,6 @@
 #pragma once
 #include <vector>
-#include <aom/aom_encoder.h>
-#include <aom/aomcx.h>
+#include <svt-av1/EbSvtAv1Enc.h>
 
 class AV1Encoder {
 public:
@@ -20,6 +19,6 @@ private:
     bool m_initialized;
     bool m_forceKeyframe;
     int m_frameCount;
-    aom_codec_ctx_t m_codec;
-    aom_codec_enc_cfg_t m_cfg;
+    EbComponentType* m_handle;
+    EbSvtAv1EncConfiguration m_cfg;
 };
