@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.20)
 project(MRDesktop)
 
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(SVTAV1 REQUIRED IMPORTED_TARGET SvtAv1Enc)
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -36,7 +39,7 @@ if(PLATFORM_DESKTOP)
         src/shared/H264Encoder.cpp
         src/shared/AV1Encoder.cpp
     )
-    target_include_directories(MRDesktopServer PRIVATE ${COMMON_INCLUDES})
+    target_include_directories(MRDesktopServer PRIVATE ${COMMON_INCLUDES} ${SVTAV1_INCLUDE_DIRS})
 
     # Create console client executable
     add_executable(MRDesktopConsoleClient
@@ -44,20 +47,21 @@ if(PLATFORM_DESKTOP)
         src/shared/FrameLogger.cpp
         src/shared/FrameReceiver.cpp
     )
-    target_include_directories(MRDesktopConsoleClient PRIVATE ${COMMON_INCLUDES})
+    target_include_directories(MRDesktopConsoleClient PRIVATE ${COMMON_INCLUDES} ${SVTAV1_INCLUDE_DIRS})
 
     if(WIN32)
         # Server needs DXGI, Media Foundation and other Windows APIs
         target_compile_definitions(MRDesktopServer PRIVATE WIN32_LEAN_AND_MEAN)
-        target_link_libraries(MRDesktopServer PRIVATE dxgi d3d11 ws2_32 mf mfplat mfuuid wmcodecdspuuid aom)
+        target_link_libraries(MRDesktopServer PRIVATE dxgi d3d11 ws2_32 mf mfplat mfuuid wmcodecdspuuid SvtAv1Enc)
         
         # Console client
         target_compile_definitions(MRDesktopConsoleClient PRIVATE WIN32_LEAN_AND_MEAN)
-        target_link_libraries(MRDesktopConsoleClient PRIVATE ws2_32)
+        target_link_libraries(MRDesktopConsoleClient PRIVATE ws2_32 SvtAv1Enc)
     endif()
 
     if(NOT WIN32)
-        target_link_libraries(MRDesktopServer PRIVATE aom)
+        target_link_libraries(MRDesktopServer PRIVATE SvtAv1Enc)
+        target_link_libraries(MRDesktopConsoleClient PRIVATE SvtAv1Enc)
     endif()
     
     # Add Windows GUI client as a subdirectory
