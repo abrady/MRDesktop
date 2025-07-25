@@ -15,6 +15,7 @@ using SocketType = SOCKET;
 #include <unistd.h>
 #include <fcntl.h>
 #include <cstring>
+#include <errno.h>
 using SocketType = int;
 #ifndef INVALID_SOCKET
 #define INVALID_SOCKET -1

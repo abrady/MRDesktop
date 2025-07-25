@@ -2,6 +2,7 @@
 #include <iostream>
 #include <thread>
 #include <chrono>
+#include <cerrno>
 
 bool FrameReceiver::Connect(const char* serverIP, int port) {
 #ifdef _WIN32
