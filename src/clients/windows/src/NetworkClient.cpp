@@ -64,7 +64,7 @@ bool NetworkClient::Connect(const std::string& serverIP, int port) {
     CompressionRequestMessage compressionMsg;
     compressionMsg.header.type = MSG_COMPRESSION_REQUEST;
     compressionMsg.header.size = sizeof(CompressionRequestMessage);
-    compressionMsg.compression = COMPRESSION_NONE; // Request no compression for now
+    compressionMsg.compression = COMPRESSION_H264; // Request H.264 compression
     
     int sent = send(m_socket, reinterpret_cast<const char*>(&compressionMsg), sizeof(compressionMsg), 0);
     if (sent != sizeof(compressionMsg)) {
@@ -76,7 +76,7 @@ bool NetworkClient::Connect(const std::string& serverIP, int port) {
         return false;
     }
     
-    std::cout << "Sent compression negotiation message (COMPRESSION_NONE)" << std::endl;
+    std::cout << "Sent compression negotiation message (COMPRESSION_H264)" << std::endl;
     
     // Start receiving thread
     m_isConnected = true;
