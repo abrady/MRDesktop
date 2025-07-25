@@ -21,9 +21,6 @@ else()
     message(FATAL_ERROR "Unsupported platform")
 endif()
 
-# Note: H.264 compression uses Windows Media Foundation (built into Windows)
-# No external codec libraries needed for H.264 support
-
 # Common include directories
 set(COMMON_INCLUDES 
     ${CMAKE_CURRENT_SOURCE_DIR}/include
@@ -35,7 +32,6 @@ if(PLATFORM_DESKTOP)
     # Create server executable
     add_executable(MRDesktopServer
         src/server/main.cpp
-        src/shared/H264Encoder.cpp
     )
     target_include_directories(MRDesktopServer PRIVATE ${COMMON_INCLUDES} ${FFMPEG_INCLUDE_DIRS})
 

@@ -10,7 +10,6 @@
 #include <chrono>
 #include <algorithm>
 #include "protocol.h"
-#include "H264Encoder.h"
 
 #pragma comment(lib, "ws2_32.lib")
 
@@ -409,16 +408,8 @@ int main(int argc, char* argv[]) {
     
     std::cout << "Client connected! Starting desktop streaming..." << std::endl;
 
-    // Negotiate compression with client
-    CompressionType compressionMode = COMPRESSION_H265;
-    CompressionRequestMessage requestMsg;
-    int handshaked = recv(clientSocket, (char*)&requestMsg, sizeof(requestMsg), 0);
-    if (handshaked == sizeof(requestMsg) && requestMsg.header.type == MSG_COMPRESSION_REQUEST) {
-        compressionMode = requestMsg.compression;
-        std::cout << "Client requested compression mode: " << compressionMode << std::endl;
-    } else {
-        std::cout << "No compression request received. Defaulting to H.265." << std::endl;
-    }
+    // No compression negotiation needed - only uncompressed frames
+    std::cout << "Streaming uncompressed frames only" << std::endl;
 
     // Set socket to non-blocking for input checking
     u_long mode = 1;
@@ -431,10 +422,8 @@ int main(int argc, char* argv[]) {
     auto startTime = std::chrono::high_resolution_clock::now();
     
 
-    // Initialize encoders
-    H264Encoder h264Encoder;
-    bool h264Initialized = false;
-    std::cout << "Encoder objects created" << std::endl;
+    // No encoders needed anymore
+    std::cout << "Ready to stream uncompressed frames" << std::endl;
     
     while (true) {
         // Check for incoming input messages
@@ -520,75 +509,24 @@ int main(int argc, char* argv[]) {
                 continue;
             }
             
-            // Initialize H.264 encoder on first frame
-            if (compressionMode == COMPRESSION_H264 && !h264Initialized) {
-                if (h264Encoder.Initialize(frameWidth, frameHeight, 60)) {
-                    h264Initialized = true;
-                    std::cout << "H.264 encoder initialized for " << frameWidth << "x" << frameHeight << std::endl;
-                } else {
-                    std::cerr << "Failed to initialize H.264 encoder, falling back to uncompressed" << std::endl;
-                    compressionMode = COMPRESSION_NONE;
-                }
+            // Send uncompressed frame
+            FrameMessage frameMsg;
+            frameMsg.header.type = MSG_FRAME_DATA;
+            frameMsg.header.size = sizeof(FrameMessage);
+            frameMsg.width = frameWidth;
+            frameMsg.height = frameHeight;
+            frameMsg.dataSize = frameDataSize;
+            
+            std::cout << "SERVER SEND: Frame " << frameCount + 1 << " - Uncompressed: " << frameDataSize << " bytes" << std::endl;
+            
+            if (!SendAllData(clientSocket, (char*)&frameMsg, sizeof(FrameMessage))) {
+                std::cerr << "Failed to send frame header" << std::endl;
+                break;
             }
-
-            // Try to compress frame with H.264
-            if (compressionMode == COMPRESSION_H264 && h264Initialized) {
-                std::vector<uint8_t> compressedData;
-                bool isKeyframe = false;
-
-                bool ok = h264Encoder.EncodeFrame(pixelData.data(), compressedData, isKeyframe);
-
-                if (ok) {
-                    // Send compressed frame
-                    CompressedFrameMessage compressedMsg;
-                    compressedMsg.header.type = MSG_COMPRESSED_FRAME;
-                    compressedMsg.header.size = sizeof(CompressedFrameMessage);
-                    compressedMsg.width = frameWidth;
-                    compressedMsg.height = frameHeight;
-                    compressedMsg.compressedSize = compressedData.size();
-                    compressedMsg.isKeyframe = isKeyframe ? 1 : 0;
-
-                    std::cout << "SERVER SEND: Frame " << frameCount + 1 << " - H.264 compressed: "
-                             << frameDataSize << " -> " << compressedData.size() << " bytes"
-                             << (isKeyframe ? " (KEYFRAME)" : " (DELTA)") << std::endl;
-                    
-                    // Send compressed frame header
-                    if (!SendAllData(clientSocket, (char*)&compressedMsg, sizeof(CompressedFrameMessage))) {
-                        std::cerr << "Failed to send compressed frame header" << std::endl;
-                        break;
-                    }
-                    
-                    // Send compressed data
-                    if (!SendAllData(clientSocket, (char*)compressedData.data(), compressedData.size())) {
-                        std::cerr << "Failed to send compressed frame data" << std::endl;
-                        break;
-                    }
-                } else {
-                    // Compression failed, send uncompressed
-                    std::cerr << "H.264 encoding failed, sending uncompressed frame" << std::endl;
-                    goto send_uncompressed;
-                }
-            } else {
-                // Send uncompressed frame
-                send_uncompressed:
-                FrameMessage frameMsg;
-                frameMsg.header.type = MSG_FRAME_DATA;
-                frameMsg.header.size = sizeof(FrameMessage);
-                frameMsg.width = frameWidth;
-                frameMsg.height = frameHeight;
-                frameMsg.dataSize = frameDataSize;
-                
-                std::cout << "SERVER SEND: Frame " << frameCount + 1 << " - Uncompressed: " << frameDataSize << " bytes" << std::endl;
-                
-                if (!SendAllData(clientSocket, (char*)&frameMsg, sizeof(FrameMessage))) {
-                    std::cerr << "Failed to send frame header" << std::endl;
-                    break;
-                }
-                
-                if (!SendAllData(clientSocket, (char*)pixelData.data(), frameDataSize)) {
-                    std::cerr << "Failed to send frame data" << std::endl;
-                    break;
-                }
+            
+            if (!SendAllData(clientSocket, (char*)pixelData.data(), frameDataSize)) {
+                std::cerr << "Failed to send frame data" << std::endl;
+                break;
             }
             
             std::cout << "SERVER SEND: Frame " << frameCount + 1 << " - COMPLETE" << std::endl;
