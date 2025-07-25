@@ -184,22 +184,27 @@ int main(int argc, char *argv[])
     
     // Track compression usage for test validation
     bool receivedCompressedFrame = false;
+    bool receivedUncompressedFrame = false;
     
-    // Set up frame callback
+    // Set up callback to track raw frame types from network
+    receiver.SetRawFrameCallback([&](MessageType msgType) {
+        if (msgType == MSG_COMPRESSED_FRAME) {
+            receivedCompressedFrame = true;
+        } else if (msgType == MSG_FRAME_DATA) {
+            receivedUncompressedFrame = true;
+        }
+    });
+    
+    // Set up frame callback  
     receiver.SetFrameCallback([&](const FrameMessage& frameMsg, const std::vector<uint8_t>& frameData) {
         frameCount++;
 
         // Test mode validation
         if (testMode) {
-            // Check if this came from a compressed frame (MSG_FRAME_DATA means it was decoded)
-            if (frameMsg.header.type == MSG_FRAME_DATA && compression != COMPRESSION_NONE) {
-                receivedCompressedFrame = true;
-                std::cout << "TEST: Received DECODED compressed frame " << frameCount << " - " << frameMsg.width << "x" << frameMsg.height 
-                          << " (" << frameData.size() << " bytes)" << std::endl;
-            } else {
-                std::cout << "TEST: Received frame " << frameCount << " - " << frameMsg.width << "x" << frameMsg.height 
-                          << " (" << frameData.size() << " bytes)" << std::endl;
-            }
+            // All frames in the callback have type MSG_FRAME_DATA (either original or decoded)
+            // We need a different way to detect if compression was actually used
+            std::cout << "TEST: Received frame " << frameCount << " - " << frameMsg.width << "x" << frameMsg.height 
+                      << " (" << frameData.size() << " bytes) [Type: " << frameMsg.header.type << "]" << std::endl;
             
             // Validate expected dimensions
             if (frameMsg.width != 640 || frameMsg.height != 480) {
@@ -372,21 +377,33 @@ int main(int argc, char *argv[])
     std::cout << "Streaming ended. Total frames received: " << frameCount << std::endl;
     
     if (testMode) {
-        // Additional test: verify compression was actually used if requested
+        std::cout << std::endl << "=== COMPRESSION TEST RESULTS ===" << std::endl;
+        std::cout << "Requested compression: " << compression << std::endl;
+        std::cout << "Received compressed frames: " << (receivedCompressedFrame ? "YES" : "NO") << std::endl;
+        std::cout << "Received uncompressed frames: " << (receivedUncompressedFrame ? "YES" : "NO") << std::endl;
+        std::cout << "Total frames: " << frameCount << std::endl;
+        
+        // Test validation logic
         if (compression != COMPRESSION_NONE && !receivedCompressedFrame) {
-            std::cout << "TEST FAILED: Requested compression type " << compression << " but no compressed frames were received!" << std::endl;
+            std::cout << "TEST FAILED: Requested compression type " << compression << " but server sent uncompressed frames!" << std::endl;
+            std::cout << "This indicates compression encoder is not available or failed to initialize." << std::endl;
+            testPassed = false;
+        } else if (compression == COMPRESSION_NONE && receivedCompressedFrame) {
+            std::cout << "TEST FAILED: Requested no compression but received compressed frames!" << std::endl;
             testPassed = false;
         }
         
         if (testPassed && frameCount >= 3) {
-            if (compression != COMPRESSION_NONE) {
-                std::cout << "TEST PASSED: H.265 compression working - " << frameCount << " frames encoded/decoded successfully!" << std::endl;
+            if (compression != COMPRESSION_NONE && receivedCompressedFrame) {
+                std::cout << "TEST PASSED: Compression working - " << frameCount << " frames encoded/decoded successfully!" << std::endl;
+            } else if (compression == COMPRESSION_NONE && receivedUncompressedFrame) {
+                std::cout << "TEST PASSED: Uncompressed mode working - " << frameCount << " frames received successfully!" << std::endl;
             } else {
-                std::cout << "TEST PASSED: All frames validated successfully!" << std::endl;
+                std::cout << "TEST PASSED: Frame validation passed but compression behavior unclear" << std::endl;
             }
             return 0; // Success
         } else {
-            std::cout << "TEST FAILED: Frame validation failed or insufficient frames received" << std::endl;
+            std::cout << "TEST FAILED: " << (testPassed ? "Insufficient frames received" : "Frame validation or compression test failed") << std::endl;
             return 1; // Failure
         }
     }

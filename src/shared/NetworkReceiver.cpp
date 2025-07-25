@@ -158,6 +158,11 @@ bool NetworkReceiver::PollFrame() {
               << ", Width: " << frameMsg.width 
               << ", Height: " << frameMsg.height << std::endl;
     
+    // Notify about raw frame type received
+    if (m_onRawFrameReceived) {
+        m_onRawFrameReceived(frameMsg.header.type);
+    }
+    
     // Handle different message types
     if (frameMsg.header.type == MSG_COMPRESSED_FRAME) {
         // Cast to CompressedFrameMessage to get additional fields

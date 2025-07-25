@@ -44,6 +44,7 @@ private:
     std::function<void(const FrameMessage&, const std::vector<uint8_t>&)> m_onFrameReceived;
     std::function<void(const std::string&)> m_onError;
     std::function<void()> m_onDisconnected;
+    std::function<void(MessageType)> m_onRawFrameReceived; // Called when any frame is received from network
     
 #ifdef _WIN32
     bool m_winsockInitialized = false;
@@ -79,6 +80,10 @@ public:
     
     void SetDisconnectedCallback(std::function<void()> callback) {
         m_onDisconnected = callback;
+    }
+    
+    void SetRawFrameCallback(std::function<void(MessageType)> callback) {
+        m_onRawFrameReceived = callback;
     }
 
 private:

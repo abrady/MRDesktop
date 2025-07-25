@@ -62,7 +62,8 @@
       "Bash(./test_framereceiver.exe)",
       "Bash(./test_network_receiver.exe)",
       "Bash(./test_server_connection.exe)",
-      "Bash(.build.bat)"
+      "Bash(.build.bat)",
+      "Bash(.run_compression_test.bat)"
     ],
     "deny": []
   }
