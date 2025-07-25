@@ -10,7 +10,15 @@ enum MessageType : UINT32 {
     MSG_MOUSE_MOVE = 2,
     MSG_MOUSE_CLICK = 3,
     MSG_MOUSE_SCROLL = 4,
-    MSG_COMPRESSED_FRAME = 5
+    MSG_COMPRESSED_FRAME = 5,
+    MSG_COMPRESSION_REQUEST = 6
+};
+
+// Supported compression formats
+enum CompressionType : UINT32 {
+    COMPRESSION_NONE = 0,
+    COMPRESSION_H264 = 1,
+    COMPRESSION_AV1  = 2
 };
 
 // Base message header
@@ -35,7 +43,13 @@ struct CompressedFrameMessage {
     UINT32 height;
     UINT32 compressedSize;
     UINT32 isKeyframe;  // 1 for keyframe, 0 for delta frame
-    // Compressed AV1 data follows
+    // Compressed data follows (format determined by negotiation)
+};
+
+// Compression negotiation message sent from client to server
+struct CompressionRequestMessage {
+    MessageHeader header;
+    CompressionType compression;
 };
 
 // Mouse movement message
