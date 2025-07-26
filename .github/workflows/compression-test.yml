@@ -23,6 +23,9 @@ jobs:
           ninja-build \
           cmake \
           build-essential \
+          autoconf \
+          automake \
+          libtool \
           pkg-config \
           libavcodec-dev \
           libavformat-dev \
