@@ -87,6 +87,64 @@ set "PATH=%JAVA_HOME%\bin;%PATH%"
 set "ANDROID_SDK_ROOT=%TOOLS%\sdk"
 set "PATH=%ANDROID_SDK_ROOT%\cmdline-tools\latest\bin;%PATH%"
 
+:: ── 4. Install essential SDK packages ──────────────────────────────────────
+echo ========== Installing essential SDK packages
 if not exist "%ANDROID_SDK_ROOT%\platforms\android-%API_LATEST%" (
-    echo ========== sdkmanager installing platform-tools, build-tools, NDK stub …
+    echo Installing platform-tools, build-tools, and platforms...
     echo y | sdkmanager.bat "platform-tools" "platforms;android-%API_LATEST%" "build-tools;35.0.0"
+)
+
+:: ── 5. Install emulator and system images ─────────────────────────────────
+echo ========== Installing emulator and system images
+if not exist "%ANDROID_SDK_ROOT%\emulator\emulator.exe" (
+    echo Installing emulator package...
+    echo y | sdkmanager.bat "emulator"
+)
+
+if not exist "%ANDROID_SDK_ROOT%\system-images\android-33\google_apis\x86_64" (
+    echo Installing Android 33 system image (this may take several minutes)...
+    echo y | sdkmanager.bat "system-images;android-33;google_apis;x86_64"
+)
+
+:: ── 6. Create questCI AVD ──────────────────────────────────────────────────
+echo ========== Creating questCI AVD
+set "AVD_DIR=%USERPROFILE%\.android\avd\questCI.avd"
+if not exist "%AVD_DIR%" (
+    echo Creating questCI AVD with Android 33, Google APIs, Pixel 5...
+    echo no | avdmanager.bat create avd -n questCI ^
+        -k "system-images;android-33;google_apis;x86_64" ^
+        --device "pixel_5"
+    
+    if errorlevel 1 (
+        echo Warning: AVD creation failed, but you can create it manually later
+        echo Command: avdmanager create avd -n questCI -k "system-images;android-33;google_apis;x86_64" --device "pixel_5"
+    ) else (
+        echo questCI AVD created successfully!
+    )
+) else (
+    echo questCI AVD already exists
+)
+
+:: ── 7. Completion summary ─────────────────────────────────────────────────
+popd >nul
+echo.
+echo ===============================================
+echo Android Toolchain Setup Complete!
+echo ===============================================
+echo.
+echo Installed components:
+echo - Android NDK r27 LTS
+echo - Android SDK command-line tools
+echo - Platform-tools (adb, fastboot)
+echo - OpenJDK 17 (portable)
+echo - Emulator package
+echo - Android 33 system image
+echo - questCI AVD (Pixel 5, Android 13)
+echo.
+echo Ready to use:
+echo 1. Build Android client: build_android_simple.bat
+echo 2. Start emulator: start_questci_simple.bat
+echo 3. Test client: test_questci_android.bat
+echo.
+echo All tools are in: %TOOLS%
+echo.

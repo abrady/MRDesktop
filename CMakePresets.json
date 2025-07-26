@@ -172,6 +172,25 @@
             }
         },
         {
+            "name": "android-x86_64-release",
+            "displayName": "Android x86_64 Release",
+            "description": "Release configuration for Android x86_64 (emulator)",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/android-x86_64-release",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "CMAKE_INSTALL_PREFIX": "${sourceDir}/install/android-x86_64-release",
+                "ANDROID_ABI": "x86_64",
+                "ANDROID_NATIVE_API_LEVEL": "24",
+                "ANDROID_STL": "c++_shared",
+                "BUILD_ANDROID_CLIENT": "ON"
+            },
+            "toolchainFile": "$env{CMAKE_ANDROID_NDK}/build/cmake/android.toolchain.cmake",
+            "environment": {
+                "CMAKE_ANDROID_NDK": "$env{ANDROID_NDK_HOME}"
+            }
+        },
+        {
             "name": "linux-debug",
             "displayName": "Linux Debug",
             "description": "Debug configuration for Linux using Ninja",
@@ -241,6 +260,10 @@
         {
             "name": "android-x86_64-debug",
             "configurePreset": "android-x86_64-debug"
+        },
+        {
+            "name": "android-x86_64-release",
+            "configurePreset": "android-x86_64-release"
         },
         {
             "name": "linux-debug",

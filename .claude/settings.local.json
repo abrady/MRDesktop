@@ -63,7 +63,13 @@
       "Bash(./test_network_receiver.exe)",
       "Bash(./test_server_connection.exe)",
       "Bash(.build.bat)",
-      "Bash(.run_compression_test.bat)"
+      "Bash(.run_compression_test.bat)",
+      "Bash(set ANDROID_NDK_HOME=%cd%androidndk)",
+      "Bash(echo:*)",
+      "Bash(build_android.bat debug)",
+      "Bash(export ANDROID_NDK_HOME=\"$PWD/android/ndk\")",
+      "Bash(export ANDROID_NDK_HOME=\"$PWD/../android/ndk\")",
+      "Bash(true)"
     ],
     "deny": []
   }

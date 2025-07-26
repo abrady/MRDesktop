@@ -70,9 +70,9 @@ endif()
 if(PLATFORM_ANDROID OR BUILD_ANDROID_CLIENT)
     # Android native client library
     add_library(MRDesktopAndroidClient SHARED
-        android/app/src/main/cpp/native_client.cpp
-        src/shared/FrameReceiver.cpp
-        android/app/src/main/cpp/input_sender.cpp
+        android/app/src/main/cpp/android_client.cpp
+        src/shared/NetworkReceiver.cpp
+        src/shared/VideoDecoder.cpp
     )
     
     target_include_directories(MRDesktopAndroidClient PRIVATE 
@@ -89,6 +89,11 @@ if(PLATFORM_ANDROID OR BUILD_ANDROID_CLIENT)
             ${log-lib}
             ${android-lib}
         )
+    else()
+        # For desktop builds, link against WinSock on Windows
+        if(WIN32)
+            target_link_libraries(MRDesktopAndroidClient PRIVATE ws2_32)
+        endif()
     endif()
 endif()
 
