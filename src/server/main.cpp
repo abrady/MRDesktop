@@ -27,6 +27,14 @@ using SOCKET = int;
 #include "protocol.h"
 #include "VideoEncoder.h"
 
+#ifndef _WIN32
+#include <cstdint>
+using BYTE = uint8_t;
+using UINT = uint32_t;
+using UINT32 = uint32_t;
+using INT32 = int32_t;
+#endif
+
 #ifdef _WIN32
 class DesktopDuplicator {
 private:
