@@ -53,11 +53,11 @@ jobs:
         ./bootstrap-vcpkg.sh
         ./vcpkg integrate install
     
-    # - name: Configure CMake
-    #   run: cmake --preset linux-debug
+    - name: Configure CMake
+      run: cmake --preset linux-debug
 
-    # - name: Build
-    #   run: cmake --build --preset linux-debug
+    - name: Build
+      run: cmake --build --preset linux-debug
 
     # - name: Run H.265 Compression Test
     #   run: ./run_compression_test.sh
