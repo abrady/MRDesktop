@@ -1,0 +1,57 @@
+name: H.265 Compression Test
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  test-compression:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          ninja-build \
+          cmake \
+          build-essential \
+          pkg-config \
+          libavcodec-dev \
+          libavformat-dev \
+          libavutil-dev \
+          libswscale-dev \
+          libavdevice-dev \
+          libavfilter-dev
+    
+    - name: Setup vcpkg
+      run: |
+        cd extern/vcpkg
+        ./bootstrap-vcpkg.sh
+        ./vcpkg integrate install
+    
+    - name: Configure CMake
+      run: cmake --preset linux-debug
+    
+    - name: Build
+      run: cmake --build --preset linux-debug
+    
+    - name: Run H.265 Compression Test
+      run: ./run_compression_test.sh
+      
+    - name: Upload test artifacts on failure
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-artifacts
+        path: |
+          first_frame.bmp
+          debug_frames/
+        retention-days: 3
