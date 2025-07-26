@@ -1,6 +1,8 @@
 #pragma once
 
-#ifndef ANDROID
+#ifdef ANDROID
+#include "AndroidVideoDecoder.h"
+#else
 #ifdef _MSC_VER
 #pragma warning(push)
 #pragma warning(disable: 4244) // Disable conversion warnings from FFmpeg headers
@@ -24,7 +26,9 @@ extern "C" {
 
 class VideoDecoder {
 private:
-#ifndef ANDROID
+#ifdef ANDROID
+    std::unique_ptr<AndroidVideoDecoder> m_androidDecoder;
+#else
     AVCodecContext* m_CodecContext = nullptr;
     AVFrame* m_Frame = nullptr;
     AVPacket* m_Packet = nullptr;

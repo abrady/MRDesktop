@@ -19,6 +19,8 @@ target_include_directories(MRDesktopSimpleClient PRIVATE
 # Full-featured Android native client library
 add_library(MRDesktopClient SHARED
     app/src/main/cpp/android_client.cpp
+    app/src/main/cpp/AndroidVideoDecoder.cpp
+    app/src/main/cpp/VideoDecoder_Android.cpp
     ${SHARED_SRC_DIR}/NetworkReceiver.cpp
 )
 
@@ -29,6 +31,7 @@ target_include_directories(MRDesktopClient PRIVATE
 
 # Find required Android libraries
 find_library(log-lib log)
+find_library(mediandk-lib mediandk)
 
 target_link_libraries(MRDesktopSimpleClient 
     ${log-lib}
@@ -36,4 +39,5 @@ target_link_libraries(MRDesktopSimpleClient
 
 target_link_libraries(MRDesktopClient 
     ${log-lib}
+    ${mediandk-lib}
 )

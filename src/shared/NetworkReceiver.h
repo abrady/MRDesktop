@@ -28,9 +28,7 @@ using SocketType = int;
 #endif
 #endif
 
-#ifndef ANDROID
 class VideoDecoder;
-#endif
 
 class NetworkReceiver {
 private:
@@ -40,9 +38,7 @@ private:
     std::atomic<bool> m_isConnected{false};
     
     // Video decoder for compressed frames
-#ifndef ANDROID
     std::unique_ptr<VideoDecoder> m_decoder;
-#endif
     
     // Callbacks
     std::function<void(const FrameMessage&, const std::vector<uint8_t>&)> m_onFrameReceived;
