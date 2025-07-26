@@ -1,10 +1,25 @@
 #include <iostream>
+#ifdef _WIN32
 #include <windows.h>
 #include <dxgi.h>
 #include <dxgi1_2.h>
 #include <d3d11.h>
 #include <winsock2.h>
 #include <ws2tcpip.h>
+#pragma comment(lib, "ws2_32.lib")
+#else
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <cstring>
+#include <errno.h>
+#define INVALID_SOCKET -1
+#define SOCKET_ERROR   -1
+inline int closesocket(int fd) { return close(fd); }
+using SOCKET = int;
+#endif
 #include <vector>
 #include <thread>
 #include <chrono>
@@ -12,8 +27,7 @@
 #include "protocol.h"
 #include "VideoEncoder.h"
 
-#pragma comment(lib, "ws2_32.lib")
-
+#ifdef _WIN32
 class DesktopDuplicator {
 private:
     ID3D11Device* m_Device = nullptr;
@@ -181,7 +195,14 @@ public:
     ~DesktopDuplicator() {
         Cleanup();
     }
+#else
+class DesktopDuplicator {
+public:
+    bool Initialize() { return false; }
+    bool CaptureFrame(std::vector<uint8_t>&, uint32_t&, uint32_t&, uint32_t&) { return false; }
+    void Cleanup() {}
 };
+#endif
 
 // Helper function to format bytes in human-readable format
 std::string formatBytes(uint64_t bytes) {
@@ -203,6 +224,7 @@ std::string formatBytes(uint64_t bytes) {
     return std::string(buffer);
 }
 
+#ifdef _WIN32
 class InputInjector {
 public:
     static bool InjectMouseMove(INT32 deltaX, INT32 deltaY, UINT32 absolute = 0, INT32 x = 0, INT32 y = 0) {
@@ -274,7 +296,14 @@ public:
         
         return true;
     }
+#else
+class InputInjector {
+public:
+    static bool InjectMouseMove(int32_t, int32_t, uint32_t = 0, int32_t = 0, int32_t = 0) { return true; }
+    static bool InjectMouseClick(MouseClickMessage::MouseButton, uint32_t) { return true; }
+    static bool InjectMouseScroll(int32_t, int32_t) { return true; }
 };
+#endif
 
 // Helper function to dump hex data for debugging
 void HexDump(const char* data, size_t size, const std::string& label) {
@@ -296,8 +325,13 @@ bool SendAllData(SOCKET socket, const char* data, size_t size) {
         int sent = send(socket, data + totalSent, static_cast<int>(size - totalSent), 0);
         
         if (sent == SOCKET_ERROR) {
+#ifdef _WIN32
             int error = WSAGetLastError();
             if (error == WSAEWOULDBLOCK) {
+#else
+            int error = errno;
+            if (error == EWOULDBLOCK || error == EAGAIN) {
+#endif
                 // Non-blocking socket would block, try again
                 std::this_thread::sleep_for(std::chrono::milliseconds(1));
                 continue;
@@ -336,13 +370,15 @@ int main(int argc, char* argv[]) {
         std::cout << "RUNNING IN TEST MODE" << std::endl;
     }
     
+    // Initialize platform networking
+#ifdef _WIN32
     // Initialize COM
     HRESULT hr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
     if (FAILED(hr)) {
         std::cerr << "Failed to initialize COM: " << std::hex << hr << std::endl;
         return 1;
     }
-    
+
     // Initialize Winsock
     WSADATA wsaData;
     int result = WSAStartup(MAKEWORD(2, 2), &wsaData);
@@ -351,24 +387,35 @@ int main(int argc, char* argv[]) {
         CoUninitialize();
         return 1;
     }
-    
     std::cout << "Network and COM initialized successfully" << std::endl;
+#else
+    int result = 0; // nothing needed on POSIX
+    std::cout << "Network initialized" << std::endl;
+#endif
     
     // Initialize desktop duplicator (skip in test mode)
     DesktopDuplicator duplicator;
     if (!testMode && !duplicator.Initialize()) {
         std::cerr << "Failed to initialize desktop duplicator" << std::endl;
+#ifdef _WIN32
         WSACleanup();
         CoUninitialize();
+#endif
         return 1;
     }
     
     // Create server socket
     SOCKET serverSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (serverSocket == INVALID_SOCKET) {
+#ifdef _WIN32
         std::cerr << "Failed to create socket: " << WSAGetLastError() << std::endl;
+#else
+        std::cerr << "Failed to create socket: " << strerror(errno) << std::endl;
+#endif
+#ifdef _WIN32
         WSACleanup();
         CoUninitialize();
+#endif
         return 1;
     }
     
@@ -379,18 +426,30 @@ int main(int argc, char* argv[]) {
     serverAddr.sin_port = htons(8080);
     
     if (bind(serverSocket, (sockaddr*)&serverAddr, sizeof(serverAddr)) == SOCKET_ERROR) {
+#ifdef _WIN32
         std::cerr << "Bind failed: " << WSAGetLastError() << std::endl;
+#else
+        std::cerr << "Bind failed: " << strerror(errno) << std::endl;
+#endif
         closesocket(serverSocket);
+#ifdef _WIN32
         WSACleanup();
         CoUninitialize();
+#endif
         return 1;
     }
     
     if (listen(serverSocket, 1) == SOCKET_ERROR) {
+#ifdef _WIN32
         std::cerr << "Listen failed: " << WSAGetLastError() << std::endl;
+#else
+        std::cerr << "Listen failed: " << strerror(errno) << std::endl;
+#endif
         closesocket(serverSocket);
+#ifdef _WIN32
         WSACleanup();
         CoUninitialize();
+#endif
         return 1;
     }
     
@@ -400,10 +459,16 @@ int main(int argc, char* argv[]) {
     // Accept client connection
     SOCKET clientSocket = accept(serverSocket, nullptr, nullptr);
     if (clientSocket == INVALID_SOCKET) {
+#ifdef _WIN32
         std::cerr << "Accept failed: " << WSAGetLastError() << std::endl;
+#else
+        std::cerr << "Accept failed: " << strerror(errno) << std::endl;
+#endif
         closesocket(serverSocket);
+#ifdef _WIN32
         WSACleanup();
         CoUninitialize();
+#endif
         return 1;
     }
     
@@ -421,8 +486,13 @@ int main(int argc, char* argv[]) {
     }
 
     // Set socket to non-blocking for input checking
+#ifdef _WIN32
     u_long mode = 1;
     ioctlsocket(clientSocket, FIONBIO, &mode);
+#else
+    int flags = fcntl(clientSocket, F_GETFL, 0);
+    if (flags >= 0) fcntl(clientSocket, F_SETFL, flags | O_NONBLOCK);
+#endif
     
     // Streaming and input handling loop
     std::vector<BYTE> pixelData;
@@ -616,7 +686,9 @@ int main(int argc, char* argv[]) {
     
     closesocket(clientSocket);
     closesocket(serverSocket);
+#ifdef _WIN32
     WSACleanup();
     CoUninitialize();
+#endif
     return 0;
 }

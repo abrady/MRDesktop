@@ -1,38 +1,91 @@
 #include <iostream>
+#ifdef _WIN32
 #include <windows.h>
 #include <winsock2.h>
 #include <ws2tcpip.h>
+#include <conio.h>
+#pragma comment(lib, "ws2_32.lib")
+#else
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <unistd.h>
+#include <termios.h>
+#include <fcntl.h>
+#include <sys/ioctl.h>
+#endif
 #include <vector>
 #include <thread>
 #include <chrono>
-#include <conio.h>
 #include <string>
 #include <algorithm>
 #include "protocol.h"
 #include "../shared/FrameLogger.h"
 #include "../shared/NetworkReceiver.h"
 
-#pragma comment(lib, "ws2_32.lib")
 
+#pragma pack(push, 1)
+struct BMPFileHeader {
+    uint16_t bfType{0};
+    uint32_t bfSize{0};
+    uint16_t bfReserved1{0};
+    uint16_t bfReserved2{0};
+    uint32_t bfOffBits{0};
+};
+struct BMPInfoHeader {
+    uint32_t biSize{0};
+    int32_t  biWidth{0};
+    int32_t  biHeight{0};
+    uint16_t biPlanes{1};
+    uint16_t biBitCount{0};
+    uint32_t biCompression{0};
+    uint32_t biSizeImage{0};
+    int32_t  biXPelsPerMeter{0};
+    int32_t  biYPelsPerMeter{0};
+    uint32_t biClrUsed{0};
+    uint32_t biClrImportant{0};
+};
+#pragma pack(pop)
+
+#ifndef _WIN32
+static int _kbhit()
+{
+    int bytes = 0;
+    ioctl(STDIN_FILENO, FIONREAD, &bytes);
+    return bytes;
+}
+
+static int _getch()
+{
+    termios oldt{};
+    tcgetattr(STDIN_FILENO, &oldt);
+    termios newt = oldt;
+    newt.c_lflag &= ~(ICANON | ECHO);
+    tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+    int ch = getchar();
+    tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
+    return ch;
+}
+#endif
 
 void SaveFrameAsBMP(const FrameMessage &frameMsg, const std::vector<uint8_t> &frameData, const std::string &filename)
 {
-    // Simple BMP save for debugging (assumes BGRA format)
-    BITMAPFILEHEADER fileHeader = {};
-    BITMAPINFOHEADER infoHeader = {};
+    BMPFileHeader fileHeader{};
+    BMPInfoHeader infoHeader{};
 
     fileHeader.bfType = 0x4D42; // "BM"
-    fileHeader.bfSize = sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER) + frameData.size();
-    fileHeader.bfOffBits = sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER);
+    fileHeader.bfSize = sizeof(BMPFileHeader) + sizeof(BMPInfoHeader) + frameData.size();
+    fileHeader.bfOffBits = sizeof(BMPFileHeader) + sizeof(BMPInfoHeader);
 
-    infoHeader.biSize = sizeof(BITMAPINFOHEADER);
-    infoHeader.biWidth = frameMsg.width;
-    infoHeader.biHeight = -(int)frameMsg.height; // Top-down DIB
+    infoHeader.biSize = sizeof(BMPInfoHeader);
+    infoHeader.biWidth = static_cast<int32_t>(frameMsg.width);
+    infoHeader.biHeight = -static_cast<int32_t>(frameMsg.height); // top-down
     infoHeader.biPlanes = 1;
     infoHeader.biBitCount = 32;
-    infoHeader.biCompression = BI_RGB;
-    infoHeader.biSizeImage = frameData.size();
+    infoHeader.biCompression = 0; // BI_RGB
+    infoHeader.biSizeImage = static_cast<uint32_t>(frameData.size());
 
+#ifdef _WIN32
     HANDLE hFile = CreateFileA(filename.c_str(), GENERIC_WRITE, 0, nullptr,
                                CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
     if (hFile != INVALID_HANDLE_VALUE)
@@ -44,6 +97,16 @@ void SaveFrameAsBMP(const FrameMessage &frameMsg, const std::vector<uint8_t> &fr
         CloseHandle(hFile);
         std::cout << "Saved frame as " << filename << std::endl;
     }
+#else
+    std::ofstream out(filename, std::ios::binary);
+    if (out.is_open()) {
+        out.write(reinterpret_cast<const char*>(&fileHeader), sizeof(fileHeader));
+        out.write(reinterpret_cast<const char*>(&infoHeader), sizeof(infoHeader));
+        out.write(reinterpret_cast<const char*>(frameData.data()), frameData.size());
+        out.close();
+        std::cout << "Saved frame as " << filename << std::endl;
+    }
+#endif
 }
 
 void PrintUsage()
@@ -170,10 +233,12 @@ int main(int argc, char *argv[])
     // Input will be sent directly through receiver methods
 
     // Set console to raw input mode
+#ifdef _WIN32
     HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
     DWORD originalMode;
     GetConsoleMode(hStdin, &originalMode);
     SetConsoleMode(hStdin, 0); // Disable line input and echo
+#endif
 
     // Variables for frame receiving and input handling
     int frameCount = 0;
@@ -371,8 +436,10 @@ int main(int argc, char *argv[])
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
 
+#ifdef _WIN32
     // Restore console mode
     SetConsoleMode(hStdin, originalMode);
+#endif
 
     std::cout << "Streaming ended. Total frames received: " << frameCount << std::endl;
     

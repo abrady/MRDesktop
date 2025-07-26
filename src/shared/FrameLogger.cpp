@@ -4,6 +4,7 @@
 #include <sstream>
 #include <filesystem>
 #include <algorithm>
+#include <cstring>
 #ifdef _WIN32
 #define NOMINMAX
 #include <windows.h>
