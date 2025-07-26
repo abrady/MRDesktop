@@ -165,16 +165,13 @@ bool NetworkReceiver::PollFrame() {
     
     // Handle different message types
     if (frameMsg.header.type == MSG_COMPRESSED_FRAME) {
-        // Cast to CompressedFrameMessage to get additional fields
-        CompressedFrameMessage* compFrame = reinterpret_cast<CompressedFrameMessage*>(&frameMsg);
-        
-        std::cout << "Received compressed frame: " << compFrame->compressedSize << " bytes (" 
-                  << (compFrame->isKeyframe ? "KEY" : "DELTA") << ")" << std::endl;
+        // Use frameMsg fields directly (populated by FrameUtils)
+        std::cout << "Received compressed frame: " << frameMsg.dataSize << " bytes" << std::endl;
         
         // Initialize decoder if needed
         if (!m_decoder && m_compression != COMPRESSION_NONE) {
             m_decoder = std::make_unique<VideoDecoder>();
-            if (!m_decoder->Initialize(compFrame->width, compFrame->height, m_compression)) {
+            if (!m_decoder->Initialize(frameMsg.width, frameMsg.height, m_compression)) {
                 std::cerr << "Failed to initialize video decoder" << std::endl;
                 m_decoder.reset();
                 return true; // Skip this frame
@@ -191,8 +188,8 @@ bool NetworkReceiver::PollFrame() {
                 FrameMessage decodedFrameMsg;
                 decodedFrameMsg.header.type = MSG_FRAME_DATA;
                 decodedFrameMsg.header.size = sizeof(FrameMessage);
-                decodedFrameMsg.width = compFrame->width;
-                decodedFrameMsg.height = compFrame->height;
+                decodedFrameMsg.width = frameMsg.width;
+                decodedFrameMsg.height = frameMsg.height;
                 decodedFrameMsg.dataSize = static_cast<uint32_t>(decodedFrame.size());
                 
                 // Call frame received callback with decoded frame

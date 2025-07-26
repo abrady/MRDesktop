@@ -40,18 +40,24 @@ inline bool ReadFrameGeneric(const std::function<int(uint8_t*, int)>& recvFunc,
         return false;
 
     if (hdr.type == MSG_COMPRESSED_FRAME) {
-        // Handle compressed frames by reading them into frameMsg as CompressedFrameMessage
-        CompressedFrameMessage* compFrameMsg = reinterpret_cast<CompressedFrameMessage*>(&frameMsg);
-        compFrameMsg->header = hdr;
+        // Handle compressed frames - use separate CompressedFrameMessage variable
+        CompressedFrameMessage compFrameMsg;
+        compFrameMsg.header = hdr;
         int remaining = sizeof(CompressedFrameMessage) - sizeof(MessageHeader);
         if (!ReadExact(recvFunc,
-                       reinterpret_cast<uint8_t*>(compFrameMsg) + sizeof(MessageHeader),
+                       reinterpret_cast<uint8_t*>(&compFrameMsg) + sizeof(MessageHeader),
                        remaining))
             return false;
         
+        // Copy compatible fields to frameMsg for callers expecting FrameMessage
+        frameMsg.header = compFrameMsg.header;
+        frameMsg.width = compFrameMsg.width;
+        frameMsg.height = compFrameMsg.height;
+        frameMsg.dataSize = compFrameMsg.compressedSize;
+        
         // Read compressed data
-        frameData.resize(compFrameMsg->compressedSize);
-        if (!ReadExact(recvFunc, frameData.data(), static_cast<int>(compFrameMsg->compressedSize)))
+        frameData.resize(compFrameMsg.compressedSize);
+        if (!ReadExact(recvFunc, frameData.data(), static_cast<int>(compFrameMsg.compressedSize)))
             return false;
         return true; // Compressed frame successfully read
     }
