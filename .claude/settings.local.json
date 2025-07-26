@@ -69,7 +69,26 @@
       "Bash(build_android.bat debug)",
       "Bash(export ANDROID_NDK_HOME=\"$PWD/android/ndk\")",
       "Bash(export ANDROID_NDK_HOME=\"$PWD/../android/ndk\")",
-      "Bash(true)"
+      "Bash(true)",
+      "Bash(set JAVA_HOME=C:opengithubMRDesktopandroidjavajdk-17.0.11+9)",
+      "Bash(set ANDROID_HOME=C:opengithubMRDesktopandroidsdk)",
+      "Bash(set ANDROID_NDK_HOME=C:opengithubMRDesktopandroidndk)",
+      "Bash(\"%JAVA_HOME%\\bin\\java.exe\" -version)",
+      "Bash(\"C:\\open\\github\\MRDesktop\\android\\java\\jdk-17.0.11+9\\bin\\java.exe\" -version)",
+      "WebFetch(domain:github.com)",
+      "Bash(set \"JAVA_HOME=C:\\open\\github\\MRDesktop\\android\\java\\jdk-17.0.11+9\")",
+      "Bash(set \"ANDROID_HOME=C:\\open\\github\\MRDesktop\\android\\sdk\")",
+      "Bash(set \"ANDROID_NDK_HOME=C:\\open\\github\\MRDesktop\\android\\ndk\")",
+      "Bash(gradlew.bat:*)",
+      "Bash(curl:*)",
+      "Bash(\"C:\\open\\github\\MRDesktop\\android\\sdk\\cmdline-tools\\latest\\bin\\sdkmanager.bat\" --list_installed)",
+      "Bash(\"C:\\open\\github\\MRDesktop\\android\\sdk\\cmdline-tools\\latest\\bin\\sdkmanager.bat\" --version)",
+      "Bash(\"C:\\open\\github\\MRDesktop\\android\\ndk\\toolchains\\llvm\\prebuilt\\windows-x86_64\\bin\\cmake.exe\" --version)",
+      "Bash(\"C:\\open\\github\\MRDesktop\\android\\sdk\\emulator\\emulator.exe\" -list-avds)",
+      "Bash(\"C:\\open\\github\\MRDesktop\\android\\sdk\\platform-tools\\adb.exe\" devices)",
+      "Bash(\"C:\\open\\github\\MRDesktop\\android\\sdk\\platform-tools\\adb.exe\" shell \"ping -c 3 10.0.2.2\")",
+      "Bash(scriptsfetch_android_toolchain.bat)",
+      "Bash(\"scripts\\fetch_android_toolchain.bat\")"
     ],
     "deny": []
   }

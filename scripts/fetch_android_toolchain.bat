@@ -90,19 +90,20 @@ set "PATH=%ANDROID_SDK_ROOT%\cmdline-tools\latest\bin;%PATH%"
 :: ── 4. Install essential SDK packages ──────────────────────────────────────
 echo ========== Installing essential SDK packages
 if not exist "%ANDROID_SDK_ROOT%\platforms\android-%API_LATEST%" (
-    echo Installing platform-tools, build-tools, and platforms...
+    echo Installing platform-tools, build-tools, and platforms
     echo y | sdkmanager.bat "platform-tools" "platforms;android-%API_LATEST%" "build-tools;35.0.0"
 )
 
 :: ── 5. Install emulator and system images ─────────────────────────────────
 echo ========== Installing emulator and system images
 if not exist "%ANDROID_SDK_ROOT%\emulator\emulator.exe" (
-    echo Installing emulator package...
-    echo y | sdkmanager.bat "emulator"
+    echo Installing emulator package
+    REM echo y | 
+    sdkmanager.bat "emulator"
 )
 
 if not exist "%ANDROID_SDK_ROOT%\system-images\android-33\google_apis\x86_64" (
-    echo Installing Android 33 system image (this may take several minutes)...
+    echo Installing Android 33 system image (this may take several minutes)
     echo y | sdkmanager.bat "system-images;android-33;google_apis;x86_64"
 )
 
@@ -110,7 +111,7 @@ if not exist "%ANDROID_SDK_ROOT%\system-images\android-33\google_apis\x86_64" (
 echo ========== Creating questCI AVD
 set "AVD_DIR=%USERPROFILE%\.android\avd\questCI.avd"
 if not exist "%AVD_DIR%" (
-    echo Creating questCI AVD with Android 33, Google APIs, Pixel 5...
+    echo Creating questCI AVD with Android 33, Google APIs, Pixel 5
     echo no | avdmanager.bat create avd -n questCI ^
         -k "system-images;android-33;google_apis;x86_64" ^
         --device "pixel_5"
