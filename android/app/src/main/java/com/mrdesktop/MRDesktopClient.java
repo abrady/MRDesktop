@@ -2,7 +2,7 @@ package com.mrdesktop;
 
 public class MRDesktopClient {
     static {
-        System.loadLibrary("MRDesktopAndroidClient");
+        System.loadLibrary("MRDesktopClient");
     }
     
     // Native method declarations
