@@ -61,6 +61,9 @@ run.bat client [release]
 
 ### Android Development
 ```batch
+# Fetch Android toolchain (first time only)
+scripts\fetch_android_toolchain.bat
+
 # Setup Android NDK environment (first time only)
 setup_android.bat
 

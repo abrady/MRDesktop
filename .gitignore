@@ -47,6 +47,9 @@ tools/android-tools/
 tools/android-standalone/
 
 # Android build artifacts
+android/java
+android/ndk
+android/sdk
 android/app/build/
 android/app/.cxx/
 android/.gradle/
