@@ -26,6 +26,7 @@ jobs:
           autoconf \
           automake \
           libtool \
+          nasm \
           pkg-config \
           libavcodec-dev \
           libavformat-dev \
