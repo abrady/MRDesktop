@@ -1,6 +1,8 @@
 #include "NetworkReceiver.h"
 #include "FrameUtils.h"
+#ifndef ANDROID
 #include "VideoDecoder.h"
+#endif
 #include <iostream>
 #include <chrono>
 #include <cerrno>
@@ -169,6 +171,7 @@ bool NetworkReceiver::PollFrame() {
         std::cout << "Received compressed frame: " << frameMsg.dataSize << " bytes" << std::endl;
         
         // Initialize decoder if needed
+#ifndef ANDROID
         if (!m_decoder && m_compression != COMPRESSION_NONE) {
             m_decoder = std::make_unique<VideoDecoder>();
             if (!m_decoder->Initialize(frameMsg.width, frameMsg.height, m_compression)) {
@@ -200,6 +203,11 @@ bool NetworkReceiver::PollFrame() {
                 std::cout << "Failed to decode compressed frame" << std::endl;
             }
         }
+#else
+        // On Android, just skip compressed frames for now
+        std::cout << "Compressed frames not supported on Android yet" << std::endl;
+        return true; // Skip this frame
+#endif
         
         return true; // Frame received and processed
     } else if (frameMsg.header.type != MSG_FRAME_DATA || 

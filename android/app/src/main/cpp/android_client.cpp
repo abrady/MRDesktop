@@ -71,9 +71,9 @@ public:
     bool SendMouseClick(int button, bool pressed) {
         MouseClickMessage::MouseButton btn;
         switch(button) {
-            case 0: btn = MouseClickMessage::LEFT; break;
-            case 1: btn = MouseClickMessage::RIGHT; break;
-            case 2: btn = MouseClickMessage::MIDDLE; break;
+            case 0: btn = MouseClickMessage::LEFT_BUTTON; break;
+            case 1: btn = MouseClickMessage::RIGHT_BUTTON; break;
+            case 2: btn = MouseClickMessage::MIDDLE_BUTTON; break;
             default: return false;
         }
         return receiver.SendMouseClick(btn, pressed);

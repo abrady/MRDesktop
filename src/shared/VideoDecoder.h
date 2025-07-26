@@ -1,5 +1,6 @@
 #pragma once
 
+#ifndef ANDROID
 #ifdef _MSC_VER
 #pragma warning(push)
 #pragma warning(disable: 4244) // Disable conversion warnings from FFmpeg headers
@@ -15,6 +16,7 @@ extern "C" {
 #ifdef _MSC_VER
 #pragma warning(pop)
 #endif
+#endif // !ANDROID
 
 #include <vector>
 #include <memory>
@@ -22,10 +24,12 @@ extern "C" {
 
 class VideoDecoder {
 private:
+#ifndef ANDROID
     AVCodecContext* m_CodecContext = nullptr;
     AVFrame* m_Frame = nullptr;
     AVPacket* m_Packet = nullptr;
     SwsContext* m_SwsContext = nullptr;
+#endif
     
     uint32_t m_Width = 0;
     uint32_t m_Height = 0;

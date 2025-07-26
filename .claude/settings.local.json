@@ -88,7 +88,18 @@
       "Bash(\"C:\\open\\github\\MRDesktop\\android\\sdk\\platform-tools\\adb.exe\" devices)",
       "Bash(\"C:\\open\\github\\MRDesktop\\android\\sdk\\platform-tools\\adb.exe\" shell \"ping -c 3 10.0.2.2\")",
       "Bash(scriptsfetch_android_toolchain.bat)",
-      "Bash(\"scripts\\fetch_android_toolchain.bat\")"
+      "Bash(\"scripts\\fetch_android_toolchain.bat\")",
+      "Bash(\"%~dp0gradlew.bat\" assembleDebug)",
+      "Bash(build_android.bat)",
+      "Bash(./build_android.bat)",
+      "Bash(.build_android.bat)",
+      "Bash(set JAVA_HOME=C:\\open\\github\\MRDesktop\\android\\java\\jdk-17.0.11+9)",
+      "Bash(set ANDROID_HOME=C:\\open\\github\\MRDesktop\\android\\sdk)",
+      "Bash(set ANDROID_NDK_HOME=C:\\open\\github\\MRDesktop\\android\\ndk)",
+      "Bash(set PATH=%JAVA_HOME%\\bin)",
+      "Bash(%PATH%)",
+      "Bash(.\\gradlew.bat:*)",
+      "Bash(JAVA_HOME=\"/c/open/github/MRDesktop/android/java/jdk-17.0.11+9\" ANDROID_HOME=\"/c/open/github/MRDesktop/android/sdk\" ANDROID_NDK_HOME=\"/c/open/github/MRDesktop/android/ndk\" PATH=\"/c/open/github/MRDesktop/android/java/jdk-17.0.11+9/bin:$PATH\" ./gradlew.bat assembleDebug)"
     ],
     "deny": []
   }
