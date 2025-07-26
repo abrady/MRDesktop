@@ -23,6 +23,7 @@ jobs:
           ninja-build \
           cmake \
           build-essential \
+          nasm \
           pkg-config \
           libavcodec-dev \
           libavformat-dev \
