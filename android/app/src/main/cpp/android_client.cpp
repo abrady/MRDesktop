@@ -34,6 +34,8 @@ public:
 
         receiver.SetFrameCallback([this](const FrameMessage &msg, const std::vector<uint8_t> &data)
                                   {
+            LOGI("Frame callback invoked: %ux%u, %zu bytes", msg.width, msg.height, data.size());
+            
             // Use mutex to prevent race conditions
             std::lock_guard<std::mutex> lock(frameMutex);
             
@@ -57,10 +59,12 @@ public:
             
             // Limit to ~20 FPS max to prevent system overload
             if (timeDiff.count() < 50) {
-                LOGI("Skipping frame due to rate limiting");
+                LOGI("Skipping frame due to rate limiting (only %lldms since last frame)", timeDiff.count());
                 return;
             }
             lastFrameTime = currentTime;
+            
+            LOGI("Processing frame: %ux%u, %zu bytes", msg.width, msg.height, data.size());
             
             // Additional validation for frame size limits
             const size_t maxFrameSize = 50 * 1024 * 1024; // 50MB limit
