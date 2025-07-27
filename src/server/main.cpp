@@ -379,6 +379,8 @@ class MRDesktopServer {
   std::chrono::high_resolution_clock::time_point m_startTime;
 
   bool m_testMode = false;
+  bool m_stopped = false;
+  bool m_testCompleted = false;
 
  public:
   MRDesktopServer(bool testMode = false) : m_testMode(testMode) {
@@ -437,9 +439,15 @@ class MRDesktopServer {
   }
 
   void Stop() {
+    if (m_stopped) {
+      return; // Already stopped, prevent double cleanup
+    }
+    m_stopped = true;
+    
     m_streaming = false;
 
-    if (m_streamingThread.joinable()) {
+    // Only join thread if we're not calling from within the thread itself
+    if (m_streamingThread.joinable() && std::this_thread::get_id() != m_streamingThread.get_id()) {
       m_streamingThread.join();
     }
 
@@ -456,6 +464,10 @@ class MRDesktopServer {
     while (true) {
       std::this_thread::sleep_for(std::chrono::seconds(1));
     }
+  }
+
+  bool IsTestCompleted() const {
+    return m_testCompleted;
   }
 
  private:
@@ -705,6 +717,9 @@ class MRDesktopServer {
         if (m_testMode && m_frameCount >= 3) {
           std::cout << "TEST MODE: Sent 3 frames, exiting successfully"
                     << std::endl;
+          // Give client time to receive frames then break out of streaming loop
+          std::this_thread::sleep_for(std::chrono::milliseconds(500));
+          m_testCompleted = true;
           break;
         }
       }
@@ -733,8 +748,11 @@ int main(int argc, char* argv[]) {
   }
 
   if (testMode) {
-    // In test mode, wait for completion
-    std::this_thread::sleep_for(std::chrono::seconds(5));
+    // In test mode, wait for test completion
+    while (!server.IsTestCompleted()) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+    std::cout << "Test completed, shutting down..." << std::endl;
   } else {
     server.WaitForExit();
   }
