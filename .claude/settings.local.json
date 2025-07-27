@@ -108,7 +108,10 @@
       "Bash(./vcpkg.exe install:*)",
       "Bash(VCPKG_FORCE_SYSTEM_BINARIES=1 cmake --preset windows-debug)",
       "Bash(.build_android.bat debug)",
-      "Bash(PATH=\"$JAVA_HOME/bin:$PATH\" ./gradlew.bat assembleDebug)"
+      "Bash(PATH=\"$JAVA_HOME/bin:$PATH\" ./gradlew.bat assembleDebug)",
+      "Bash(builddebugDebugMRDesktopServer.exe --test)",
+      "Bash(./build/debug/Debug/MRDesktopServer.exe --test)",
+      "Bash(build.bat debug)"
     ],
     "deny": []
   }

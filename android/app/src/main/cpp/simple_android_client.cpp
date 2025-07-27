@@ -4,10 +4,7 @@
 #include <chrono>
 #include <string>
 #include <atomic>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <unistd.h>
+#include "../../../../../../src/shared/AsioNetworking.h"
 
 #define LOG_TAG "MRDesk.Simple"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
@@ -15,68 +12,58 @@
 
 class SimpleAndroidClient {
 private:
-    int socket_fd = -1;
+    AsioConnection connection;
     std::atomic<bool> connected{false};
     
 public:
     bool Connect(const std::string& serverIP, int port) {
         LOGI("Attempting to connect to %s:%d", serverIP.c_str(), port);
         
-        socket_fd = socket(AF_INET, SOCK_STREAM, 0);
-        if (socket_fd < 0) {
-            LOGE("Failed to create socket");
-            return false;
-        }
+        connection.SetErrorCallback([this](const std::string& error) {
+            LOGE("Connection error: %s", error.c_str());
+            connected = false;
+        });
         
-        struct sockaddr_in server_addr;
-        server_addr.sin_family = AF_INET;
-        server_addr.sin_port = htons(port);
+        connection.SetDisconnectCallback([this]() {
+            LOGI("Disconnected from server");
+            connected = false;
+        });
         
-        if (inet_pton(AF_INET, serverIP.c_str(), &server_addr.sin_addr) <= 0) {
-            LOGE("Invalid IP address: %s", serverIP.c_str());
-            close(socket_fd);
-            socket_fd = -1;
-            return false;
-        }
-        
-        if (connect(socket_fd, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
+        bool result = connection.Connect(serverIP, port);
+        if (result) {
+            connected = true;
+            LOGI("Successfully connected to server");
+        } else {
             LOGE("Failed to connect to server");
-            close(socket_fd);
-            socket_fd = -1;
-            return false;
         }
         
-        connected = true;
-        LOGI("Successfully connected to server");
-        return true;
+        return result;
     }
     
     void Disconnect() {
-        if (socket_fd >= 0) {
-            close(socket_fd);
-            socket_fd = -1;
-        }
+        connection.Disconnect();
         connected = false;
         LOGI("Disconnected from server");
     }
     
     bool IsConnected() const {
-        return connected;
+        return connected && connection.IsConnected();
     }
     
     bool SendTestMessage(const std::string& message) {
-        if (!connected || socket_fd < 0) {
+        if (!IsConnected()) {
             return false;
         }
         
-        ssize_t sent = send(socket_fd, message.c_str(), message.length(), 0);
-        if (sent < 0) {
+        // For test purposes, just send the message as raw data
+        bool sent = connection.SendData(message.c_str(), message.length());
+        if (sent) {
+            LOGI("Sent message: %s", message.c_str());
+        } else {
             LOGE("Failed to send message");
-            return false;
         }
         
-        LOGI("Sent message: %s", message.c_str());
-        return true;
+        return sent;
     }
 };
 

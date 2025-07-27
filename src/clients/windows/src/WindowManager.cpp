@@ -1,7 +1,7 @@
 #include "WindowManager.h"
 #include "VideoRenderer.h"
 #include "SimpleVideoRenderer.h"
-#include "NetworkReceiver.h"
+#include "AsioNetworking.h"
 #include "InputHandler.h"
 #include "protocol.h"
 #include <commdlg.h>
@@ -106,11 +106,8 @@ int WindowManager::Run()
             DispatchMessage(&msg);
         }
 
-        // Poll for network frames
-        if (m_networkReceiver && m_networkReceiver->IsConnected())
-        {
-            m_networkReceiver->PollFrame();
-        }
+        // Network frames are handled asynchronously via callbacks
+        // No need to poll with Asio-based networking
 
         // Small delay to prevent busy waiting
         Sleep(1);
@@ -215,7 +212,7 @@ void WindowManager::OnCreate()
     // Initialize components
     m_videoRenderer = std::make_unique<VideoRenderer>();
     m_simpleVideoRenderer = std::make_unique<SimpleVideoRenderer>();
-    m_networkReceiver = std::make_unique<NetworkReceiver>();
+    m_networkConnection = std::make_unique<AsioConnection>();
     m_inputHandler = std::make_unique<InputHandler>();
 
     // Initialize GDI renderer as fallback (always works)
@@ -237,33 +234,33 @@ void WindowManager::OnCreate()
     m_inputHandler->Initialize(m_hwnd);
 
     // Set up network callbacks
-    m_networkReceiver->SetFrameCallback([this](const FrameMessage &frameMsg, const std::vector<uint8_t> &frameData)
+    m_networkConnection->SetFrameCallback([this](const FrameMessage &frameMsg, const std::vector<uint8_t> &frameData)
                                         { OnFrameReceived(frameMsg, frameData); });
 
-    m_networkReceiver->SetErrorCallback([this](const std::string &error)
+    m_networkConnection->SetErrorCallback([this](const std::string &error)
                                         { OnNetworkError(error); });
 
-    m_networkReceiver->SetDisconnectedCallback([this]()
+    m_networkConnection->SetDisconnectCallback([this]()
                                                { OnNetworkDisconnected(); });
 
     // Set up input callbacks
     m_inputHandler->SetMouseMoveCallback([this](int32_t deltaX, int32_t deltaY)
                                          {
-        if (m_networkReceiver && m_networkReceiver->IsConnected()) {
-            m_networkReceiver->SendMouseMove(deltaX, deltaY);
+        if (m_networkConnection && m_networkConnection->IsConnected()) {
+            m_networkConnection->SendMouseMove(deltaX, deltaY);
         } });
 
     m_inputHandler->SetMouseClickCallback([this](int button, bool pressed)
                                           {
-        if (m_networkReceiver && m_networkReceiver->IsConnected()) {
+        if (m_networkConnection && m_networkConnection->IsConnected()) {
             MouseClickMessage::MouseButton btn = static_cast<MouseClickMessage::MouseButton>(button);
-            m_networkReceiver->SendMouseClick(btn, pressed);
+            m_networkConnection->SendMouseClick(btn, pressed);
         } });
 
     m_inputHandler->SetMouseScrollCallback([this](int32_t deltaX, int32_t deltaY)
                                            {
-        if (m_networkReceiver && m_networkReceiver->IsConnected()) {
-            m_networkReceiver->SendMouseScroll(deltaX, deltaY);
+        if (m_networkConnection && m_networkConnection->IsConnected()) {
+            m_networkConnection->SendMouseScroll(deltaX, deltaY);
         } });
 
     // Connect automatically
@@ -363,7 +360,7 @@ void WindowManager::ConnectToServer(const std::string &ip, int port)
     // Connect in background thread to avoid blocking UI
     std::thread connectThread([this, ip, port]()
                               {
-        bool success = m_networkReceiver->Connect(ip, port);
+        bool success = m_networkConnection->Connect(ip, port);
         
         // Post result back to main thread
         PostMessage(m_hwnd, WM_USER + 1, success ? 1 : 0, 0); });
@@ -376,7 +373,7 @@ void WindowManager::DisconnectFromServer()
         return;
 
     m_inputHandler->StopMouseCapture();
-    m_networkReceiver->Disconnect();
+    m_networkConnection->Disconnect();
 
     m_connectionState = ConnectionState::Disconnected;
     m_statusMessage = "Disconnected";

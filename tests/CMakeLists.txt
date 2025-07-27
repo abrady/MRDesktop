@@ -44,6 +44,7 @@ endif()
 # Integration tests
 add_executable(integration_tests
     test_network_integration.cpp
+    ../src/shared/AsioNetworking.cpp
     ../src/shared/NetworkReceiver.cpp
     ../src/shared/VideoDecoder.cpp
 )
@@ -53,6 +54,7 @@ target_include_directories(integration_tests PRIVATE ${FFMPEG_INCLUDE_DIRS})
 target_link_libraries(integration_tests 
     GTest::gtest 
     GTest::gtest_main
+    asio::asio
     ${FFMPEG_LIBRARIES}
 )
 

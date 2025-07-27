@@ -10,7 +10,7 @@
 // Forward declarations
 class VideoRenderer;
 class SimpleVideoRenderer;
-class NetworkReceiver;
+class AsioConnection;
 class InputHandler;
 
 class WindowManager {
@@ -27,7 +27,7 @@ private:
     // Components
     std::unique_ptr<VideoRenderer> m_videoRenderer;
     std::unique_ptr<SimpleVideoRenderer> m_simpleVideoRenderer;
-    std::unique_ptr<NetworkReceiver> m_networkReceiver;
+    std::unique_ptr<AsioConnection> m_networkConnection;
     std::unique_ptr<InputHandler> m_inputHandler;
     bool m_usingSimpleRenderer;
     

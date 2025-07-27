@@ -7,6 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Find required packages
 find_package(PkgConfig QUIET)
 find_package(FFMPEG REQUIRED)
+find_package(asio CONFIG REQUIRED)
 
 # Source files
 set(CLIENT_SOURCES
@@ -16,7 +17,7 @@ set(CLIENT_SOURCES
     src/InputHandler.cpp
     src/WindowManager.cpp
     # Shared library files
-    ../../shared/NetworkReceiver.cpp
+    ../../shared/AsioNetworking.cpp
     ../../shared/VideoDecoder.cpp
 )
 
@@ -27,7 +28,7 @@ set(CLIENT_HEADERS
     include/InputHandler.h
     include/WindowManager.h
     # Shared library headers
-    ../../shared/NetworkReceiver.h
+    ../../shared/AsioNetworking.h
     ../../shared/FrameUtils.h
     ../../shared/protocol.h
 )
@@ -51,10 +52,10 @@ if(WIN32)
     )
     
     target_link_libraries(MRDesktopWindowsClient PRIVATE
+        # Asio
+        asio::asio
         # FFmpeg libraries
         ${FFMPEG_LIBRARIES}
-        # Network
-        ws2_32
         # Graphics  
         gdi32
         user32

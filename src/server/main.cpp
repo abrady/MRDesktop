@@ -1,39 +1,27 @@
 #include <iostream>
+#include <vector>
+#include <thread>
+#include <chrono>
+#include <algorithm>
+#include <memory>
+#include <atomic>
+
 #ifdef _WIN32
 #include <windows.h>
 #include <dxgi.h>
 #include <dxgi1_2.h>
 #include <d3d11.h>
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#pragma comment(lib, "ws2_32.lib")
 #else
-#include <sys/socket.h>
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <cstring>
-#include <errno.h>
-#define INVALID_SOCKET -1
-#define SOCKET_ERROR -1
-inline int closesocket(int fd) { return close(fd); }
-using SOCKET = int;
-#endif
-#include <vector>
-#include <thread>
-#include <chrono>
-#include <algorithm>
-#include "protocol.h"
-#include "VideoEncoder.h"
-
-#ifndef _WIN32
 #include <cstdint>
 using BYTE = uint8_t;
 using UINT = uint32_t;
 using UINT32 = uint32_t;
 using INT32 = int32_t;
 #endif
+
+#include "../shared/protocol.h"
+#include "../shared/VideoEncoder.h"
+#include "../shared/AsioNetworking.h"
 
 #ifdef _WIN32
 class DesktopDuplicator
@@ -249,31 +237,6 @@ public:
 };
 #endif
 
-// Helper function to format bytes in human-readable format
-std::string formatBytes(uint64_t bytes)
-{
-    const char *units[] = {"B", "KB", "MB", "GB"};
-    int unitIndex = 0;
-    double size = static_cast<double>(bytes);
-
-    while (size >= 1024.0 && unitIndex < 3)
-    {
-        size /= 1024.0;
-        unitIndex++;
-    }
-
-    char buffer[32];
-    if (unitIndex == 0)
-    {
-        snprintf(buffer, sizeof(buffer), "%.0f %s", size, units[unitIndex]);
-    }
-    else
-    {
-        snprintf(buffer, sizeof(buffer), "%.2f %s", size, units[unitIndex]);
-    }
-    return std::string(buffer);
-}
-
 #ifdef _WIN32
 class InputInjector
 {
@@ -369,63 +332,350 @@ public:
 };
 #endif
 
-// Helper function to dump hex data for debugging
-void HexDump(const char *data, size_t size, const std::string &label)
+// Helper function to format bytes in human-readable format
+std::string formatBytes(uint64_t bytes)
 {
-    std::cout << label << " (size=" << size << "):" << std::endl;
-    size_t maxBytes = (size < 32) ? size : 32;
-    for (size_t i = 0; i < maxBytes; i++)
+    const char *units[] = {"B", "KB", "MB", "GB"};
+    int unitIndex = 0;
+    double size = static_cast<double>(bytes);
+
+    while (size >= 1024.0 && unitIndex < 3)
     {
-        printf("%02X ", (unsigned char)data[i]);
-        if ((i + 1) % 16 == 0)
-            std::cout << std::endl;
+        size /= 1024.0;
+        unitIndex++;
     }
-    if (size > 32)
-        std::cout << "... (truncated)";
-    std::cout << std::endl;
+
+    char buffer[32];
+    if (unitIndex == 0)
+    {
+        snprintf(buffer, sizeof(buffer), "%.0f %s", size, units[unitIndex]);
+    }
+    else
+    {
+        snprintf(buffer, sizeof(buffer), "%.2f %s", size, units[unitIndex]);
+    }
+    return std::string(buffer);
 }
 
-// Helper function to ensure all data is sent over the network
-bool SendAllData(SOCKET socket, const char *data, size_t size)
-{
-    size_t totalSent = 0;
+/**
+ * MRDesktop Server using Asio networking
+ * Much cleaner than the previous raw socket implementation
+ */
+class MRDesktopServer {
+private:
+    AsioServer m_server;
+    DesktopDuplicator m_duplicator;
+    std::shared_ptr<AsioConnection> m_currentClient;
+    
+    // Streaming state
+    std::atomic<bool> m_streaming{false};
+    std::thread m_streamingThread;
+    std::unique_ptr<VideoEncoder> m_encoder;
+    CompressionType m_clientCompression = COMPRESSION_NONE;
+    
+    // Frame statistics
+    int m_frameCount = 0;
+    std::chrono::high_resolution_clock::time_point m_startTime;
+    
+    bool m_testMode = false;
 
-    while (totalSent < size)
-    {
-        int sent = send(socket, data + totalSent, static_cast<int>(size - totalSent), 0);
-
-        if (sent == SOCKET_ERROR)
-        {
+public:
+    MRDesktopServer(bool testMode = false) : m_testMode(testMode) {
+        m_startTime = std::chrono::high_resolution_clock::now();
+    }
+    
+    ~MRDesktopServer() {
+        Stop();
+    }
+    
+    bool Start(int port = 8080) {
+        std::cout << "MRDesktop Server - Desktop Duplication Service" << std::endl;
+        std::cout << "=============================================" << std::endl;
+        
+        if (m_testMode) {
+            std::cout << "RUNNING IN TEST MODE" << std::endl;
+        }
+        
+        // Initialize platform networking (done automatically by Asio)
 #ifdef _WIN32
-            int error = WSAGetLastError();
-            if (error == WSAEWOULDBLOCK)
-            {
-#else
-            int error = errno;
-            if (error == EWOULDBLOCK || error == EAGAIN)
-            {
+        // Initialize COM
+        HRESULT hr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+        if (FAILED(hr)) {
+            std::cerr << "Failed to initialize COM: " << std::hex << hr << std::endl;
+            return false;
+        }
+        std::cout << "COM initialized successfully" << std::endl;
 #endif
-                // Non-blocking socket would block, try again
-                std::this_thread::sleep_for(std::chrono::milliseconds(1));
-                continue;
-            }
-            // Real error
-            std::cerr << "Send error: " << error << std::endl;
+        
+        // Initialize desktop duplicator (skip in test mode)
+        if (!m_testMode && !m_duplicator.Initialize()) {
+            std::cerr << "Failed to initialize desktop duplicator" << std::endl;
+#ifdef _WIN32
+            CoUninitialize();
+#endif
             return false;
         }
-
-        if (sent == 0)
-        {
-            // Connection closed
-            std::cerr << "Connection closed during send" << std::endl;
+        
+        // Setup server callbacks
+        m_server.SetClientConnectedCallback([this](std::shared_ptr<AsioConnection> client) {
+            OnClientConnected(client);
+        });
+        
+        // Start server
+        if (!m_server.Start(port)) {
+            std::cerr << "Failed to start server on port " << port << std::endl;
+#ifdef _WIN32
+            CoUninitialize();
+#endif
             return false;
         }
-
-        totalSent += sent;
+        
+        std::cout << "Server listening on port " << port << "..." << std::endl;
+        std::cout << "Waiting for client connection..." << std::endl;
+        
+        return true;
     }
+    
+    void Stop() {
+        m_streaming = false;
+        
+        if (m_streamingThread.joinable()) {
+            m_streamingThread.join();
+        }
+        
+        m_server.Stop();
+        
+#ifdef _WIN32
+        CoUninitialize();
+#endif
+    }
+    
+    void WaitForExit() {
+        // Simple wait loop - in a real app you'd handle signals properly
+        std::cout << "Press Ctrl+C to exit..." << std::endl;
+        while (true) {
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+        }
+    }
+    
+private:
+    void OnClientConnected(std::shared_ptr<AsioConnection> client) {
+        std::cout << "Client connected! Starting desktop streaming..." << std::endl;
+        
+        m_currentClient = client;
+        
+        // Setup client callbacks
+        client->SetInputCallback([this](const MessageHeader& header, const std::vector<uint8_t>& data) {
+            HandleInputMessage(header, data);
+        });
+        
+        client->SetErrorCallback([this](const std::string& error) {
+            std::cerr << "Client error: " << error << std::endl;
+        });
+        
+        client->SetDisconnectCallback([this]() {
+            std::cout << "Client disconnected" << std::endl;
+            m_streaming = false;
+            m_currentClient.reset();
+        });
+        
+        // Start streaming
+        m_streaming = true;
+        m_streamingThread = std::thread([this]() {
+            StreamingLoop();
+        });
+    }
+    
+    void HandleInputMessage(const MessageHeader& header, const std::vector<uint8_t>& data) {
+        std::cout << "HandleInputMessage: type=" << header.type << " size=" << header.size << " data.size()=" << data.size() << std::endl;
+        switch (header.type) {
+            case MSG_COMPRESSION_REQUEST: {
+                std::cout << "Processing compression request" << std::endl;
+                if (data.size() >= sizeof(CompressionType)) {
+                    // Extract compression type from the data payload
+                    m_clientCompression = *reinterpret_cast<const CompressionType*>(data.data());
+                    std::cout << "Client requested compression type: " << m_clientCompression << std::endl;
+                    
+                    // Send acknowledgment back to client (optional but good practice)
+                    std::cout << "Server now configured for compression type: " << m_clientCompression << std::endl;
+                } else {
+                    std::cout << "Invalid compression request size: " << data.size() << " expected: " << sizeof(CompressionType) << std::endl;
+                }
+                break;
+            }
+            case MSG_MOUSE_MOVE: {
+                if (data.size() >= sizeof(MouseMoveMessage) - sizeof(MessageHeader)) {
+                    // Create a complete MouseMoveMessage by combining header and data
+                    MouseMoveMessage msg;
+                    msg.header = header;
+                    memcpy(reinterpret_cast<char*>(&msg) + sizeof(MessageHeader), data.data(), data.size());
+                    InputInjector::InjectMouseMove(msg.deltaX, msg.deltaY, msg.absolute, msg.x, msg.y);
+                    std::cout << "Mouse move: dx=" << msg.deltaX << " dy=" << msg.deltaY << std::endl;
+                }
+                break;
+            }
+            case MSG_MOUSE_CLICK: {
+                if (data.size() >= sizeof(MouseClickMessage) - sizeof(MessageHeader)) {
+                    // Create a complete MouseClickMessage by combining header and data
+                    MouseClickMessage msg;
+                    msg.header = header;
+                    memcpy(reinterpret_cast<char*>(&msg) + sizeof(MessageHeader), data.data(), data.size());
+                    InputInjector::InjectMouseClick(msg.button, msg.pressed);
+                    std::cout << "Mouse " << (msg.pressed ? "press" : "release") << " button " << msg.button << std::endl;
+                }
+                break;
+            }
+            case MSG_MOUSE_SCROLL: {
+                if (data.size() >= sizeof(MouseScrollMessage) - sizeof(MessageHeader)) {
+                    // Create a complete MouseScrollMessage by combining header and data
+                    MouseScrollMessage msg;
+                    msg.header = header;
+                    memcpy(reinterpret_cast<char*>(&msg) + sizeof(MessageHeader), data.data(), data.size());
+                    InputInjector::InjectMouseScroll(msg.deltaX, msg.deltaY);
+                    std::cout << "Mouse scroll: dx=" << msg.deltaX << " dy=" << msg.deltaY << std::endl;
+                }
+                break;
+            }
+        }
+    }
+    
+    void StreamingLoop() {
+        std::vector<BYTE> pixelData;
+        UINT32 frameWidth, frameHeight, frameDataSize;
+        
+        std::cout << "Starting streaming loop - compression will be checked per frame" << std::endl;
+        
+        while (m_streaming && m_currentClient && m_currentClient->IsConnected()) {
+            // Capture or generate test frame
+            bool frameReady = false;
+            if (m_testMode) {
+                // Generate test frame data
+                frameWidth = 640;
+                frameHeight = 480;
+                frameDataSize = frameWidth * frameHeight * 4; // BGRA format
 
-    return true;
-}
+                pixelData.clear();
+                pixelData.resize(frameDataSize);
+
+                // Create test pattern: red-green gradient with frame counter
+                for (uint32_t y = 0; y < frameHeight; y++) {
+                    for (uint32_t x = 0; x < frameWidth; x++) {
+                        uint32_t index = (y * frameWidth + x) * 4;
+                        uint8_t red = static_cast<uint8_t>((x * 255) / frameWidth);
+                        uint8_t green = static_cast<uint8_t>((y * 255) / frameHeight);
+                        uint8_t blue = static_cast<uint8_t>(m_frameCount % 256);
+
+                        pixelData[index + 0] = blue;  // B
+                        pixelData[index + 1] = green; // G
+                        pixelData[index + 2] = red;   // R
+                        pixelData[index + 3] = 255;   // A
+                    }
+                }
+                frameReady = true;
+                std::cout << "Generated test frame " << m_frameCount + 1 << " (640x480)" << std::endl;
+            } else {
+                frameReady = m_duplicator.CaptureFrame(pixelData, frameWidth, frameHeight, frameDataSize);
+            }
+            
+            if (frameReady) {
+                // Validate frame dimensions are reasonable
+                if (frameWidth == 0 || frameHeight == 0 ||
+                    frameWidth > 10000 || frameHeight > 10000 ||
+                    frameDataSize > 100000000) {
+                    std::cerr << "Invalid frame data - Width: " << frameWidth
+                              << ", Height: " << frameHeight
+                              << ", DataSize: " << frameDataSize << std::endl;
+                    continue;
+                }
+                
+                // Check if compression is requested (dynamically check each frame)
+                bool useCompression = (m_clientCompression != COMPRESSION_NONE);
+                
+                if (useCompression) {
+                    // Initialize encoder with first frame dimensions if needed
+                    if (!m_encoder) {
+                        m_encoder = std::make_unique<VideoEncoder>();
+                        std::cout << "Compression enabled, encoder will be initialized with first frame" << std::endl;
+                    }
+                    
+                    if (!m_encoder->IsInitialized()) {
+                        if (!m_encoder->Initialize(frameWidth, frameHeight, m_clientCompression)) {
+                            std::cerr << "Failed to initialize video encoder" << std::endl;
+                            useCompression = false; // Fall back to uncompressed for this frame
+                        } else {
+                            std::cout << "Video encoder initialized successfully" << std::endl;
+                        }
+                    }
+                    
+                    if (useCompression && m_encoder->IsInitialized()) {
+                        // Encode frame
+                        std::vector<uint8_t> compressedData;
+                        bool isKeyframe = false;
+                        
+                        if (m_encoder->EncodeFrame(pixelData.data(), compressedData, isKeyframe)) {
+                            // Send compressed frame
+                            CompressedFrameMessage compFrameMsg;
+                            compFrameMsg.header.type = MSG_COMPRESSED_FRAME;
+                            compFrameMsg.header.size = sizeof(CompressedFrameMessage);
+                            compFrameMsg.width = frameWidth;
+                            compFrameMsg.height = frameHeight;
+                            compFrameMsg.compressedSize = compressedData.size();
+                            compFrameMsg.isKeyframe = isKeyframe ? 1 : 0;
+                            
+                            std::cout << "SERVER SEND: Frame " << m_frameCount + 1 << " - Compressed: " << compressedData.size()
+                                      << " bytes (" << (isKeyframe ? "KEY" : "DELTA") << ")" << std::endl;
+                            
+                            if (!m_currentClient->SendCompressedFrame(compFrameMsg, compressedData)) {
+                                std::cerr << "Failed to send compressed frame" << std::endl;
+                                break;
+                            }
+                        } else {
+                            // Skip this frame if encoding failed
+                            continue;
+                        }
+                    } else {
+                        useCompression = false; // Fall back to uncompressed for this frame
+                    }
+                }
+                
+                if (!useCompression) {
+                    // Send uncompressed frame
+                    FrameMessage frameMsg;
+                    frameMsg.header.type = MSG_FRAME_DATA;
+                    frameMsg.header.size = sizeof(FrameMessage);
+                    frameMsg.width = frameWidth;
+                    frameMsg.height = frameHeight;
+                    frameMsg.dataSize = frameDataSize;
+                    
+                    std::cout << "SERVER SEND: Frame " << m_frameCount + 1 << " - Uncompressed: " << frameDataSize << " bytes" << std::endl;
+                    
+                    if (!m_currentClient->SendFrame(frameMsg, pixelData)) {
+                        std::cerr << "Failed to send frame" << std::endl;
+                        break;
+                    }
+                }
+                
+                std::cout << "SERVER SEND: Frame " << m_frameCount + 1 << " - COMPLETE" << std::endl;
+                
+                m_frameCount++;
+                if (m_frameCount % 30 == 0) {
+                    auto currentTime = std::chrono::high_resolution_clock::now();
+                    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - m_startTime);
+                    double fps = (m_frameCount * 1000.0) / duration.count();
+                    std::cout << "Sent " << m_frameCount << " frames, FPS: " << fps << ", Frame size: " << formatBytes(frameDataSize) << std::endl;
+                }
+                
+                // In test mode, exit after sending 3 frames
+                if (m_testMode && m_frameCount >= 3) {
+                    std::cout << "TEST MODE: Sent 3 frames, exiting successfully" << std::endl;
+                    break;
+                }
+            }
+            
+            std::this_thread::sleep_for(std::chrono::milliseconds(16)); // ~60fps target
+        }
+    }
+};
 
 int main(int argc, char *argv[])
 {
@@ -440,381 +690,19 @@ int main(int argc, char *argv[])
         }
     }
 
-    std::cout << "MRDesktop Server - Desktop Duplication Service" << std::endl;
-    std::cout << "=============================================" << std::endl;
-
-    if (testMode)
-    {
-        std::cout << "RUNNING IN TEST MODE" << std::endl;
-    }
-
-    // Initialize platform networking
-#ifdef _WIN32
-    // Initialize COM
-    HRESULT hr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
-    if (FAILED(hr))
-    {
-        std::cerr << "Failed to initialize COM: " << std::hex << hr << std::endl;
+    MRDesktopServer server(testMode);
+    
+    if (!server.Start(8080)) {
+        std::cerr << "Failed to start server" << std::endl;
         return 1;
     }
-
-    // Initialize Winsock
-    WSADATA wsaData;
-    int result = WSAStartup(MAKEWORD(2, 2), &wsaData);
-    if (result != 0)
-    {
-        std::cerr << "WSAStartup failed: " << result << std::endl;
-        CoUninitialize();
-        return 1;
+    
+    if (testMode) {
+        // In test mode, wait for completion
+        std::this_thread::sleep_for(std::chrono::seconds(5));
+    } else {
+        server.WaitForExit();
     }
-    std::cout << "Network and COM initialized successfully" << std::endl;
-#else
-    int result = 0; // nothing needed on POSIX
-    std::cout << "Network initialized" << std::endl;
-#endif
-
-    // Initialize desktop duplicator (skip in test mode)
-    DesktopDuplicator duplicator;
-    if (!testMode && !duplicator.Initialize())
-    {
-        std::cerr << "Failed to initialize desktop duplicator" << std::endl;
-#ifdef _WIN32
-        WSACleanup();
-        CoUninitialize();
-#endif
-        return 1;
-    }
-
-    // Create server socket
-    SOCKET serverSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-    if (serverSocket == INVALID_SOCKET)
-    {
-#ifdef _WIN32
-        std::cerr << "Failed to create socket: " << WSAGetLastError() << std::endl;
-#else
-        std::cerr << "Failed to create socket: " << strerror(errno) << std::endl;
-#endif
-#ifdef _WIN32
-        WSACleanup();
-        CoUninitialize();
-#endif
-        return 1;
-    }
-
-    // Bind to localhost port 8080
-    sockaddr_in serverAddr;
-    serverAddr.sin_family = AF_INET;
-    serverAddr.sin_addr.s_addr = INADDR_ANY;
-    serverAddr.sin_port = htons(8080);
-
-    if (bind(serverSocket, (sockaddr *)&serverAddr, sizeof(serverAddr)) == SOCKET_ERROR)
-    {
-#ifdef _WIN32
-        std::cerr << "Bind failed: " << WSAGetLastError() << std::endl;
-#else
-        std::cerr << "Bind failed: " << strerror(errno) << std::endl;
-#endif
-        closesocket(serverSocket);
-#ifdef _WIN32
-        WSACleanup();
-        CoUninitialize();
-#endif
-        return 1;
-    }
-
-    if (listen(serverSocket, 1) == SOCKET_ERROR)
-    {
-#ifdef _WIN32
-        std::cerr << "Listen failed: " << WSAGetLastError() << std::endl;
-#else
-        std::cerr << "Listen failed: " << strerror(errno) << std::endl;
-#endif
-        closesocket(serverSocket);
-#ifdef _WIN32
-        WSACleanup();
-        CoUninitialize();
-#endif
-        return 1;
-    }
-
-    std::cout << "Server listening on port 8080..." << std::endl;
-    std::cout << "Waiting for client connection..." << std::endl;
-
-    // Accept client connection
-    SOCKET clientSocket = accept(serverSocket, nullptr, nullptr);
-    if (clientSocket == INVALID_SOCKET)
-    {
-#ifdef _WIN32
-        std::cerr << "Accept failed: " << WSAGetLastError() << std::endl;
-#else
-        std::cerr << "Accept failed: " << strerror(errno) << std::endl;
-#endif
-        closesocket(serverSocket);
-#ifdef _WIN32
-        WSACleanup();
-        CoUninitialize();
-#endif
-        return 1;
-    }
-
-    std::cout << "Client connected! Starting desktop streaming..." << std::endl;
-
-    // Wait for compression negotiation from client
-    CompressionType clientCompression = COMPRESSION_NONE;
-    CompressionRequestMessage compressionRequest;
-    int received = recv(clientSocket, (char *)&compressionRequest, sizeof(compressionRequest), 0);
-    if (received == sizeof(compressionRequest) && compressionRequest.header.type == MSG_COMPRESSION_REQUEST)
-    {
-        clientCompression = compressionRequest.compression;
-        std::cout << "Client requested compression type: " << clientCompression << std::endl;
-    }
-    else
-    {
-        std::cout << "No compression request received, using uncompressed frames" << std::endl;
-    }
-
-    // Set socket to non-blocking for input checking
-#ifdef _WIN32
-    u_long mode = 1;
-    ioctlsocket(clientSocket, FIONBIO, &mode);
-#else
-    int flags = fcntl(clientSocket, F_GETFL, 0);
-    if (flags >= 0)
-        fcntl(clientSocket, F_SETFL, flags | O_NONBLOCK);
-#endif
-
-    // Streaming and input handling loop
-    std::vector<BYTE> pixelData;
-    UINT32 frameWidth, frameHeight, frameDataSize;
-    int frameCount = 0;
-    auto startTime = std::chrono::high_resolution_clock::now();
-
-    // Initialize video encoder if compression is requested
-    std::unique_ptr<VideoEncoder> encoder;
-    bool useCompression = (clientCompression != COMPRESSION_NONE);
-
-    if (useCompression)
-    {
-        encoder = std::make_unique<VideoEncoder>();
-        std::cout << "Compression enabled, encoder will be initialized with first frame" << std::endl;
-    }
-    else
-    {
-        std::cout << "Ready to stream uncompressed frames" << std::endl;
-    }
-
-    while (true)
-    {
-        // Check for incoming input messages
-        MessageHeader msgHeader;
-        int received = recv(clientSocket, (char *)&msgHeader, sizeof(msgHeader), 0);
-        if (received == sizeof(msgHeader))
-        {
-            // Process input message based on type
-            switch (msgHeader.type)
-            {
-            case MSG_MOUSE_MOVE:
-            {
-                MouseMoveMessage mouseMsg;
-                received = recv(clientSocket, (char *)&mouseMsg + sizeof(MessageHeader),
-                                sizeof(MouseMoveMessage) - sizeof(MessageHeader), 0);
-                if (received == sizeof(MouseMoveMessage) - sizeof(MessageHeader))
-                {
-                    InputInjector::InjectMouseMove(mouseMsg.deltaX, mouseMsg.deltaY,
-                                                   mouseMsg.absolute, mouseMsg.x, mouseMsg.y);
-                    std::cout << "Mouse move: dx=" << mouseMsg.deltaX << " dy=" << mouseMsg.deltaY << std::endl;
-                }
-                break;
-            }
-            case MSG_MOUSE_CLICK:
-            {
-                MouseClickMessage clickMsg;
-                received = recv(clientSocket, (char *)&clickMsg + sizeof(MessageHeader),
-                                sizeof(MouseClickMessage) - sizeof(MessageHeader), 0);
-                if (received == sizeof(MouseClickMessage) - sizeof(MessageHeader))
-                {
-                    InputInjector::InjectMouseClick(clickMsg.button, clickMsg.pressed);
-                    std::cout << "Mouse " << (clickMsg.pressed ? "press" : "release")
-                              << " button " << clickMsg.button << std::endl;
-                }
-                break;
-            }
-            case MSG_MOUSE_SCROLL:
-            {
-                MouseScrollMessage scrollMsg;
-                received = recv(clientSocket, (char *)&scrollMsg + sizeof(MessageHeader),
-                                sizeof(MouseScrollMessage) - sizeof(MessageHeader), 0);
-                if (received == sizeof(MouseScrollMessage) - sizeof(MessageHeader))
-                {
-                    InputInjector::InjectMouseScroll(scrollMsg.deltaX, scrollMsg.deltaY);
-                    std::cout << "Mouse scroll: dx=" << scrollMsg.deltaX << " dy=" << scrollMsg.deltaY << std::endl;
-                }
-                break;
-            }
-            }
-        }
-
-        // Capture or generate test frame
-        bool frameReady = false;
-        if (testMode)
-        {
-            // Generate test frame data
-            frameWidth = 640;
-            frameHeight = 480;
-            frameDataSize = frameWidth * frameHeight * 4; // BGRA format
-
-            pixelData.clear();
-            pixelData.resize(frameDataSize);
-
-            // Create test pattern: red-green gradient with frame counter
-            for (uint32_t y = 0; y < frameHeight; y++)
-            {
-                for (uint32_t x = 0; x < frameWidth; x++)
-                {
-                    uint32_t index = (y * frameWidth + x) * 4;
-                    uint8_t red = static_cast<uint8_t>((x * 255) / frameWidth);
-                    uint8_t green = static_cast<uint8_t>((y * 255) / frameHeight);
-                    uint8_t blue = static_cast<uint8_t>(frameCount % 256);
-
-                    pixelData[index + 0] = blue;  // B
-                    pixelData[index + 1] = green; // G
-                    pixelData[index + 2] = red;   // R
-                    pixelData[index + 3] = 255;   // A
-                }
-            }
-            frameReady = true;
-            std::cout << "Generated test frame " << frameCount + 1 << " (640x480)" << std::endl;
-        }
-        else
-        {
-            frameReady = duplicator.CaptureFrame(pixelData, frameWidth, frameHeight, frameDataSize);
-        }
-
-        if (frameReady)
-        {
-            // Validate frame dimensions are reasonable
-            if (frameWidth == 0 || frameHeight == 0 ||
-                frameWidth > 10000 || frameHeight > 10000 ||
-                frameDataSize > 100000000)
-            {
-                std::cerr << "Invalid frame data - Width: " << frameWidth
-                          << ", Height: " << frameHeight
-                          << ", DataSize: " << frameDataSize << std::endl;
-                continue;
-            }
-
-            if (useCompression)
-            {
-                // Initialize encoder with first frame dimensions
-                if (!encoder->IsInitialized())
-                {
-                    if (!encoder->Initialize(frameWidth, frameHeight, clientCompression))
-                    {
-                        std::cerr << "Failed to initialize video encoder" << std::endl;
-                        useCompression = false; // Fall back to uncompressed
-                    }
-                    else
-                    {
-                        std::cout << "Video encoder initialized successfully" << std::endl;
-                    }
-                }
-
-                if (encoder->IsInitialized())
-                {
-                    // Encode frame
-                    std::vector<uint8_t> compressedData;
-                    bool isKeyframe = false;
-
-                    if (encoder->EncodeFrame(pixelData.data(), compressedData, isKeyframe))
-                    {
-                        // Send compressed frame
-                        CompressedFrameMessage compFrameMsg;
-                        compFrameMsg.header.type = MSG_COMPRESSED_FRAME;
-                        compFrameMsg.header.size = sizeof(CompressedFrameMessage);
-                        compFrameMsg.width = frameWidth;
-                        compFrameMsg.height = frameHeight;
-                        compFrameMsg.compressedSize = compressedData.size();
-                        compFrameMsg.isKeyframe = isKeyframe ? 1 : 0;
-
-                        std::cout << "SERVER SEND: Frame " << frameCount + 1 << " - Compressed: " << compressedData.size()
-                                  << " bytes (" << (isKeyframe ? "KEY" : "DELTA") << ")" << std::endl;
-
-                        if (!SendAllData(clientSocket, (char *)&compFrameMsg, sizeof(CompressedFrameMessage)))
-                        {
-                            std::cerr << "Failed to send compressed frame header" << std::endl;
-                            break;
-                        }
-
-                        if (!SendAllData(clientSocket, (char *)compressedData.data(), compressedData.size()))
-                        {
-                            std::cerr << "Failed to send compressed frame data" << std::endl;
-                            break;
-                        }
-                    }
-                    else
-                    {
-                        // Skip this frame if encoding failed
-                        continue;
-                    }
-                }
-                else
-                {
-                    useCompression = false; // Fall back to uncompressed
-                }
-            }
-
-            if (!useCompression)
-            {
-                // Send uncompressed frame
-                FrameMessage frameMsg;
-                frameMsg.header.type = MSG_FRAME_DATA;
-                frameMsg.header.size = sizeof(FrameMessage);
-                frameMsg.width = frameWidth;
-                frameMsg.height = frameHeight;
-                frameMsg.dataSize = frameDataSize;
-
-                std::cout << "SERVER SEND: Frame " << frameCount + 1 << " - Uncompressed: " << frameDataSize << " bytes" << std::endl;
-
-                if (!SendAllData(clientSocket, (char *)&frameMsg, sizeof(FrameMessage)))
-                {
-                    std::cerr << "Failed to send frame header" << std::endl;
-                    break;
-                }
-
-                if (!SendAllData(clientSocket, (char *)pixelData.data(), frameDataSize))
-                {
-                    std::cerr << "Failed to send frame data" << std::endl;
-                    break;
-                }
-            }
-
-            std::cout << "SERVER SEND: Frame " << frameCount + 1 << " - COMPLETE" << std::endl;
-
-            frameCount++;
-            if (frameCount % 30 == 0)
-            {
-                auto currentTime = std::chrono::high_resolution_clock::now();
-                auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - startTime);
-                double fps = (frameCount * 1000.0) / duration.count();
-                std::cout << "Sent " << frameCount << " frames, FPS: " << fps << ", Frame size: " << formatBytes(frameDataSize) << std::endl;
-            }
-
-            // In test mode, exit after sending 3 frames
-            if (testMode && frameCount >= 3)
-            {
-                std::cout << "TEST MODE: Sent 3 frames, exiting successfully" << std::endl;
-                break;
-            }
-        }
-
-        std::this_thread::sleep_for(std::chrono::milliseconds(16)); // ~60fps target
-    }
-
-    closesocket(clientSocket);
-    closesocket(serverSocket);
-#ifdef _WIN32
-    WSACleanup();
-    CoUninitialize();
-#endif
+    
     return 0;
 }

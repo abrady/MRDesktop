@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.20)
 project(MRDesktop)
 
 find_package(FFMPEG REQUIRED)
+find_package(asio CONFIG REQUIRED)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -34,26 +35,30 @@ if(PLATFORM_DESKTOP)
     add_executable(MRDesktopServer
         src/server/main.cpp
         src/shared/VideoEncoder.cpp
+        src/shared/AsioNetworking.cpp
     )
     target_include_directories(MRDesktopServer PRIVATE ${COMMON_INCLUDES} ${FFMPEG_INCLUDE_DIRS})
+    target_link_libraries(MRDesktopServer PRIVATE asio::asio)
 
     # Create console client executable
     add_executable(MRDesktopConsoleClient
         src/clients/console/main.cpp
         src/shared/FrameLogger.cpp
+        src/shared/AsioNetworking.cpp
         src/shared/NetworkReceiver.cpp
         src/shared/VideoDecoder.cpp
     )
     target_include_directories(MRDesktopConsoleClient PRIVATE ${COMMON_INCLUDES} ${FFMPEG_INCLUDE_DIRS})
+    target_link_libraries(MRDesktopConsoleClient PRIVATE asio::asio)
 
     if(WIN32)
         # Server needs DXGI, Media Foundation and other Windows APIs
         target_compile_definitions(MRDesktopServer PRIVATE WIN32_LEAN_AND_MEAN)
-        target_link_libraries(MRDesktopServer PRIVATE dxgi d3d11 ws2_32 mf mfplat mfuuid wmcodecdspuuid ${FFMPEG_LIBRARIES})
+        target_link_libraries(MRDesktopServer PRIVATE dxgi d3d11 mf mfplat mfuuid wmcodecdspuuid ${FFMPEG_LIBRARIES})
         
         # Console client
         target_compile_definitions(MRDesktopConsoleClient PRIVATE WIN32_LEAN_AND_MEAN)
-        target_link_libraries(MRDesktopConsoleClient PRIVATE ws2_32 ${FFMPEG_LIBRARIES})
+        target_link_libraries(MRDesktopConsoleClient PRIVATE ${FFMPEG_LIBRARIES})
     endif()
 
     if(NOT WIN32)
@@ -72,6 +77,7 @@ if(PLATFORM_ANDROID OR BUILD_ANDROID_CLIENT)
     # Android native client library
     add_library(MRDesktopAndroidClient SHARED
         android/app/src/main/cpp/android_client.cpp
+        src/shared/AsioNetworking.cpp
         src/shared/NetworkReceiver.cpp
         src/shared/VideoDecoder.cpp
     )
@@ -80,6 +86,7 @@ if(PLATFORM_ANDROID OR BUILD_ANDROID_CLIENT)
         ${COMMON_INCLUDES}
         android/app/src/main/cpp
     )
+    target_link_libraries(MRDesktopAndroidClient PRIVATE asio::asio)
     
     if(ANDROID)
         # Find required Android libraries

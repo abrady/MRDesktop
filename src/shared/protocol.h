@@ -28,18 +28,16 @@ struct MessageHeader {
     uint32_t size;
 };
 
-// Frame data message (existing - uncompressed)
-struct FrameMessage {
-    MessageHeader header;
+// Frame information (follows MSG_FRAME_DATA header)
+struct FrameInfo {
     uint32_t width;
     uint32_t height;
     uint32_t dataSize;
     // Pixel data follows
 };
 
-// Compressed frame data message
-struct CompressedFrameMessage {
-    MessageHeader header;
+// Compressed frame information (follows MSG_COMPRESSED_FRAME header)
+struct CompressedFrameInfo {
     uint32_t width;
     uint32_t height;
     uint32_t compressedSize;
@@ -47,7 +45,27 @@ struct CompressedFrameMessage {
     // Compressed data follows (format determined by negotiation)
 };
 
-// Compression negotiation message sent from client to server
+// Compression request information (follows MSG_COMPRESSION_REQUEST header)
+struct CompressionRequestInfo {
+    CompressionType compression;
+};
+
+// Legacy message structures for compatibility
+struct FrameMessage {
+    MessageHeader header;
+    uint32_t width;
+    uint32_t height;
+    uint32_t dataSize;
+};
+
+struct CompressedFrameMessage {
+    MessageHeader header;
+    uint32_t width;
+    uint32_t height;
+    uint32_t compressedSize;
+    uint32_t isKeyframe;
+};
+
 struct CompressionRequestMessage {
     MessageHeader header;
     CompressionType compression;

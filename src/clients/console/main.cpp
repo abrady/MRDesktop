@@ -1,14 +1,8 @@
 #include <iostream>
 #ifdef _WIN32
 #include <windows.h>
-#include <winsock2.h>
-#include <ws2tcpip.h>
 #include <conio.h>
-#pragma comment(lib, "ws2_32.lib")
 #else
-#include <sys/socket.h>
-#include <arpa/inet.h>
-#include <netinet/in.h>
 #include <unistd.h>
 #include <termios.h>
 #include <fcntl.h>
@@ -19,9 +13,10 @@
 #include <chrono>
 #include <string>
 #include <algorithm>
+#include <fstream>
 #include "protocol.h"
-#include "../shared/FrameLogger.h"
-#include "../shared/NetworkReceiver.h"
+#include "FrameLogger.h"
+#include "NetworkReceiver.h"
 
 
 #pragma pack(push, 1)
@@ -105,6 +100,8 @@ void SaveFrameAsBMP(const FrameMessage &frameMsg, const std::vector<uint8_t> &fr
         out.write(reinterpret_cast<const char*>(frameData.data()), frameData.size());
         out.close();
         std::cout << "Saved frame as " << filename << std::endl;
+    } else {
+        std::cerr << "Failed to open " << filename << " for writing" << std::endl;
     }
 #endif
 }
@@ -208,7 +205,19 @@ int main(int argc, char *argv[])
 
     // Connect to server
     NetworkReceiver receiver;
+    
+    // Set compression before connecting
     receiver.SetCompression(compression);
+    
+    // Set up connection error handling
+    receiver.SetErrorCallback([](const std::string& error) {
+        std::cerr << "Connection error: " << error << std::endl;
+    });
+    
+    receiver.SetDisconnectedCallback([]() {
+        std::cout << "Disconnected from server" << std::endl;
+    });
+    
     if (!receiver.Connect(serverIP, serverPort))
     {
         std::cerr << "Failed to connect to server" << std::endl;
@@ -216,7 +225,8 @@ int main(int argc, char *argv[])
     }
 
     std::cout << "Connected to MRDesktop Server!" << std::endl;
-    std::cout << "Requested compression mode: " << compression << std::endl;
+    std::cout << "Compression mode set to: " << compression << std::endl;
+    
     std::cout << "Receiving desktop stream..." << std::endl;
     std::cout << std::endl;
     
@@ -251,17 +261,9 @@ int main(int argc, char *argv[])
     bool receivedCompressedFrame = false;
     bool receivedUncompressedFrame = false;
     
-    // Set up callback to track raw frame types from network
-    receiver.SetRawFrameCallback([&](MessageType msgType) {
-        if (msgType == MSG_COMPRESSED_FRAME) {
-            receivedCompressedFrame = true;
-        } else if (msgType == MSG_FRAME_DATA) {
-            receivedUncompressedFrame = true;
-        }
-    });
-    
     // Set up frame callback  
     receiver.SetFrameCallback([&](const FrameMessage& frameMsg, const std::vector<uint8_t>& frameData) {
+        receivedUncompressedFrame = true;
         frameCount++;
 
         // Test mode validation
@@ -340,10 +342,17 @@ int main(int argc, char *argv[])
                       << ", Resolution: " << frameMsg.width << "x" << frameMsg.height << std::endl;
         }
     });
+    
+    // Set up raw frame callback to detect compression usage
+    receiver.SetRawFrameCallback([&](MessageType type) {
+        if (type == MSG_COMPRESSED_FRAME) {
+            receivedCompressedFrame = true;
+        }
+    });
 
     const int MOUSE_SPEED = 10; // Pixels per keypress
 
-    while (!exitRequested)
+    while (!exitRequested && receiver.IsConnected())
     {
         // Check for keyboard input (skip in test mode)
         if (!testMode && _kbhit())
@@ -429,9 +438,9 @@ int main(int argc, char *argv[])
             }
         }
 
-        // Poll for frames (non-blocking)
+        // Poll for frames in case using polling mode
         receiver.PollFrame();
-
+        
         // Small delay to prevent busy waiting
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }

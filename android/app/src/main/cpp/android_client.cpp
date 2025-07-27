@@ -1,5 +1,5 @@
-#include "NetworkReceiver.h"
-#include "protocol.h"
+#include "../../../../../../src/shared/AsioNetworking.h"
+#include "../../../../../../src/shared/protocol.h"
 #include "FrameRenderer.h"
 #include "CrashSafeFrameHandler.h"
 #include <jni.h>
@@ -21,10 +21,9 @@ static jmethodID g_onFrameMethod = nullptr;
 class AndroidNetworkClient
 {
 private:
-    NetworkReceiver receiver;
+    AsioConnection connection;
     FrameRenderer frameRenderer;
     std::atomic<bool> running{false};
-    std::thread networkThread;
     std::mutex frameMutex; // Prevent race conditions in frame processing
     int frameCount = 0;    // For debugging purposes
 
@@ -33,7 +32,7 @@ public:
     {
         LOGI("Attempting to connect to %s:%d", serverIP.c_str(), port);
 
-        receiver.SetFrameCallback([this](const FrameMessage &msg, const std::vector<uint8_t> &data)
+        connection.SetFrameCallback([this](const FrameMessage &msg, const std::vector<uint8_t> &data)
                                   {
             LOGI("Frame callback invoked(%i): %ux%u, %zu bytes", frameCount++, msg.width, msg.height, data.size());
 
@@ -177,38 +176,17 @@ public:
                 }
             } });
 
-        receiver.SetErrorCallback([](const std::string &error)
+        connection.SetErrorCallback([](const std::string &error)
                                   { LOGE("Network error: %s", error.c_str()); });
 
-        receiver.SetDisconnectedCallback([]()
+        connection.SetDisconnectCallback([]()
                                          { LOGI("Disconnected from server"); });
 
-        bool connected = receiver.Connect(serverIP, port);
+        bool connected = connection.Connect(serverIP, port);
         if (connected)
         {
             LOGI("Successfully connected to server");
             running = true;
-
-            networkThread = std::thread([this]()
-                                        {
-                LOGI("Network polling thread started");
-                int pollAttempts = 0;
-                while (running && receiver.IsConnected()) {
-                    bool frameReceived = receiver.PollFrame();
-                    pollAttempts++;
-                    
-                    if (!frameReceived) {
-                        // Log every 100 attempts to avoid spam
-                        if (pollAttempts % 100 == 0) {
-                            LOGI("No frame received after %d poll attempts", pollAttempts);
-                        }
-                        std::this_thread::sleep_for(std::chrono::milliseconds(16)); // ~60 FPS
-                    } else {
-                        LOGI("Frame successfully received on attempt %d", pollAttempts);
-                        pollAttempts = 0; // Reset counter on successful frame
-                    }
-                }
-                LOGI("Network thread stopped"); });
         }
         else
         {
@@ -222,18 +200,12 @@ public:
     {
         LOGI("Disconnecting from server");
         running = false;
-
-        receiver.Disconnect();
-
-        if (networkThread.joinable())
-        {
-            networkThread.join();
-        }
+        connection.Disconnect();
     }
 
     bool SendMouseMove(int32_t deltaX, int32_t deltaY)
     {
-        return receiver.SendMouseMove(deltaX, deltaY);
+        return connection.SendMouseMove(deltaX, deltaY);
     }
 
     bool SendMouseClick(int button, bool pressed)
@@ -253,12 +225,12 @@ public:
         default:
             return false;
         }
-        return receiver.SendMouseClick(btn, pressed);
+        return connection.SendMouseClick(btn, pressed);
     }
 
     bool IsConnected() const
     {
-        return receiver.IsConnected();
+        return connection.IsConnected();
     }
 };
 
