@@ -114,7 +114,11 @@
       "Bash(build.bat debug)",
       "Bash(dev-container.bat clean)",
       "Bash(\"linux\\dev-container.bat\" clean)",
-      "Bash(podman rmi:*)"
+      "Bash(podman rmi:*)",
+      "Bash(find:*)",
+      "Bash(adb logcat:*)",
+      "Bash(./gradlew:*)",
+      "Bash(JAVA_HOME=\"/mnt/c/open/github/MRDesktop/android/java/jdk-17.0.11+9\" PATH=\"$JAVA_HOME/bin:$PATH\" cmd.exe /c gradlew.bat assembleDebug)"
     ],
     "deny": []
   }

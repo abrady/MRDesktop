@@ -5,10 +5,11 @@
 #include <string>
 #include <thread>
 #include <android/log.h>
-#include "AsioNetworking.h"
+#include "NetworkReceiver.h"
 #include "protocol.h"
 #include "CrashSafeFrameHandler.h"
 #include "FrameRenderer.h"
+#include "AndroidVideoDecoderWrapper.h"
 
 static JavaVM* g_vm = nullptr;
 static jclass g_clientClass = nullptr;
@@ -20,17 +21,28 @@ static jmethodID g_onFrameMethod = nullptr;
 
 class AndroidNetworkClient {
  private:
-  AsioConnection connection;
+  std::unique_ptr<NetworkReceiver> receiver;
   FrameRenderer frameRenderer;
   std::atomic<bool> running{false};
   std::mutex frameMutex; // Prevent race conditions in frame processing
   int frameCount = 0; // For debugging purposes
 
  public:
+  AndroidNetworkClient() {
+    // Create NetworkReceiver with Android hardware decoder
+    auto androidDecoder = std::make_unique<AndroidVideoDecoderWrapper>();
+    receiver = std::make_unique<NetworkReceiver>(std::move(androidDecoder));
+  }
+
   bool Connect(const std::string& serverIP, int port) {
     LOGI("Attempting to connect to %s:%d", serverIP.c_str(), port);
 
-    connection.SetFrameCallback(
+    // Set compression before connecting (like console client)
+    CompressionType compression = COMPRESSION_H265;
+    receiver->SetCompression(compression);
+    LOGI("Set compression type: %d", compression);
+
+    receiver->SetFrameCallback(
         [this](const FrameMessage& msg, const std::vector<uint8_t>& data) {
           LOGI(
               "Frame callback invoked(%i): %ux%u, %zu bytes",
@@ -217,15 +229,15 @@ class AndroidNetworkClient {
           }
         });
 
-    connection.SetErrorCallback([](const std::string& error) {
+    receiver->SetErrorCallback([](const std::string& error) {
       LOGE("Network error: %s", error.c_str());
     });
 
-    connection.SetDisconnectCallback([]() {
+    receiver->SetDisconnectedCallback([]() {
       LOGI("Disconnected from server");
     });
 
-    bool connected = connection.Connect(serverIP, port);
+    bool connected = receiver->Connect(serverIP, port);
     if (connected) {
       LOGI("Successfully connected to server");
       running = true;
@@ -239,11 +251,11 @@ class AndroidNetworkClient {
   void Disconnect() {
     LOGI("Disconnecting from server");
     running = false;
-    connection.Disconnect();
+    receiver->Disconnect();
   }
 
   bool SendMouseMove(int32_t deltaX, int32_t deltaY) {
-    return connection.SendMouseMove(deltaX, deltaY);
+    return receiver->SendMouseMove(deltaX, deltaY);
   }
 
   bool SendMouseClick(int button, bool pressed) {
@@ -261,10 +273,10 @@ class AndroidNetworkClient {
       default:
         return false;
     }
-    return connection.SendMouseClick(btn, pressed);
+    return receiver->SendMouseClick(btn, pressed);
   }
 
-  bool IsConnected() const { return connection.IsConnected(); }
+  bool IsConnected() const { return receiver->IsConnected(); }
 };
 
 static AndroidNetworkClient* g_client = nullptr;

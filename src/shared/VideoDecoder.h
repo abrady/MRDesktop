@@ -24,8 +24,9 @@ extern "C" {
 #include <memory>
 #include <vector>
 #include "protocol.h"
+#include "IVideoDecoder.h"
 
-class VideoDecoder {
+class VideoDecoder : public IVideoDecoder {
  private:
 #ifdef ANDROID
   std::unique_ptr<AndroidVideoDecoder> m_androidDecoder;
@@ -47,15 +48,15 @@ class VideoDecoder {
   VideoDecoder();
   ~VideoDecoder();
 
-  bool Initialize(uint32_t width, uint32_t height, CompressionType compression);
+  bool Initialize(uint32_t width, uint32_t height, CompressionType compression) override;
   bool DecodeFrame(
       const uint8_t* compressedData,
       size_t dataSize,
-      std::vector<uint8_t>& bgraData);
-  void Cleanup();
+      std::vector<uint8_t>& bgraData) override;
+  void Cleanup() override;
 
   uint32_t GetWidth() const { return m_Width; }
   uint32_t GetHeight() const { return m_Height; }
   CompressionType GetCompressionType() const { return m_CompressionType; }
-  bool IsInitialized() const { return m_IsInitialized; }
+  bool IsInitialized() const override { return m_IsInitialized; }
 };

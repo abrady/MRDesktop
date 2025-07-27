@@ -90,4 +90,89 @@ public class MRDesktopClient {
             System.out.println("MRDesktop: Failed to connect!");
         }
     }
+    
+    // Frame validation test method similar to console client --test mode
+    public void runFrameValidationTest(String serverIP, int port) {
+        System.out.println("MRDesktop: Starting frame validation test to " + serverIP + ":" + port);
+        
+        final int[] frameCount = {0};
+        final boolean[] testPassed = {true};
+        final boolean[] testCompleted = {false};
+        
+        // Set up frame callback to validate frames
+        setFrameCallback(new FrameCallback() {
+            @Override
+            public void onFrame(byte[] data, int width, int height) {
+                frameCount[0]++;
+                System.out.println("TEST: Received frame " + frameCount[0] + " - " + width + "x" + height + " (" + data.length + " bytes)");
+                
+                // Validate expected dimensions (same as console client test)
+                if (width != 640 || height != 480) {
+                    System.err.println("TEST FAILED: Expected 640x480, got " + width + "x" + height);
+                    testPassed[0] = false;
+                }
+                
+                // Validate data size 
+                int expectedSize = 640 * 480 * 4; // ARGB format
+                if (data.length != expectedSize) {
+                    System.err.println("TEST FAILED: Expected " + expectedSize + " bytes, got " + data.length);
+                    testPassed[0] = false;
+                }
+                
+                // Validate test pattern - check a few key pixels
+                if (data.length >= expectedSize) {
+                    // Check top-left corner pixel (ARGB format)
+                    int alpha = data[3] & 0xFF;
+                    int red = data[2] & 0xFF;
+                    int green = data[1] & 0xFF;
+                    int blue = data[0] & 0xFF;
+                    
+                    if (alpha != 255) {
+                        System.err.println("TEST FAILED: Alpha channel not 255 at (0,0)");
+                        testPassed[0] = false;
+                    }
+                    
+                    System.out.println("TEST: Frame " + frameCount[0] + " pixel (0,0) = R:" + red + " G:" + green + " B:" + blue + " A:" + alpha);
+                }
+                
+                // Complete test after 3 frames
+                if (frameCount[0] >= 3) {
+                    testCompleted[0] = true;
+                    System.out.println("TEST: Received all 3 frames, test completed");
+                }
+            }
+        });
+        
+        if (connect(serverIP, port)) {
+            System.out.println("MRDesktop: Connected successfully!");
+            
+            // Wait for frames to be received (up to 10 seconds)
+            int maxWaitTime = 10000; // 10 seconds
+            int waitTime = 0;
+            while (!testCompleted[0] && waitTime < maxWaitTime) {
+                try {
+                    Thread.sleep(100);
+                    waitTime += 100;
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
+            
+            disconnect();
+            
+            // Print test results
+            System.out.println("\n=== ANDROID FRAME VALIDATION TEST RESULTS ===");
+            System.out.println("Total frames received: " + frameCount[0]);
+            
+            if (testPassed[0] && frameCount[0] >= 3) {
+                System.out.println("TEST PASSED: Frame validation successful - " + frameCount[0] + " frames processed correctly!");
+            } else {
+                System.out.println("TEST FAILED: " + (testPassed[0] ? "Insufficient frames received" : "Frame validation failed"));
+            }
+            
+        } else {
+            System.out.println("MRDesktop: Failed to connect!");
+        }
+    }
 }

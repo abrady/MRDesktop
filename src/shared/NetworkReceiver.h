@@ -8,7 +8,7 @@
 #include <vector>
 #include "protocol.h"
 
-class VideoDecoder;
+class IVideoDecoder;
 
 class NetworkReceiver {
  private:
@@ -17,6 +17,7 @@ class NetworkReceiver {
 
  public:
   NetworkReceiver();
+  NetworkReceiver(std::unique_ptr<IVideoDecoder> decoder);
   ~NetworkReceiver();
 
   // Connection management

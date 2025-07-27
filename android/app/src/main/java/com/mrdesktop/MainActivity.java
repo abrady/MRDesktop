@@ -20,6 +20,7 @@ public class MainActivity extends AppCompatActivity {
     private EditText editPort;
     private LinearLayout serverConfigPanel;
     private Button btnConnection;
+    private Button btnTest;
     private boolean isConnected = false;
 
     @Override
@@ -32,6 +33,7 @@ public class MainActivity extends AppCompatActivity {
         editPort = findViewById(R.id.editServerPort);
         serverConfigPanel = findViewById(R.id.serverConfigPanel);
         btnConnection = findViewById(R.id.btnConnection);
+        btnTest = findViewById(R.id.btnTest);
 
         // Set default values
         editIP.setText("10.0.2.2");
@@ -101,6 +103,36 @@ public class MainActivity extends AppCompatActivity {
                 // Show server configuration when disconnected
                 serverConfigPanel.setVisibility(View.VISIBLE);
             }
+        });
+
+        btnTest.setOnClickListener(v -> {
+            android.util.Log.d("MRDesktop", "Test button clicked");
+            btnTest.setText("Testing...");
+            btnTest.setEnabled(false);
+            
+            String ip = editIP.getText().toString();
+            int port;
+            try {
+                port = Integer.parseInt(editPort.getText().toString());
+            } catch (NumberFormatException ignored) {
+                port = 8080;
+            }
+            
+            final String finalIp = ip;
+            final int finalPort = port;
+            
+            new Thread(() -> {
+                // Create a new client instance for testing to avoid interfering with main connection
+                MRDesktopClient testClient = new MRDesktopClient();
+                android.util.Log.d("MRDesktop", "Starting frame validation test...");
+                testClient.runFrameValidationTest(finalIp, finalPort);
+                
+                runOnUiThread(() -> {
+                    btnTest.setText("Test");
+                    btnTest.setEnabled(true);
+                    android.util.Log.d("MRDesktop", "Frame validation test completed");
+                });
+            }).start();
         });
     }
 }

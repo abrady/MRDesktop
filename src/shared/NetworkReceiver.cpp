@@ -4,12 +4,13 @@
 #include <mutex>
 #include <thread>
 #include "AsioNetworking.h"
+#include "IVideoDecoder.h"
 #include "VideoDecoder.h"
 
 class NetworkReceiver::Impl {
  public:
   AsioConnection connection;
-  std::unique_ptr<VideoDecoder> decoder;
+  std::unique_ptr<IVideoDecoder> decoder;
   CompressionType compression = COMPRESSION_H265;
 
   // Callbacks
@@ -26,6 +27,14 @@ class NetworkReceiver::Impl {
   bool frameReady = false;
 
   Impl() {
+    SetupCallbacks();
+  }
+  
+  Impl(std::unique_ptr<IVideoDecoder> customDecoder) : decoder(std::move(customDecoder)) {
+    SetupCallbacks();
+  }
+  
+  void SetupCallbacks() {
     // Set up AsioConnection callbacks
     connection.SetFrameCallback(
         [this](
@@ -123,6 +132,9 @@ class NetworkReceiver::Impl {
 };
 
 NetworkReceiver::NetworkReceiver() : pImpl(std::make_unique<Impl>()) {}
+
+NetworkReceiver::NetworkReceiver(std::unique_ptr<IVideoDecoder> decoder) 
+    : pImpl(std::make_unique<Impl>(std::move(decoder))) {}
 
 NetworkReceiver::~NetworkReceiver() {
   Disconnect();
