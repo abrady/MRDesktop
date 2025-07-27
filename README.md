@@ -63,3 +63,12 @@ To test the desktop video streaming:
 ## Formatting
 
 The repository uses clang-format to keep the C/C++ code consistent. The style configuration is in `.clang-format`, based on Meta's Snowplow guidelines. Run `scripts/format.sh` after making changes to automatically format the source files.
+
+### Android native decoder test
+Run the following to bundle the sample and execute the on-device test:
+```
+$ ./gradlew :app:bundleHevcSample
+$ ./gradlew :app:connectedDebugAndroidTest
+```
+Running on an emulator is convenient but hardware devices offer
+reliable MediaCodec support for H.265.
