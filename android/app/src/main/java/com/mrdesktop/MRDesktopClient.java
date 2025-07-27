@@ -4,6 +4,26 @@ public class MRDesktopClient {
     static {
         System.loadLibrary("MRDesktopClient");
     }
+
+    /** Callback interface for delivering decoded frames to Java. */
+    public interface FrameCallback {
+        void onFrame(byte[] data, int width, int height);
+    }
+
+    private static FrameCallback frameCallback;
+
+    /** Called from native code whenever a frame is received. */
+    private static void onFrameReceived(byte[] data, int width, int height) {
+        if (frameCallback != null) {
+            frameCallback.onFrame(data, width, height);
+        }
+    }
+
+    /** Register a callback to receive frames from native code. */
+    public static void setFrameCallback(FrameCallback callback) {
+        frameCallback = callback;
+        nativeSetFrameCallback();
+    }
     
     // Native method declarations
     public native boolean nativeConnect(String serverIP, int port);
@@ -11,6 +31,7 @@ public class MRDesktopClient {
     public native boolean nativeIsConnected();
     public native boolean nativeSendMouseMove(int deltaX, int deltaY);
     public native boolean nativeSendMouseClick(int button, boolean pressed);
+    public static native void nativeSetFrameCallback();
     
     // Java wrapper methods
     public boolean connect(String serverIP, int port) {

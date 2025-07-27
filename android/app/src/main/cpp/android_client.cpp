@@ -7,6 +7,10 @@
 #include <string>
 #include <atomic>
 
+static JavaVM* g_vm = nullptr;
+static jclass g_clientClass = nullptr;
+static jmethodID g_onFrameMethod = nullptr;
+
 #define LOG_TAG "MRDesktopClient"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
@@ -23,6 +27,22 @@ public:
         
         receiver.SetFrameCallback([](const FrameMessage& msg, const std::vector<uint8_t>& data) {
             LOGI("Received frame: %dx%d, size: %zu bytes", msg.width, msg.height, data.size());
+            if (g_vm && g_onFrameMethod && g_clientClass) {
+                JNIEnv* env = nullptr;
+                bool attached = (g_vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_6) != JNI_OK);
+                if (attached) {
+                    if (g_vm->AttachCurrentThread(&env, nullptr) != JNI_OK) {
+                        return;
+                    }
+                }
+                jbyteArray arr = env->NewByteArray(data.size());
+                env->SetByteArrayRegion(arr, 0, data.size(), reinterpret_cast<const jbyte*>(data.data()));
+                env->CallStaticVoidMethod(g_clientClass, g_onFrameMethod, arr, (jint)msg.width, (jint)msg.height);
+                env->DeleteLocalRef(arr);
+                if (attached) {
+                    g_vm->DetachCurrentThread();
+                }
+            }
         });
         
         receiver.SetErrorCallback([](const std::string& error) {
@@ -132,6 +152,17 @@ Java_com_mrdesktop_MRDesktopClient_nativeSendMouseClick(JNIEnv *env, jobject thi
         return JNI_FALSE;
     }
     return g_client->SendMouseClick(button, pressed == JNI_TRUE) ? JNI_TRUE : JNI_FALSE;
+}
+
+JNIEXPORT void JNICALL
+Java_com_mrdesktop_MRDesktopClient_nativeSetFrameCallback(JNIEnv* env, jclass clazz) {
+    env->GetJavaVM(&g_vm);
+    if (g_clientClass) {
+        env->DeleteGlobalRef(g_clientClass);
+        g_clientClass = nullptr;
+    }
+    g_clientClass = reinterpret_cast<jclass>(env->NewGlobalRef(clazz));
+    g_onFrameMethod = env->GetStaticMethodID(g_clientClass, "onFrameReceived", "([BII)V");
 }
 
 }
