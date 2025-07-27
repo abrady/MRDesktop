@@ -1,0 +1,14 @@
+name: Cache vcpkg
+runs:
+  using: "composite"
+  steps:
+    - uses: actions/cache@v3
+      with:
+        path: |
+          extern/vcpkg/buildtrees
+          extern/vcpkg/packages
+          extern/vcpkg/downloads
+          extern/vcpkg/installed
+        key: ${{ runner.os }}-vcpkg-${{ hashFiles('vcpkg.json') }}
+        restore-keys: |
+          ${{ runner.os }}-vcpkg-
