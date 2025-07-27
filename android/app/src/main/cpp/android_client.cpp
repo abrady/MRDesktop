@@ -5,8 +5,8 @@
 #include <string>
 #include <thread>
 #include <android/log.h>
-#include "../../../../../../src/shared/AsioNetworking.h"
-#include "../../../../../../src/shared/protocol.h"
+#include "AsioNetworking.h"
+#include "protocol.h"
 #include "CrashSafeFrameHandler.h"
 #include "FrameRenderer.h"
 
