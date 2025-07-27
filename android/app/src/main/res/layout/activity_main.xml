@@ -2,128 +2,63 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:padding="16dp">
+    android:orientation="vertical">
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="MRDesktop Client Test"
-        android:textSize="24sp"
-        android:textStyle="bold"
-        android:layout_marginBottom="24dp" />
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Server Configuration"
-        android:textSize="18sp"
-        android:textStyle="bold"
-        android:layout_marginBottom="8dp" />
-
-    <EditText
-        android:id="@+id/editServerIP"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="Server IP Address"
-        android:inputType="textNoSuggestions"
-        android:layout_marginBottom="8dp" />
-
-    <EditText
-        android:id="@+id/editServerPort"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="Server Port"
-        android:inputType="number"
-        android:layout_marginBottom="16dp" />
-
-    <TextView
-        android:id="@+id/textStatus"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Status: Ready"
-        android:textSize="16sp"
-        android:padding="8dp"
-        android:background="#E0E0E0"
-        android:layout_marginBottom="16dp" />
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Simple Client (Testing)"
-        android:textSize="16sp"
-        android:textStyle="bold"
-        android:layout_marginBottom="8dp" />
-
+    <!-- Connection Controls Panel -->
     <LinearLayout
+        android:id="@+id/connectionPanel"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:layout_marginBottom="8dp">
+        android:padding="8dp"
+        android:background="#F0F0F0">
 
-        <Button
-            android:id="@+id/btnSimpleConnect"
+        <LinearLayout
+            android:id="@+id/serverConfigPanel"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
+            android:orientation="horizontal">
+
+            <EditText
+                android:id="@+id/editServerIP"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="2"
+                android:hint="Server IP"
+                android:inputType="textNoSuggestions"
+                android:textSize="14sp"
+                android:layout_marginEnd="4dp" />
+
+            <EditText
+                android:id="@+id/editServerPort"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:hint="Port"
+                android:inputType="number"
+                android:textSize="14sp"
+                android:layout_marginEnd="8dp" />
+
+        </LinearLayout>
+
+        <Button
+            android:id="@+id/btnConnection"
+            android:layout_width="120dp"
+            android:layout_height="wrap_content"
             android:text="Connect"
-            android:layout_marginEnd="4dp" />
-
-        <Button
-            android:id="@+id/btnSimpleDisconnect"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="Disconnect"
-            android:layout_marginStart="4dp" />
+            android:textSize="14sp" />
 
     </LinearLayout>
 
-    <Button
-        android:id="@+id/btnSendTest"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Send Test Message"
-        android:enabled="false"
-        android:layout_marginBottom="16dp" />
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Full Client (Desktop Streaming)"
-        android:textSize="16sp"
-        android:textStyle="bold"
-        android:layout_marginBottom="8dp" />
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal">
-
-        <Button
-            android:id="@+id/btnFullConnect"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="Connect"
-            android:layout_marginEnd="4dp" />
-
-        <Button
-            android:id="@+id/btnFullDisconnect"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="Disconnect"
-            android:layout_marginStart="4dp" />
-
-    </LinearLayout>
-
+    <!-- Desktop Stream Display -->
     <ImageView
         android:id="@+id/imageFrame"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
         android:scaleType="fitCenter"
-        android:contentDescription="Remote frame" />
+        android:background="#000000"
+        android:contentDescription="Remote desktop stream" />
 
 </LinearLayout>
