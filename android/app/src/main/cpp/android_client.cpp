@@ -14,7 +14,7 @@ static JavaVM *g_vm = nullptr;
 static jclass g_clientClass = nullptr;
 static jmethodID g_onFrameMethod = nullptr;
 
-#define LOG_TAG "MRDesktopClient"
+#define LOG_TAG "MRDesk.Client"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
 
@@ -26,6 +26,7 @@ private:
     std::atomic<bool> running{false};
     std::thread networkThread;
     std::mutex frameMutex; // Prevent race conditions in frame processing
+    int frameCount = 0;    // For debugging purposes
 
 public:
     bool Connect(const std::string &serverIP, int port)
@@ -34,8 +35,8 @@ public:
 
         receiver.SetFrameCallback([this](const FrameMessage &msg, const std::vector<uint8_t> &data)
                                   {
-            LOGI("Frame callback invoked: %ux%u, %zu bytes", msg.width, msg.height, data.size());
-            
+            LOGI("Frame callback invoked(%i): %ux%u, %zu bytes", frameCount++, msg.width, msg.height, data.size());
+
             // Use mutex to prevent race conditions
             std::lock_guard<std::mutex> lock(frameMutex);
             
@@ -52,17 +53,15 @@ public:
                 return;
             }
             
-            // Add frame rate limiting to prevent overwhelming the system
-            static auto lastFrameTime = std::chrono::steady_clock::now();
+            // SAFE frame rate limiting: process all frames but limit rendering/display
+            static auto lastRenderTime = std::chrono::steady_clock::now();
             auto currentTime = std::chrono::steady_clock::now();
-            auto timeDiff = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - lastFrameTime);
+            auto timeDiff = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - lastRenderTime);
             
-            // Limit to ~20 FPS max to prevent system overload
-            if (timeDiff.count() < 50) {
-                LOGI("Skipping frame due to rate limiting (only %lldms since last frame)", timeDiff.count());
-                return;
+            bool shouldRender = timeDiff.count() >= 50; // ~20 FPS max
+            if (shouldRender) {
+                lastRenderTime = currentTime;
             }
-            lastFrameTime = currentTime;
             
             LOGI("Processing frame: %ux%u, %zu bytes", msg.width, msg.height, data.size());
             
@@ -81,8 +80,8 @@ public:
                 return;
             }
             
-            // Send frame to Java layer for display
-            if (g_vm && g_onFrameMethod && g_clientClass && !argbData.empty()) {
+            // Only send to Java layer if we should render this frame (rate limiting)
+            if (shouldRender && g_vm && g_onFrameMethod && g_clientClass && !argbData.empty()) {
                 JNIEnv* env = nullptr;
                 bool attached = false;
                 
@@ -168,10 +167,14 @@ public:
                     g_vm->DetachCurrentThread();
                 }
             } else {
-                if (!g_vm) LOGE("JavaVM not initialized");
-                if (!g_onFrameMethod) LOGE("Frame callback method not found");
-                if (!g_clientClass) LOGE("Client class not initialized");
-                if (argbData.empty()) LOGE("ARGB data is empty");
+                if (!shouldRender) {
+                    LOGI("Frame processed but not rendered (rate limited)");
+                } else {
+                    if (!g_vm) LOGE("JavaVM not initialized");
+                    if (!g_onFrameMethod) LOGE("Frame callback method not found");
+                    if (!g_clientClass) LOGE("Client class not initialized");
+                    if (argbData.empty()) LOGE("ARGB data is empty");
+                }
             } });
 
         receiver.SetErrorCallback([](const std::string &error)
@@ -188,9 +191,21 @@ public:
 
             networkThread = std::thread([this]()
                                         {
+                LOGI("Network polling thread started");
+                int pollAttempts = 0;
                 while (running && receiver.IsConnected()) {
-                    if (!receiver.PollFrame()) {
+                    bool frameReceived = receiver.PollFrame();
+                    pollAttempts++;
+                    
+                    if (!frameReceived) {
+                        // Log every 100 attempts to avoid spam
+                        if (pollAttempts % 100 == 0) {
+                            LOGI("No frame received after %d poll attempts", pollAttempts);
+                        }
                         std::this_thread::sleep_for(std::chrono::milliseconds(16)); // ~60 FPS
+                    } else {
+                        LOGI("Frame successfully received on attempt %d", pollAttempts);
+                        pollAttempts = 0; // Reset counter on successful frame
                     }
                 }
                 LOGI("Network thread stopped"); });

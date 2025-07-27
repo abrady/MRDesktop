@@ -4,7 +4,7 @@
 #include <cstring>
 #include <stdexcept>
 
-#define LOG_TAG "AndroidVideoDecoder"
+#define LOG_TAG "MRDesk.Decoder"
 #define LOGD(...) __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, __VA_ARGS__)
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
 
@@ -203,6 +203,21 @@ bool AndroidVideoDecoder::DecodeFrame(const uint8_t *compressedData, size_t data
         {
             LOGE("Output buffer became null during processing");
             AMediaCodec_releaseOutputBuffer(m_codec, outputBufferIndex, false);
+            return false;
+        }
+
+        // Additional decoder state validation before memory operations
+        if (m_isShuttingDown)
+        {
+            LOGE("Decoder is shutting down, aborting buffer operation");
+            AMediaCodec_releaseOutputBuffer(m_codec, outputBufferIndex, false);
+            return false;
+        }
+
+        // Validate codec is still valid
+        if (!m_codec)
+        {
+            LOGE("Codec became null during buffer processing");
             return false;
         }
 
