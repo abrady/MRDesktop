@@ -8,6 +8,7 @@
 #include <chrono>
 #include <string>
 #include <atomic>
+#include <mutex>
 
 static JavaVM *g_vm = nullptr;
 static jclass g_clientClass = nullptr;
@@ -24,6 +25,7 @@ private:
     FrameRenderer frameRenderer;
     std::atomic<bool> running{false};
     std::thread networkThread;
+    std::mutex frameMutex; // Prevent race conditions in frame processing
 
 public:
     bool Connect(const std::string &serverIP, int port)
@@ -32,6 +34,9 @@ public:
 
         receiver.SetFrameCallback([this](const FrameMessage &msg, const std::vector<uint8_t> &data)
                                   {
+            // Use mutex to prevent race conditions
+            std::lock_guard<std::mutex> lock(frameMutex);
+            
             // Log frame info and check crash safety
             CrashSafeFrameHandler::LogFrameInfo(msg.width, msg.height, data.size());
             

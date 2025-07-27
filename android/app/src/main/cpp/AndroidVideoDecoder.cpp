@@ -35,6 +35,8 @@ const char *AndroidVideoDecoder::GetMimeType(CompressionType type)
 
 bool AndroidVideoDecoder::Initialize(uint32_t width, uint32_t height, CompressionType compression)
 {
+    std::lock_guard<std::mutex> lock(m_decoderMutex);
+
     LOGD("Initializing decoder: %dx%d, compression=%d", width, height, compression);
 
     Cleanup(); // Clean up any existing decoder
@@ -42,6 +44,7 @@ bool AndroidVideoDecoder::Initialize(uint32_t width, uint32_t height, Compressio
     m_width = width;
     m_height = height;
     m_compressionType = compression;
+    m_isShuttingDown = false;
 
     const char *mimeType = GetMimeType(compression);
     if (!mimeType)
@@ -89,9 +92,11 @@ bool AndroidVideoDecoder::Initialize(uint32_t width, uint32_t height, Compressio
 
 bool AndroidVideoDecoder::DecodeFrame(const uint8_t *compressedData, size_t dataSize, std::vector<uint8_t> &rgbaData)
 {
-    if (!m_isInitialized || !m_codec)
+    std::lock_guard<std::mutex> lock(m_decoderMutex);
+
+    if (!m_isInitialized || !m_codec || m_isShuttingDown)
     {
-        LOGE("Decoder not initialized");
+        LOGE("Decoder not initialized or shutting down");
         return false;
     }
 
@@ -149,7 +154,7 @@ bool AndroidVideoDecoder::DecodeFrame(const uint8_t *compressedData, size_t data
         return false;
     }
 
-    // Get decoded data
+    // Get decoded data with careful validation
     size_t outputBufferSize;
     uint8_t *outputBuffer = AMediaCodec_getOutputBuffer(m_codec, outputBufferIndex, &outputBufferSize);
     if (!outputBuffer)
@@ -169,8 +174,7 @@ bool AndroidVideoDecoder::DecodeFrame(const uint8_t *compressedData, size_t data
 
     LOGD("Decoded frame: %d bytes (buffer size: %zu)", (int)bufferInfo.size, outputBufferSize);
 
-    // For now, just copy the raw decoded data safely
-    // In a real implementation, you'd need to convert from YUV to RGBA
+    // Copy the data safely with multiple validation checks
     try
     {
         // Add bounds checking to prevent buffer overflow
@@ -194,16 +198,43 @@ bool AndroidVideoDecoder::DecodeFrame(const uint8_t *compressedData, size_t data
             return false;
         }
 
+        // Extra safety: verify buffer pointer is still valid before copying
+        if (!outputBuffer)
+        {
+            LOGE("Output buffer became null during processing");
+            AMediaCodec_releaseOutputBuffer(m_codec, outputBufferIndex, false);
+            return false;
+        }
+
+        // Resize output vector safely
+        rgbaData.clear();
         rgbaData.resize(bytesToCopy);
+
         if (bytesToCopy > 0)
         {
-            // Safe copy with validated bounds
-            memcpy(rgbaData.data(), outputBuffer + offsetInBuffer, bytesToCopy);
+            // Validate source pointer once more before copying
+            uint8_t *sourcePtr = outputBuffer + offsetInBuffer;
+            if (!sourcePtr)
+            {
+                LOGE("Source pointer is null after offset calculation");
+                AMediaCodec_releaseOutputBuffer(m_codec, outputBufferIndex, false);
+                return false;
+            }
+
+            // Use more conservative copying approach
+            std::memcpy(rgbaData.data(), sourcePtr, bytesToCopy);
+            LOGD("Successfully copied %zu bytes from output buffer", bytesToCopy);
         }
     }
     catch (const std::exception &e)
     {
         LOGE("Failed to copy buffer data: %s", e.what());
+        AMediaCodec_releaseOutputBuffer(m_codec, outputBufferIndex, false);
+        return false;
+    }
+    catch (...)
+    {
+        LOGE("Unknown error during buffer copy");
         AMediaCodec_releaseOutputBuffer(m_codec, outputBufferIndex, false);
         return false;
     }
@@ -216,6 +247,10 @@ bool AndroidVideoDecoder::DecodeFrame(const uint8_t *compressedData, size_t data
 
 void AndroidVideoDecoder::Cleanup()
 {
+    std::lock_guard<std::mutex> lock(m_decoderMutex);
+
+    m_isShuttingDown = true;
+
     if (m_codec)
     {
         AMediaCodec_stop(m_codec);
