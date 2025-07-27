@@ -1,42 +1,49 @@
 #pragma once
 
-#include "protocol.h"
-#include <vector>
+#include <atomic>
 #include <chrono>
 #include <functional>
-#include <string>
-#include <atomic>
 #include <memory>
+#include <string>
+#include <vector>
+#include "protocol.h"
 
 class VideoDecoder;
 
 class NetworkReceiver {
-private:
-    class Impl;
-    std::unique_ptr<Impl> pImpl;
+ private:
+  class Impl;
+  std::unique_ptr<Impl> pImpl;
 
-public:
-    NetworkReceiver();
-    ~NetworkReceiver();
-    
-    // Connection management
-    bool Connect(const std::string& serverIP, int port);
-    void Disconnect();
-    bool IsConnected() const;
-    
-    // Frame receiving (polling-based)
-    bool PollFrame(); // Returns true if frame was received and processed
-    void SetCompression(CompressionType compression);
-    
-    // Input message sending methods
-    bool SendCompressionRequest(CompressionType compression);
-    bool SendMouseMove(int32_t deltaX, int32_t deltaY, bool absolute = false, int32_t x = 0, int32_t y = 0);
-    bool SendMouseClick(MouseClickMessage::MouseButton button, bool pressed);
-    bool SendMouseScroll(int32_t deltaX, int32_t deltaY);
-    
-    // Callback setters
-    void SetFrameCallback(std::function<void(const FrameMessage&, const std::vector<uint8_t>&)> callback);
-    void SetErrorCallback(std::function<void(const std::string&)> callback);
-    void SetDisconnectedCallback(std::function<void()> callback);
-    void SetRawFrameCallback(std::function<void(MessageType)> callback);
+ public:
+  NetworkReceiver();
+  ~NetworkReceiver();
+
+  // Connection management
+  bool Connect(const std::string& serverIP, int port);
+  void Disconnect();
+  bool IsConnected() const;
+
+  // Frame receiving (polling-based)
+  bool PollFrame(); // Returns true if frame was received and processed
+  void SetCompression(CompressionType compression);
+
+  // Input message sending methods
+  bool SendCompressionRequest(CompressionType compression);
+  bool SendMouseMove(
+      int32_t deltaX,
+      int32_t deltaY,
+      bool absolute = false,
+      int32_t x = 0,
+      int32_t y = 0);
+  bool SendMouseClick(MouseClickMessage::MouseButton button, bool pressed);
+  bool SendMouseScroll(int32_t deltaX, int32_t deltaY);
+
+  // Callback setters
+  void SetFrameCallback(
+      std::function<void(const FrameMessage&, const std::vector<uint8_t>&)>
+          callback);
+  void SetErrorCallback(std::function<void(const std::string&)> callback);
+  void SetDisconnectedCallback(std::function<void()> callback);
+  void SetRawFrameCallback(std::function<void(MessageType)> callback);
 };
