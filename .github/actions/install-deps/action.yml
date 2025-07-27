@@ -1,0 +1,22 @@
+name: Install dependencies
+runs:
+  using: "composite"
+  steps:
+    - run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          ninja-build \
+          cmake \
+          build-essential \
+          autoconf \
+          automake \
+          libtool \
+          nasm \
+          pkg-config \
+          libavcodec-dev \
+          libavformat-dev \
+          libavutil-dev \
+          libswscale-dev \
+          libavdevice-dev \
+          libavfilter-dev
+      shell: bash
