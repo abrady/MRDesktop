@@ -46,9 +46,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gdb \
     strace \
     valgrind \
-    # Node.js and npm for development tools
-    nodejs \
-    npm \
+    # Required for Node.js installation  
+    gnupg \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Node.js 18.x (LTS) from NodeSource
+RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
+    && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/*
 
 # Create a non-root user for building
@@ -60,7 +64,8 @@ WORKDIR /workspace
 # Copy project files (from parent directory since we're building from linux/ subdir)
 COPY .. .
 
-# Install Claude Code globally for development
+# Install Claude Code globally for development (optional)
+# Comment out if you don't need Claude Code in the container
 RUN npm install -g @anthropic-ai/claude-code
 
 # Change ownership to the build user

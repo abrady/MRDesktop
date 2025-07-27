@@ -111,7 +111,10 @@
       "Bash(PATH=\"$JAVA_HOME/bin:$PATH\" ./gradlew.bat assembleDebug)",
       "Bash(builddebugDebugMRDesktopServer.exe --test)",
       "Bash(./build/debug/Debug/MRDesktopServer.exe --test)",
-      "Bash(build.bat debug)"
+      "Bash(build.bat debug)",
+      "Bash(dev-container.bat clean)",
+      "Bash(\"linux\\dev-container.bat\" clean)",
+      "Bash(podman rmi:*)"
     ],
     "deny": []
   }

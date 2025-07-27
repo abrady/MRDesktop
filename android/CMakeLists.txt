@@ -23,7 +23,6 @@ add_library(MRDesktopClient SHARED
     app/src/main/cpp/VideoDecoder_Android.cpp
     app/src/main/cpp/FrameRenderer.cpp
     app/src/main/cpp/CrashSafeFrameHandler.cpp
-    app/src/main/cpp/NetworkReceiver_Android.cpp
 )
 
 target_include_directories(MRDesktopClient PRIVATE 
