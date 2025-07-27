@@ -195,11 +195,11 @@
             "displayName": "Linux Debug",
             "description": "Debug configuration for Linux using Ninja",
             "generator": "Ninja",
-            "binaryDir": "${sourceDir}/build/debug",
+            "binaryDir": "${sourceDir}/build/linux-debug",
             "toolchainFile": "${sourceDir}/extern/vcpkg/scripts/buildsystems/vcpkg.cmake",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
-                "CMAKE_INSTALL_PREFIX": "${sourceDir}/install/debug"
+                "CMAKE_INSTALL_PREFIX": "${sourceDir}/install/linux-debug"
             },
             "environment": {
                 "VCPKG_BUILD_TYPE": "release"
@@ -215,11 +215,11 @@
             "displayName": "Linux Release",
             "description": "Release configuration for Linux using Ninja",
             "generator": "Ninja",
-            "binaryDir": "${sourceDir}/build/release",
+            "binaryDir": "${sourceDir}/build/linux-release",
             "toolchainFile": "${sourceDir}/extern/vcpkg/scripts/buildsystems/vcpkg.cmake",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
-                "CMAKE_INSTALL_PREFIX": "${sourceDir}/install/release"
+                "CMAKE_INSTALL_PREFIX": "${sourceDir}/install/linux-release"
             },
             "condition": {
                 "type": "equals",

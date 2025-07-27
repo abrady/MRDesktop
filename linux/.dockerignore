@@ -1,0 +1,43 @@
+# Context is now from linux/ subdirectory, so paths are relative to parent
+# Build outputs
+../build/
+../install/
+
+# IDE files
+../.vs/
+../.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Git
+../.git/
+../.gitignore
+
+# Windows batch files (not needed in Linux container)
+*.bat
+
+# Android SDK/NDK (not needed for Linux builds)
+../android/sdk/
+../android/ndk/
+
+# vcpkg build artifacts (will be rebuilt in container)
+../extern/vcpkg/buildtrees/
+../extern/vcpkg/downloads/
+../extern/vcpkg/packages/
+../extern/vcpkg/installed/
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+
+# Documentation
+*.md
+README*
+LICENSE*
