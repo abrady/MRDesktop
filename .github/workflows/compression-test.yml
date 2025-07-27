@@ -28,7 +28,8 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-vcpkg-
 
-    - name: Install dependencies
+    - &install-deps
+      name: Install dependencies
       run: |
         sudo apt-get update
         sudo apt-get install -y \
@@ -79,28 +80,11 @@ jobs:
       with:
         path: |
           build
-        key: ${{ runner.os }}-build-${{ hashFiles('**/CMakeLists.txt') }}
+        key: ${{ runner.os }}-build-${{ hashFiles('CMakeLists.txt', 'android/CMakeLists.txt', 'src/clients/windows/CMakeLists.txt') }}
         restore-keys: |
           ${{ runner.os }}-build-
 
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y \
-          ninja-build \
-          cmake \
-          build-essential \
-          autoconf \
-          automake \
-          libtool \
-          nasm \
-          pkg-config \
-          libavcodec-dev \
-          libavformat-dev \
-          libavutil-dev \
-          libswscale-dev \
-          libavdevice-dev \
-          libavfilter-dev
+    - *install-deps
 
     - name: Configure CMake
       run: cmake --preset linux-debug
@@ -108,15 +92,15 @@ jobs:
     - name: Build
       run: cmake --build --preset linux-debug
 
-    # - name: Run H.265 Compression Test
-    #   run: ./run_compression_test.sh
+    - name: Run H.265 Compression Test
+      run: bash ./run_compression_test.sh
 
-    # - name: Upload test artifacts on failure
-    #   if: failure()
-    #   uses: actions/upload-artifact@v4
-    #   with:
-    #     name: test-artifacts
-    #     path: |
-    #       first_frame.bmp
-    #       debug_frames/
-    #     retention-days: 3
+    - name: Upload test artifacts on failure
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-artifacts
+        path: |
+          first_frame.bmp
+          debug_frames/
+        retention-days: 3
