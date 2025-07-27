@@ -1,8 +1,5 @@
 #pragma once
 
-#ifdef ANDROID
-#include "AndroidVideoDecoder.h"
-#else
 #ifdef _MSC_VER
 #pragma warning(push)
 #pragma warning( \
@@ -19,23 +16,22 @@ extern "C" {
 #ifdef _MSC_VER
 #pragma warning(pop)
 #endif
-#endif // !ANDROID
 
 #include <memory>
 #include <vector>
 #include "protocol.h"
 #include "IVideoDecoder.h"
 
-class VideoDecoder : public IVideoDecoder {
+/**
+ * FFmpeg-based video decoder for desktop platforms (Windows, Linux, macOS).
+ * Uses software decoding with FFmpeg libraries.
+ */
+class FFmpegVideoDecoder : public IVideoDecoder {
  private:
-#ifdef ANDROID
-  std::unique_ptr<AndroidVideoDecoder> m_androidDecoder;
-#else
   AVCodecContext* m_CodecContext = nullptr;
   AVFrame* m_Frame = nullptr;
   AVPacket* m_Packet = nullptr;
   SwsContext* m_SwsContext = nullptr;
-#endif
 
   uint32_t m_Width = 0;
   uint32_t m_Height = 0;
@@ -45,8 +41,8 @@ class VideoDecoder : public IVideoDecoder {
   const char* GetCodecName(CompressionType type);
 
  public:
-  VideoDecoder();
-  ~VideoDecoder();
+  FFmpegVideoDecoder();
+  ~FFmpegVideoDecoder();
 
   bool Initialize(uint32_t width, uint32_t height, CompressionType compression) override;
   bool DecodeFrame(

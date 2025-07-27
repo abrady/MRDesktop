@@ -18,7 +18,7 @@ set(CLIENT_SOURCES
     src/WindowManager.cpp
     # Shared library files
     ../../shared/AsioNetworking.cpp
-    ../../shared/VideoDecoder.cpp
+    ../../shared/FFmpegVideoDecoder.cpp
 )
 
 # Header files  

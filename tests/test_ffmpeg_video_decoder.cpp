@@ -1,24 +1,24 @@
 #include <memory>
 #include <vector>
 #include <gtest/gtest.h>
-#include "VideoDecoder.h"
+#include "FFmpegVideoDecoder.h"
 
-class VideoDecoderTest : public ::testing::Test {
+class FFmpegVideoDecoderTest : public ::testing::Test {
  protected:
-  void SetUp() override { decoder = std::make_unique<VideoDecoder>(); }
+  void SetUp() override { decoder = std::make_unique<FFmpegVideoDecoder>(); }
 
   void TearDown() override { decoder.reset(); }
 
-  std::unique_ptr<VideoDecoder> decoder;
+  std::unique_ptr<FFmpegVideoDecoder> decoder;
 };
 
-TEST_F(VideoDecoderTest, InitializeDecoder) {
+TEST_F(FFmpegVideoDecoderTest, InitializeDecoder) {
   // Test basic decoder initialization
   bool initialized = decoder->Initialize(640, 480, COMPRESSION_H265);
   EXPECT_TRUE(initialized);
 }
 
-TEST_F(VideoDecoderTest, DecodeInvalidData) {
+TEST_F(FFmpegVideoDecoderTest, DecodeInvalidData) {
   // Test decoding with invalid data
   bool initialized = decoder->Initialize(640, 480, COMPRESSION_H265);
   ASSERT_TRUE(initialized);
@@ -31,7 +31,7 @@ TEST_F(VideoDecoderTest, DecodeInvalidData) {
   EXPECT_FALSE(decoded);
 }
 
-TEST_F(VideoDecoderTest, DecodeEmptyData) {
+TEST_F(FFmpegVideoDecoderTest, DecodeEmptyData) {
   // Test decoding with empty data
   bool initialized = decoder->Initialize(640, 480, COMPRESSION_H265);
   ASSERT_TRUE(initialized);

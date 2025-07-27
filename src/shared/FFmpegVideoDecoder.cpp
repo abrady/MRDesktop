@@ -1,16 +1,16 @@
-#include "VideoDecoder.h"
+#include "FFmpegVideoDecoder.h"
 #include <iostream>
 
-VideoDecoder::VideoDecoder() {
+FFmpegVideoDecoder::FFmpegVideoDecoder() {
   // FFmpeg 4.0+ automatically registers codecs, no need for
   // avcodec_register_all()
 }
 
-VideoDecoder::~VideoDecoder() {
+FFmpegVideoDecoder::~FFmpegVideoDecoder() {
   Cleanup();
 }
 
-const char* VideoDecoder::GetCodecName(CompressionType type) {
+const char* FFmpegVideoDecoder::GetCodecName(CompressionType type) {
   switch (type) {
     case COMPRESSION_H264:
       return "h264";
@@ -23,17 +23,17 @@ const char* VideoDecoder::GetCodecName(CompressionType type) {
   }
 }
 
-bool VideoDecoder::Initialize(
+bool FFmpegVideoDecoder::Initialize(
     uint32_t width, uint32_t height, CompressionType compression) {
   if (compression == COMPRESSION_NONE) {
-    std::cerr << "VideoDecoder: Cannot initialize with COMPRESSION_NONE"
+    std::cerr << "FFmpegVideoDecoder: Cannot initialize with COMPRESSION_NONE"
               << std::endl;
     return false;
   }
 
   const char* codecName = GetCodecName(compression);
   if (!codecName) {
-    std::cerr << "VideoDecoder: Unsupported compression type: " << compression
+    std::cerr << "FFmpegVideoDecoder: Unsupported compression type: " << compression
               << std::endl;
     return false;
   }
@@ -41,7 +41,7 @@ bool VideoDecoder::Initialize(
   // Find decoder
   const AVCodec* codec = avcodec_find_decoder_by_name(codecName);
   if (!codec) {
-    std::cerr << "VideoDecoder: Could not find decoder: " << codecName
+    std::cerr << "FFmpegVideoDecoder: Could not find decoder: " << codecName
               << std::endl;
     return false;
   }
@@ -49,7 +49,7 @@ bool VideoDecoder::Initialize(
   // Allocate codec context
   m_CodecContext = avcodec_alloc_context3(codec);
   if (!m_CodecContext) {
-    std::cerr << "VideoDecoder: Could not allocate codec context" << std::endl;
+    std::cerr << "FFmpegVideoDecoder: Could not allocate codec context" << std::endl;
     return false;
   }
 
@@ -60,7 +60,7 @@ bool VideoDecoder::Initialize(
 
   // Open codec
   if (avcodec_open2(m_CodecContext, codec, nullptr) < 0) {
-    std::cerr << "VideoDecoder: Could not open codec" << std::endl;
+    std::cerr << "FFmpegVideoDecoder: Could not open codec" << std::endl;
     Cleanup();
     return false;
   }
@@ -68,7 +68,7 @@ bool VideoDecoder::Initialize(
   // Allocate frame
   m_Frame = av_frame_alloc();
   if (!m_Frame) {
-    std::cerr << "VideoDecoder: Could not allocate frame" << std::endl;
+    std::cerr << "FFmpegVideoDecoder: Could not allocate frame" << std::endl;
     Cleanup();
     return false;
   }
@@ -76,7 +76,7 @@ bool VideoDecoder::Initialize(
   // Allocate packet
   m_Packet = av_packet_alloc();
   if (!m_Packet) {
-    std::cerr << "VideoDecoder: Could not allocate packet" << std::endl;
+    std::cerr << "FFmpegVideoDecoder: Could not allocate packet" << std::endl;
     Cleanup();
     return false;
   }
@@ -94,7 +94,7 @@ bool VideoDecoder::Initialize(
       nullptr,
       nullptr);
   if (!m_SwsContext) {
-    std::cerr << "VideoDecoder: Could not create scaling context" << std::endl;
+    std::cerr << "FFmpegVideoDecoder: Could not create scaling context" << std::endl;
     Cleanup();
     return false;
   }
@@ -104,13 +104,13 @@ bool VideoDecoder::Initialize(
   m_CompressionType = compression;
   m_IsInitialized = true;
 
-  std::cout << "VideoDecoder: Initialized " << codecName << " decoder ("
+  std::cout << "FFmpegVideoDecoder: Initialized " << codecName << " decoder ("
             << width << "x" << height << ")" << std::endl;
 
   return true;
 }
 
-bool VideoDecoder::DecodeFrame(
+bool FFmpegVideoDecoder::DecodeFrame(
     const uint8_t* compressedData,
     size_t dataSize,
     std::vector<uint8_t>& bgraData) {
@@ -125,7 +125,7 @@ bool VideoDecoder::DecodeFrame(
   // Send packet to decoder
   int ret = avcodec_send_packet(m_CodecContext, m_Packet);
   if (ret < 0) {
-    std::cerr << "VideoDecoder: Error sending packet to decoder" << std::endl;
+    std::cerr << "FFmpegVideoDecoder: Error sending packet to decoder" << std::endl;
     return false;
   }
 
@@ -135,7 +135,7 @@ bool VideoDecoder::DecodeFrame(
     // Need more packets before getting a frame
     return false;
   } else if (ret < 0) {
-    std::cerr << "VideoDecoder: Error receiving frame from decoder"
+    std::cerr << "FFmpegVideoDecoder: Error receiving frame from decoder"
               << std::endl;
     return false;
   }
@@ -160,7 +160,7 @@ bool VideoDecoder::DecodeFrame(
   return true;
 }
 
-void VideoDecoder::Cleanup() {
+void FFmpegVideoDecoder::Cleanup() {
   if (m_SwsContext) {
     sws_freeContext(m_SwsContext);
     m_SwsContext = nullptr;

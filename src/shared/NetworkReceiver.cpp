@@ -5,7 +5,7 @@
 #include <thread>
 #include "AsioNetworking.h"
 #include "IVideoDecoder.h"
-#include "VideoDecoder.h"
+#include "FFmpegVideoDecoder.h"
 
 class NetworkReceiver::Impl {
  public:
@@ -89,7 +89,7 @@ class NetworkReceiver::Impl {
 
     // Initialize decoder if needed
     if (!decoder) {
-      decoder = std::make_unique<VideoDecoder>();
+      decoder = std::make_unique<FFmpegVideoDecoder>();
     }
 
     if (!decoder->IsInitialized()) {

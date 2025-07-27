@@ -22,9 +22,9 @@ include_directories(
 add_executable(basic_tests
     test_protocol.cpp
     test_video_encoder.cpp
-    test_video_decoder.cpp
+    test_ffmpeg_video_decoder.cpp
     ../src/shared/VideoEncoder.cpp
-    ../src/shared/VideoDecoder.cpp
+    ../src/shared/FFmpegVideoDecoder.cpp
 )
 
 target_include_directories(basic_tests PRIVATE ${FFMPEG_INCLUDE_DIRS})
@@ -46,7 +46,7 @@ add_executable(integration_tests
     test_network_integration.cpp
     ../src/shared/AsioNetworking.cpp
     ../src/shared/NetworkReceiver.cpp
-    ../src/shared/VideoDecoder.cpp
+    ../src/shared/FFmpegVideoDecoder.cpp
 )
 
 target_include_directories(integration_tests PRIVATE ${FFMPEG_INCLUDE_DIRS})
