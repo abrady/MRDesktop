@@ -9,6 +9,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Option to build Android client
 option(BUILD_ANDROID_CLIENT "Build Android native client library" OFF)
 option(BUILD_OPENXR_CLIENT "Build OpenXR native client" OFF)
+option(BUILD_TESTS "Build tests" ON)
 
 # Platform detection
 if(ANDROID)
@@ -105,4 +106,16 @@ if(BUILD_OPENXR_CLIENT)
         ${COMMON_INCLUDES}
     )
     target_link_libraries(MRDesktopOpenXR PRIVATE OpenXR::openxr_loader)
+endif()
+
+# Build tests
+if(BUILD_TESTS AND PLATFORM_DESKTOP)
+    # Try to find GTest, but don't fail if not found
+    find_package(GTest CONFIG QUIET)
+    if(GTest_FOUND)
+        add_subdirectory(tests)
+        message(STATUS "Tests enabled - GTest found")
+    else()
+        message(WARNING "Tests disabled - GTest not found. Install with: vcpkg install gtest")
+    endif()
 endif()

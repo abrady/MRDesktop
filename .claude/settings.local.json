@@ -99,7 +99,14 @@
       "Bash(set PATH=%JAVA_HOME%\\bin)",
       "Bash(%PATH%)",
       "Bash(.\\gradlew.bat:*)",
-      "Bash(JAVA_HOME=\"/c/open/github/MRDesktop/android/java/jdk-17.0.11+9\" ANDROID_HOME=\"/c/open/github/MRDesktop/android/sdk\" ANDROID_NDK_HOME=\"/c/open/github/MRDesktop/android/ndk\" PATH=\"/c/open/github/MRDesktop/android/java/jdk-17.0.11+9/bin:$PATH\" ./gradlew.bat assembleDebug)"
+      "Bash(JAVA_HOME=\"/c/open/github/MRDesktop/android/java/jdk-17.0.11+9\" ANDROID_HOME=\"/c/open/github/MRDesktop/android/sdk\" ANDROID_NDK_HOME=\"/c/open/github/MRDesktop/android/ndk\" PATH=\"/c/open/github/MRDesktop/android/java/jdk-17.0.11+9/bin:$PATH\" ./gradlew.bat assembleDebug)",
+      "Bash(build-linux.bat help)",
+      "Bash(podman run:*)",
+      "Bash(podman build:*)",
+      "Bash(\"C:/open/github/MRDesktop/extern/vcpkg/downloads/tools/ninja/1.12.1-windows/ninja.exe\" --version)",
+      "Bash(export:*)",
+      "Bash(./vcpkg.exe install:*)",
+      "Bash(VCPKG_FORCE_SYSTEM_BINARIES=1 cmake --preset windows-debug)"
     ],
     "deny": []
   }

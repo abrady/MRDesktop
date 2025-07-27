@@ -18,6 +18,10 @@
         "x264",
         "x265"
       ]
+    },
+    {
+      "name": "gtest",
+      "default-features": false
     }
   ]
 }
