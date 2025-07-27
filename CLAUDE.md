@@ -10,20 +10,26 @@ MRDesktop is a VR/MR Virtual Desktop project for Meta Quest 3 that enables viewi
 
 The system consists of three main components:
 
-### 1. Desktop Host (Windows/macOS)
+### 1. Desktop Host (Windows/macOS/Linux)
 Located in `src/server/main.cpp`:
 - **Screen Capture**: Uses DXGI Desktop Duplication API on Windows for efficient frame capture
 - **Network Server**: TCP socket server listening on port 8080 for client connections
 - **Input Processing**: Receives and processes mouse/keyboard commands from clients
 - **Frame Streaming**: Sends captured desktop frames to connected clients
 
-### 2. Desktop Client (Testing/Development)
-Located in `src/client/main.cpp`:
+### 2. Console Client (Testing/Development)
+Located in `src/clients/console/main.cpp`:
 - **Network Client**: Connects to desktop host for receiving frames and sending input
-- **Input Simulation**: Sends mouse movement, clicks, and scroll commands for testing
+- **Input Simulation**: Keyboard-based input (WASD/arrows for mouse movement)
 - **Frame Reception**: Receives and saves desktop frames (creates `first_frame.bmp`)
 
-### 3. Android VR Client (Quest 3)
+### 3. Windows Client (GUI Development)
+Located in `src/clients/windows/`:
+- **Video Rendering**: Hardware-accelerated frame display
+- **Input Handling**: Native Windows input processing
+- **Window Management**: Full-screen and windowed display modes
+
+### 4. Android VR Client (Quest 3)
 Located in `android/app/src/main/cpp/`:
 - **Native Library**: C++ implementation for Quest integration
 - **Frame Receiver**: Handles incoming video stream from desktop host
@@ -53,10 +59,37 @@ configure.bat [release]
 build.bat [release]
 
 # Run server (listens on port 8080)
-run.bat server [release]
+run_server.bat
 
-# Run client (connects to localhost:8080)
-run.bat client [release]
+# Run console client (connects to localhost:8080 or specific IP)
+run_console_client.bat [IP_ADDRESS]
+
+# Run integration tests
+scripts\run_test.bat [debug|release]
+
+# Format code using clang-format
+scripts\format.sh
+```
+
+### Linux Development (using Docker/Podman)
+```bash
+# Build project using container
+linux/build-linux.sh build [debug|release]
+
+# Run tests in container
+linux/build-linux.sh test [debug|release]
+
+# Start interactive development shell
+linux/build-linux.sh shell
+
+# Build container image
+linux/build-linux.sh image
+
+# Clean build artifacts
+linux/build-linux.sh clean
+
+# Run compression tests
+./run_compression_test.sh
 ```
 
 ### Android Development
@@ -75,10 +108,35 @@ cd android
 # Open in Android Studio and build normally
 ```
 
-### Testing Desktop Streaming
-1. **Start Server**: `run.bat server` - Shows "Server listening on port 8080..."
-2. **Start Client**: `run.bat client` - Creates `first_frame.bmp` with desktop screenshot
+## Testing
+
+### Unit and Integration Tests
+```batch
+# Windows - Run all tests
+scripts\run_test.bat [debug|release]
+
+# Linux - Run tests in container
+linux/build-linux.sh test [debug|release]
+
+# Run specific test suite manually
+cd build/debug && ctest --output-on-failure
+```
+
+### Desktop Streaming Tests
+1. **Start Server**: `run_server.bat` - Shows "Server listening on port 8080..."
+2. **Start Client**: `run_console_client.bat` - Creates `first_frame.bmp` with desktop screenshot
 3. **Verify**: Both show FPS stats, client saves frame proving capture works
+
+### Compression Testing
+```bash
+# Test H.265 compression (Linux)
+./run_compression_test.sh
+```
+
+The test suite includes:
+- **Basic Tests**: Protocol serialization, video encoding/decoding
+- **Integration Tests**: Network communication, frame transmission
+- **Compression Tests**: H.265 encode/decode validation
 
 ## Communication Protocol
 
@@ -107,6 +165,11 @@ Defined in `src/shared/protocol.h`:
 
 ## Dependencies
 
+The project uses vcpkg for dependency management with `vcpkg.json`:
+- **asio**: Asynchronous networking library
+- **ffmpeg**: Video encoding/decoding with H.264, H.265, hardware acceleration (AMF, NVCODEC, QSV)
+- **gtest**: Unit testing framework
+
 ### Desktop (Windows)
 - **DXGI**: Desktop capture and DirectX integration
 - **D3D11**: Graphics device management
@@ -114,9 +177,43 @@ Defined in `src/shared/protocol.h`:
 - **Windows APIs**: Input injection (SendInput)
 
 ### Android
-- **Android NDK**: Native C++ compilation
+- **Android NDK**: Native C++ compilation (API level 24+)
 - **CMake**: Build system integration
 - **Ninja**: Fast build execution
+- **OpenXR**: VR/AR runtime support (for Quest builds)
+
+### Build Requirements
+- **Windows**: Visual Studio 2022, vcpkg
+- **Linux**: Docker/Podman for containerized builds
+- **Android**: Android Studio, NDK, CMake
+- **All Platforms**: CMake 3.20+, Git (for vcpkg submodule)
+
+## Code Style and Development Practices
+
+### Formatting
+- Uses **clang-format** with Meta's Snowplow style guidelines (`.clang-format`)
+- Run `scripts/format.sh` to format all source files before committing
+- 80-character line limit, 2-space indentation
+
+### Build Configuration
+- Always links against **release FFmpeg** libraries (via `VCPKG_BUILD_TYPE=release`)
+- Uses CMake presets for consistent cross-platform configuration
+- Separate debug/release build directories under `build/`
+
+### Project Layout
+```
+src/
+├── server/           # Desktop host application
+├── clients/
+│   ├── console/      # Command-line test client
+│   ├── windows/      # Windows-specific client code
+│   └── unreal/       # Unreal Engine integration
+├── shared/           # Common networking, video, protocol code
+android/              # Android VR client (Quest)
+tests/                # Unit and integration tests
+scripts/              # Build and utility scripts
+linux/                # Docker-based Linux build system
+```
 
 ## Project Status
 
