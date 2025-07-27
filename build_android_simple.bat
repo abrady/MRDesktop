@@ -1,6 +1,11 @@
 @echo off
 setlocal enabledelayedexpansion
 
+REM Ensure shell doesn't close on errors
+if "%1"=="--no-pause" goto :skip_pause_setup
+set PAUSE_ON_EXIT=1
+:skip_pause_setup
+
 echo ===============================================
 echo MRDesktop Simple Android Build Script
 echo ===============================================
@@ -24,14 +29,12 @@ REM Check if NDK exists
 if not exist "%ANDROID_NDK_HOME%" (
     echo Error: Android NDK not found at %ANDROID_NDK_HOME%
     echo Please run scripts\fetch_android_toolchain.bat first
-    pause
-    exit /b 1
+    goto :error_exit
 )
 
 if not exist "%ANDROID_TOOLCHAIN%" (
     echo Error: Android toolchain file not found
-    pause
-    exit /b 1
+    goto :error_exit
 )
 
 REM Create build directory
@@ -70,8 +73,7 @@ cmake -B ..\%BUILD_DIR% ^
 if errorlevel 1 (
     echo Error: Failed to configure Android build
     popd
-    pause
-    exit /b 1
+    goto :error_exit
 )
 
 REM Build the project
@@ -81,8 +83,7 @@ cmake --build ..\%BUILD_DIR%
 if errorlevel 1 (
     echo Error: Failed to build Android native library
     popd
-    pause
-    exit /b 1
+    goto :error_exit
 )
 
 popd
@@ -111,4 +112,16 @@ echo Next steps:
 echo   1. Test with emulator: test_android.bat [server_ip] [port]
 echo   2. Or manually copy library to Android project
 echo.
-pause
+goto :normal_exit
+
+:error_exit
+echo.
+echo ===============================================
+echo BUILD FAILED - Press any key to close
+echo ===============================================
+if defined PAUSE_ON_EXIT pause
+exit /b 1
+
+:normal_exit
+if defined PAUSE_ON_EXIT pause
+exit /b 0
