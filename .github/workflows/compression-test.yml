@@ -17,35 +17,10 @@ jobs:
         submodules: recursive
 
     - name: Cache vcpkg
-      uses: actions/cache@v3
-      with:
-        path: |
-          extern/vcpkg/buildtrees
-          extern/vcpkg/packages
-          extern/vcpkg/downloads
-          extern/vcpkg/installed
-        key: ${{ runner.os }}-vcpkg-${{ hashFiles('vcpkg.json') }}
-        restore-keys: |
-          ${{ runner.os }}-vcpkg-
+      uses: ./.github/actions/cache-vcpkg
 
     - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y \
-          ninja-build \
-          cmake \
-          build-essential \
-          autoconf \
-          automake \
-          libtool \
-          nasm \
-          pkg-config \
-          libavcodec-dev \
-          libavformat-dev \
-          libavutil-dev \
-          libswscale-dev \
-          libavdevice-dev \
-          libavfilter-dev
+      uses: ./.github/actions/install-deps
 
     - name: Setup vcpkg
       run: |
@@ -63,16 +38,7 @@ jobs:
         submodules: recursive
 
     - name: Restore vcpkg from cache
-      uses: actions/cache@v3
-      with:
-        path: |
-          extern/vcpkg/buildtrees
-          extern/vcpkg/packages
-          extern/vcpkg/downloads
-          extern/vcpkg/installed
-        key: ${{ runner.os }}-vcpkg-${{ hashFiles('vcpkg.json') }}
-        restore-keys: |
-          ${{ runner.os }}-vcpkg-
+      uses: ./.github/actions/cache-vcpkg
 
     - name: Cache build
       uses: actions/cache@v3
@@ -84,23 +50,7 @@ jobs:
           ${{ runner.os }}-build-
 
     - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y \
-          ninja-build \
-          cmake \
-          build-essential \
-          autoconf \
-          automake \
-          libtool \
-          nasm \
-          pkg-config \
-          libavcodec-dev \
-          libavformat-dev \
-          libavutil-dev \
-          libswscale-dev \
-          libavdevice-dev \
-          libavfilter-dev
+      uses: ./.github/actions/install-deps
 
     - name: Configure CMake
       run: cmake --preset linux-debug
