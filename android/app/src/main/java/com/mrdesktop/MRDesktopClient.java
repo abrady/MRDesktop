@@ -22,7 +22,7 @@ public class MRDesktopClient {
     /** Register a callback to receive frames from native code. */
     public static void setFrameCallback(FrameCallback callback) {
         frameCallback = callback;
-        nativeSetFrameCallback();
+        nativeSetFrameCallback(MRDesktopClient.class);
     }
     
     // Native method declarations
@@ -31,7 +31,7 @@ public class MRDesktopClient {
     public native boolean nativeIsConnected();
     public native boolean nativeSendMouseMove(int deltaX, int deltaY);
     public native boolean nativeSendMouseClick(int button, boolean pressed);
-    public static native void nativeSetFrameCallback();
+    public static native void nativeSetFrameCallback(Class<?> clazz);
     
     // Java wrapper methods
     public boolean connect(String serverIP, int port) {

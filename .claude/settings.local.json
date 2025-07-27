@@ -106,7 +106,9 @@
       "Bash(\"C:/open/github/MRDesktop/extern/vcpkg/downloads/tools/ninja/1.12.1-windows/ninja.exe\" --version)",
       "Bash(export:*)",
       "Bash(./vcpkg.exe install:*)",
-      "Bash(VCPKG_FORCE_SYSTEM_BINARIES=1 cmake --preset windows-debug)"
+      "Bash(VCPKG_FORCE_SYSTEM_BINARIES=1 cmake --preset windows-debug)",
+      "Bash(.build_android.bat debug)",
+      "Bash(PATH=\"$JAVA_HOME/bin:$PATH\" ./gradlew.bat assembleDebug)"
     ],
     "deny": []
   }

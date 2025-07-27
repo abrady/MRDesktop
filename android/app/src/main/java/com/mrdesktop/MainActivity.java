@@ -37,6 +37,7 @@ public class MainActivity extends AppCompatActivity {
         editIP.setText("10.0.2.2");
         editPort.setText("8080");
 
+        // Set up frame callback before any connection attempts
         MRDesktopClient.setFrameCallback((data, width, height) -> {
             try {
                 // Check if we have enough data for ARGB_8888 format

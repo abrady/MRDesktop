@@ -1,5 +1,7 @@
 #include "NetworkReceiver.h"
 #include "protocol.h"
+#include "FrameRenderer.h"
+#include "CrashSafeFrameHandler.h"
 #include <jni.h>
 #include <android/log.h>
 #include <thread>
@@ -19,6 +21,7 @@ class AndroidNetworkClient
 {
 private:
     NetworkReceiver receiver;
+    FrameRenderer frameRenderer;
     std::atomic<bool> running{false};
     std::thread networkThread;
 
@@ -27,46 +30,140 @@ public:
     {
         LOGI("Attempting to connect to %s:%d", serverIP.c_str(), port);
 
-        receiver.SetFrameCallback([](const FrameMessage &msg, const std::vector<uint8_t> &data)
+        receiver.SetFrameCallback([this](const FrameMessage &msg, const std::vector<uint8_t> &data)
                                   {
-            LOGI("Received frame: %dx%d, size: %zu bytes", msg.width, msg.height, data.size());
+            // Log frame info and check crash safety
+            CrashSafeFrameHandler::LogFrameInfo(msg.width, msg.height, data.size());
             
-            // For now, let's just validate and pass through the data without conversion
-            // to avoid the crash while we debug the YUV conversion
-            size_t expectedSize = msg.width * msg.height * 3 / 2; // Expected YUV420P size
-            size_t minSize = expectedSize - 100; // Allow some tolerance for MediaCodec padding
-            size_t maxSize = expectedSize + 100; // Allow some tolerance for MediaCodec padding
-            
-            if (data.size() < minSize || data.size() > maxSize) {
-                LOGE("Unexpected frame size: got %zu, expected %zu for YUV420P", data.size(), expectedSize);
+            if (CrashSafeFrameHandler::ShouldSkipFrameProcessing()) {
+                LOGE("Skipping frame processing due to previous crashes");
                 return;
-            } else if (data.size() != expectedSize) {
-                LOGI("Frame size variation: got %zu, expected %zu (diff: %zd bytes)", 
-                     data.size(), expectedSize, (ssize_t)data.size() - (ssize_t)expectedSize);
             }
             
-            // Skip YUV conversion for now - just log the frame receipt
-            LOGI("Frame received successfully, skipping display for safety");
+            if (!CrashSafeFrameHandler::IsFrameRenderingEnabled()) {
+                LOGI("Frame rendering disabled, skipping conversion");
+                return;
+            }
             
-            // TODO: Implement proper YUV420P to RGB conversion with correct bounds checking
-            /*
-            if (g_vm && g_onFrameMethod && g_clientClass) {
+            // Add frame rate limiting to prevent overwhelming the system
+            static auto lastFrameTime = std::chrono::steady_clock::now();
+            auto currentTime = std::chrono::steady_clock::now();
+            auto timeDiff = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - lastFrameTime);
+            
+            // Limit to ~20 FPS max to prevent system overload
+            if (timeDiff.count() < 50) {
+                LOGI("Skipping frame due to rate limiting");
+                return;
+            }
+            lastFrameTime = currentTime;
+            
+            // Additional validation for frame size limits
+            const size_t maxFrameSize = 50 * 1024 * 1024; // 50MB limit
+            if (data.size() > maxFrameSize) {
+                LOGE("Frame too large: %zu bytes, skipping", data.size());
+                return;
+            }
+            
+            // Convert YUV to ARGB format for Android display
+            std::vector<uint8_t> argbData;
+            if (!frameRenderer.ConvertYUVToARGB(data, msg.width, msg.height, argbData)) {
+                LOGE("Failed to convert YUV frame to ARGB");
+                CrashSafeFrameHandler::DisableFrameRendering();
+                return;
+            }
+            
+            // Send frame to Java layer for display
+            if (g_vm && g_onFrameMethod && g_clientClass && !argbData.empty()) {
                 JNIEnv* env = nullptr;
-                bool attached = (g_vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_6) != JNI_OK);
-                if (attached) {
-                    if (g_vm->AttachCurrentThread(&env, nullptr) != JNI_OK) {
+                bool attached = false;
+                
+                // Get JNI environment safely
+                jint getEnvResult = g_vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_6);
+                if (getEnvResult == JNI_EDETACHED) {
+                    if (g_vm->AttachCurrentThread(&env, nullptr) == JNI_OK) {
+                        attached = true;
+                    } else {
+                        LOGE("Failed to attach thread to JVM");
                         return;
                     }
+                } else if (getEnvResult != JNI_OK || env == nullptr) {
+                    LOGE("Failed to get JNI environment: %d", getEnvResult);
+                    return;
                 }
-                // For now, just pass empty data to avoid crash
-                jbyteArray arr = env->NewByteArray(0);
-                env->CallStaticVoidMethod(g_clientClass, g_onFrameMethod, arr, (jint)msg.width, (jint)msg.height);
-                env->DeleteLocalRef(arr);
+                
+                try {
+                    // Limit array size to prevent OOM and add safety margin
+                    const size_t maxArraySize = 16 * 1024 * 1024; // Reduced to 16MB limit
+                    if (argbData.size() > maxArraySize) {
+                        LOGE("Frame too large for JNI transfer: %zu bytes", argbData.size());
+                        if (attached) g_vm->DetachCurrentThread();
+                        return;
+                    }
+                    
+                    // Check if we have enough memory before creating large arrays
+                    if (argbData.empty()) {
+                        LOGE("ARGB data is empty after conversion");
+                        if (attached) g_vm->DetachCurrentThread();
+                        return;
+                    }
+                    
+                    // Create Java byte array with error checking
+                    jbyteArray arr = env->NewByteArray(static_cast<jsize>(argbData.size()));
+                    if (arr == nullptr) {
+                        LOGE("Failed to create Java byte array for frame data");
+                        if (env->ExceptionCheck()) {
+                            env->ExceptionDescribe();
+                            env->ExceptionClear();
+                        }
+                        if (attached) g_vm->DetachCurrentThread();
+                        return;
+                    }
+                    
+                    // Copy data safely in chunks to avoid large memory operations
+                    const size_t chunkSize = 1024 * 1024; // 1MB chunks
+                    for (size_t offset = 0; offset < argbData.size(); offset += chunkSize) {
+                        size_t currentChunkSize = std::min(chunkSize, argbData.size() - offset);
+                        env->SetByteArrayRegion(arr, static_cast<jsize>(offset), static_cast<jsize>(currentChunkSize), 
+                                              reinterpret_cast<const jbyte*>(argbData.data() + offset));
+                        
+                        if (env->ExceptionCheck()) {
+                            LOGE("Exception while setting byte array region at offset %zu", offset);
+                            env->ExceptionDescribe();
+                            env->ExceptionClear();
+                            env->DeleteLocalRef(arr);
+                            if (attached) g_vm->DetachCurrentThread();
+                            return;
+                        }
+                    }
+                    
+                    // Call Java callback with frame data
+                    env->CallStaticVoidMethod(g_clientClass, g_onFrameMethod, arr, 
+                                            (jint)msg.width, (jint)msg.height);
+                    
+                    if (env->ExceptionCheck()) {
+                        LOGE("Exception while calling Java frame callback");
+                        env->ExceptionDescribe();
+                        env->ExceptionClear();
+                    } else {
+                        LOGI("Frame sent to Java layer: %dx%d, %zu ARGB bytes", 
+                             msg.width, msg.height, argbData.size());
+                    }
+                    
+                    env->DeleteLocalRef(arr);
+                    
+                } catch (...) {
+                    LOGE("Exception in JNI frame transfer");
+                }
+                
                 if (attached) {
                     g_vm->DetachCurrentThread();
                 }
-            }
-            */ });
+            } else {
+                if (!g_vm) LOGE("JavaVM not initialized");
+                if (!g_onFrameMethod) LOGE("Frame callback method not found");
+                if (!g_clientClass) LOGE("Client class not initialized");
+                if (argbData.empty()) LOGE("ARGB data is empty");
+            } });
 
         receiver.SetErrorCallback([](const std::string &error)
                                   { LOGE("Network error: %s", error.c_str()); });
@@ -205,6 +302,8 @@ extern "C"
     JNIEXPORT void JNICALL
     Java_com_mrdesktop_MRDesktopClient_nativeSetFrameCallback(JNIEnv *env, jclass clazz)
     {
+        LOGI("Setting up frame callback from Java");
+
         env->GetJavaVM(&g_vm);
         if (g_clientClass)
         {
@@ -213,5 +312,14 @@ extern "C"
         }
         g_clientClass = reinterpret_cast<jclass>(env->NewGlobalRef(clazz));
         g_onFrameMethod = env->GetStaticMethodID(g_clientClass, "onFrameReceived", "([BII)V");
+
+        if (g_onFrameMethod == nullptr)
+        {
+            LOGE("Failed to find onFrameReceived method");
+        }
+        else
+        {
+            LOGI("Frame callback setup completed successfully");
+        }
     }
 }
