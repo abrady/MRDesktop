@@ -7,6 +7,12 @@ find_package(asio CONFIG REQUIRED)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Define minimum Windows version for all Windows builds
+if(WIN32)
+    # Target Windows 10 and later
+    add_compile_definitions(_WIN32_WINNT=0x0A00)
+endif()
+
 # Option to build Android client
 option(BUILD_ANDROID_CLIENT "Build Android native client library" OFF)
 option(BUILD_OPENXR_CLIENT "Build OpenXR native client" OFF)
