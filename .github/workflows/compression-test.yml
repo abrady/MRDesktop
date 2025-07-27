@@ -8,9 +8,9 @@ on:
   workflow_dispatch:
 
 jobs:
-  test-compression:
+  vcpkg:
     runs-on: ubuntu-latest
-    
+
     steps:
     - uses: actions/checkout@v4
       with:
@@ -27,8 +27,9 @@ jobs:
         key: ${{ runner.os }}-vcpkg-${{ hashFiles('vcpkg.json') }}
         restore-keys: |
           ${{ runner.os }}-vcpkg-
-    
-    - name: Install dependencies
+
+    - &install-deps
+      name: Install dependencies
       run: |
         sudo apt-get update
         sudo apt-get install -y \
@@ -46,28 +47,60 @@ jobs:
           libswscale-dev \
           libavdevice-dev \
           libavfilter-dev
-    
+
     - name: Setup vcpkg
       run: |
         cd extern/vcpkg
         ./bootstrap-vcpkg.sh
         ./vcpkg integrate install
-    
+
+  test-compression:
+    runs-on: ubuntu-latest
+    needs: vcpkg
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Restore vcpkg from cache
+      uses: actions/cache@v3
+      with:
+        path: |
+          extern/vcpkg/buildtrees
+          extern/vcpkg/packages
+          extern/vcpkg/downloads
+          extern/vcpkg/installed
+        key: ${{ runner.os }}-vcpkg-${{ hashFiles('vcpkg.json') }}
+        restore-keys: |
+          ${{ runner.os }}-vcpkg-
+
+    - name: Cache build
+      uses: actions/cache@v3
+      with:
+        path: |
+          build
+        key: ${{ runner.os }}-build-${{ hashFiles('CMakeLists.txt', 'android/CMakeLists.txt', 'src/clients/windows/CMakeLists.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-build-
+
+    - *install-deps
+
     - name: Configure CMake
       run: cmake --preset linux-debug
 
     - name: Build
       run: cmake --build --preset linux-debug
 
-    # - name: Run H.265 Compression Test
-    #   run: ./run_compression_test.sh
+    - name: Run H.265 Compression Test
+      run: bash ./run_compression_test.sh
 
-    # - name: Upload test artifacts on failure
-    #   if: failure()
-    #   uses: actions/upload-artifact@v4
-    #   with:
-    #     name: test-artifacts
-    #     path: |
-    #       first_frame.bmp
-    #       debug_frames/
-    #     retention-days: 3
+    - name: Upload test artifacts on failure
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-artifacts
+        path: |
+          first_frame.bmp
+          debug_frames/
+        retention-days: 3
