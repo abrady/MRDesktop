@@ -46,7 +46,7 @@ if(PLATFORM_DESKTOP)
         src/shared/FrameLogger.cpp
         src/shared/AsioNetworking.cpp
         src/shared/NetworkReceiver.cpp
-        src/shared/VideoDecoder.cpp
+        src/shared/FFmpegVideoDecoder.cpp
     )
     target_include_directories(MRDesktopConsoleClient PRIVATE ${COMMON_INCLUDES} ${FFMPEG_INCLUDE_DIRS})
     target_link_libraries(MRDesktopConsoleClient PRIVATE asio::asio)
@@ -79,7 +79,7 @@ if(PLATFORM_ANDROID OR BUILD_ANDROID_CLIENT)
         android/app/src/main/cpp/android_client.cpp
         src/shared/AsioNetworking.cpp
         src/shared/NetworkReceiver.cpp
-        src/shared/VideoDecoder.cpp
+        src/shared/FFmpegVideoDecoder.cpp
     )
     
     target_include_directories(MRDesktopAndroidClient PRIVATE 
