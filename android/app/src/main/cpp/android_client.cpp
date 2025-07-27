@@ -26,6 +26,7 @@ class AndroidNetworkClient {
   std::atomic<bool> running{false};
   std::mutex frameMutex; // Prevent race conditions in frame processing
   int frameCount = 0; // For debugging purposes
+  std::thread pollingThread; // Background thread for polling frames
 
  public:
   AndroidNetworkClient() {
@@ -241,6 +242,18 @@ class AndroidNetworkClient {
     if (connected) {
       LOGI("Successfully connected to server");
       running = true;
+      
+      // Start polling thread to ensure frames are processed
+      pollingThread = std::thread([this]() {
+        LOGI("Frame polling thread started");
+        while (running) {
+          if (receiver->PollFrame()) {
+            LOGI("PollFrame returned true - frame was available");
+          }
+          std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
+        LOGI("Frame polling thread stopped");
+      });
     } else {
       LOGE("Failed to connect to server");
     }
@@ -252,6 +265,13 @@ class AndroidNetworkClient {
     LOGI("Disconnecting from server");
     running = false;
     receiver->Disconnect();
+    
+    // Wait for polling thread to finish
+    if (pollingThread.joinable()) {
+      LOGI("Waiting for polling thread to finish");
+      pollingThread.join();
+      LOGI("Polling thread finished");
+    }
   }
 
   bool SendMouseMove(int32_t deltaX, int32_t deltaY) {
