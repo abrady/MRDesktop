@@ -31,10 +31,35 @@ set PATH=%JAVA_HOME%\bin;%PATH%
 if "%1"=="clean" (
     echo Cleaning with Gradle
     "%~dp0gradlew.bat" clean
+    if errorlevel 1 (
+        echo ERROR: Clean failed!
+        goto :end_with_error
+    )
     echo Clean complete! Run without 'clean' argument to build.
+    goto :end_success
 )
 
 echo Building with Gradle
 "%~dp0gradlew.bat" assembleDebug
+if errorlevel 1 (
+    echo.
+    echo ERROR: Build failed!
+    echo Check the error messages above for details.
+    goto :end_with_error
+) else (
+    echo.
+    echo Build complete!
+    goto :end_success
+)
+
+:end_with_error
 echo.
-echo Build complete!
+echo Build process completed with errors.
+pause
+goto :eof
+
+:end_success
+echo.
+echo Build process completed successfully.
+pause
+goto :eof
