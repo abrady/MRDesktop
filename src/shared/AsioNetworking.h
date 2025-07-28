@@ -51,20 +51,13 @@ class AsioConnection {
   size_t m_bytesNeeded = sizeof(MessageHeader); // Start by needing a header
 
   // Connection settings
-  CompressionType m_compression = COMPRESSION_NONE;
 
  public:
   AsioConnection();
   ~AsioConnection();
 
   // Client operations
-  void SetCompression(CompressionType compression) {
-    m_compression = compression;
-  }
   bool Connect(const std::string& host, int port);
-
-  // Server operations
-  bool Listen(int port);
 
   // Send operations
   bool SendFrame(

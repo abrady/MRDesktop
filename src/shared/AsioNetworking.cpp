@@ -27,22 +27,6 @@ bool AsioConnection::Connect(const std::string& host, int port) {
   }
 }
 
-bool AsioConnection::Listen(int port) {
-  // This is for single-connection listening (simplified)
-  try {
-    tcp::acceptor acceptor(
-        m_ioContext,
-        tcp::endpoint(tcp::v4(), static_cast<asio::ip::port_type>(port)));
-    acceptor.accept(*m_socket);
-
-    m_running = true;
-    return true;
-  } catch (const std::exception& e) {
-    NotifyError("Listen failed: " + std::string(e.what()));
-    return false;
-  }
-}
-
 void AsioConnection::Disconnect() {
   m_running = false;
 

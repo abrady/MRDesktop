@@ -129,9 +129,6 @@ bool NetworkReceiver::Connect(const std::string& serverIP, int port) {
   std::cout << "NetworkReceiver::Connect starting with compression="
             << pImpl->compression << std::endl;
 
-  // Set compression before connecting
-  pImpl->connection.SetCompression(pImpl->compression);
-
   // Connect first
   bool connected = pImpl->connection.Connect(serverIP, port);
   if (connected) {
