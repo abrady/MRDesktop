@@ -88,6 +88,13 @@ void AsioConnection::Poll() {
     // First process any completed operations
     m_ioContext.poll();
 
+    // Check if socket is still connected
+    if (m_socket && !m_socket->is_open()) {
+      // Socket was closed, trigger disconnect
+      Disconnect();
+      return;
+    }
+
     // Then try to read any available data
     ReadAvailableData();
 

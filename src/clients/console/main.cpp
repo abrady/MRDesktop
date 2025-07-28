@@ -249,7 +249,9 @@ int main(int argc, char* argv[]) {
   HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
   DWORD originalMode;
   GetConsoleMode(hStdin, &originalMode);
-  SetConsoleMode(hStdin, 0); // Disable line input and echo
+  // Disable line input and echo, but preserve Ctrl+C handling
+  DWORD newMode = originalMode & ~(ENABLE_LINE_INPUT | ENABLE_ECHO_INPUT);
+  SetConsoleMode(hStdin, newMode);
 #endif
 
   // Variables for frame receiving and input handling
