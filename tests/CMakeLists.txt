@@ -23,8 +23,10 @@ add_executable(basic_tests
     test_protocol.cpp
     test_video_encoder.cpp
     test_ffmpeg_video_decoder.cpp
+    test_frame_logger.cpp
     ../src/shared/VideoEncoder.cpp
     ../src/shared/FFmpegVideoDecoder.cpp
+    ../src/shared/FrameLogger.cpp
     ../src/shared/Logging.cpp
 )
 
