@@ -912,7 +912,7 @@ class MRDesktopServer {
       }
 
       std::this_thread::sleep_for(
-          std::chrono::milliseconds(16)); // ~60fps target
+          std::chrono::milliseconds(100)); // ~10fps target
     }
   }
 };
