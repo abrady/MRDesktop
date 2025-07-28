@@ -10,6 +10,7 @@
 #include "FrameRenderer.h"
 #include "NetworkReceiver.h"
 #include "protocol.h"
+#include "Logging.h"
 
 static JavaVM* g_vm = nullptr;
 static jclass g_clientClass = nullptr;
@@ -27,9 +28,18 @@ class AndroidNetworkClient {
   std::mutex frameMutex; // Prevent race conditions in frame processing
   int frameCount = 0; // For debugging purposes
   std::thread pollingThread; // Background thread for polling frames
+  
+  // FPS tracking
+  std::chrono::steady_clock::time_point lastFPSLog = std::chrono::steady_clock::now();
+  int framesSinceLastLog = 0;
+  const std::chrono::seconds FPS_LOG_INTERVAL{10}; // Log every 10 seconds
+  std::shared_ptr<spdlog::logger> logger;
 
  public:
   AndroidNetworkClient() {
+    // Initialize logger
+    logger = MRDesk::GetLogger("MRDesk.AndroidClient");
+    
     // Create NetworkReceiver with Android hardware decoder
     auto androidDecoder = std::make_unique<AndroidVideoDecoderWrapper>();
     receiver = std::make_unique<NetworkReceiver>(std::move(androidDecoder));
@@ -51,6 +61,21 @@ class AndroidNetworkClient {
               msg.width,
               msg.height,
               data.size());
+              
+          // Track FPS
+          framesSinceLastLog++;
+          auto now = std::chrono::steady_clock::now();
+          auto timeSinceLastLog = std::chrono::duration_cast<std::chrono::seconds>(now - lastFPSLog);
+          
+          if (timeSinceLastLog >= FPS_LOG_INTERVAL) {
+            double fps = static_cast<double>(framesSinceLastLog) / timeSinceLastLog.count();
+            logger->info("Android Client FPS: {:.2f} ({} frames in {} seconds)", 
+                        fps, framesSinceLastLog, timeSinceLastLog.count());
+            
+            // Reset counters
+            framesSinceLastLog = 0;
+            lastFPSLog = now;
+          }
 
           // Use mutex to prevent race conditions
           // std::lock_guard<std::mutex> lock(frameMutex);
