@@ -32,6 +32,13 @@ bool FrameLogger::LogFrame(
     return false;
   }
 
+  // Validate dimensions to avoid corrupt or malicious data
+  if (width == 0 || height == 0 || width > 10000 || height > 10000) {
+    std::cerr << "FrameLogger: Invalid frame dimensions (" << width << "x"
+              << height << ")" << std::endl;
+    return false;
+  }
+
   LoggedFrame frame;
   frame.frameIndex = m_frameCounter++;
   frame.width = width;
