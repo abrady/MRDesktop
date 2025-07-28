@@ -22,6 +22,9 @@ using INT32 = int32_t;
 #include "../shared/AsioNetworking.h"
 #include "../shared/VideoEncoder.h"
 #include "../shared/protocol.h"
+#include "Logging.h"
+
+#define LOG_TAG "MRDesk.Server"
 
 #ifdef _WIN32
 // Convert DXGI format to our PixelFormat enum
@@ -838,6 +841,7 @@ class MRDesktopServer {
 };
 
 int main(int argc, char* argv[]) {
+  MRDesk::InitLogging();
   bool testMode = false;
 
   // Parse command line arguments
