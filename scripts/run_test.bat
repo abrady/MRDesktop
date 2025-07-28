@@ -48,7 +48,7 @@ REM Wait a moment for server to start
 timeout /t 2 /nobreak >nul
 
 echo Starting test client...
-"%CLIENT_EXE%" --test --compression=none
+"%CLIENT_EXE%" --test
 
 set CLIENT_EXIT_CODE=%ERRORLEVEL%
 

@@ -24,6 +24,74 @@ using INT32 = int32_t;
 #include "../shared/protocol.h"
 
 #ifdef _WIN32
+// Convert DXGI format to our PixelFormat enum
+PixelFormat DXGIFormatToPixelFormat(DXGI_FORMAT dxgiFormat) {
+  switch (dxgiFormat) {
+    case DXGI_FORMAT_B8G8R8A8_UNORM:
+    case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:
+      return PIXEL_FORMAT_BGRA;
+    case DXGI_FORMAT_R8G8B8A8_UNORM:
+    case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
+      return PIXEL_FORMAT_RGBA;
+    default:
+      std::cout << "Unknown DXGI format: " << dxgiFormat << ", assuming BGRA"
+                << std::endl;
+      return PIXEL_FORMAT_BGRA;
+  }
+}
+#endif
+
+// Pixel format conversion utility
+void ConvertPixelFormat(
+    std::vector<BYTE>& pixelData,
+    uint32_t width,
+    uint32_t height,
+    PixelFormat fromFormat,
+    PixelFormat toFormat) {
+  if (fromFormat == toFormat) {
+    std::cout
+        << "Pixel format conversion skipped - client and server formats match ("
+        << fromFormat << ")" << std::endl;
+    return; // No conversion needed
+  }
+
+  std::cout << "Converting pixel format from " << fromFormat << " to "
+            << toFormat << std::endl;
+
+  size_t pixelCount = width * height;
+
+  // Currently only handle BGRA <-> RGBA conversion
+  if ((fromFormat == PIXEL_FORMAT_BGRA && toFormat == PIXEL_FORMAT_RGBA) ||
+      (fromFormat == PIXEL_FORMAT_RGBA && toFormat == PIXEL_FORMAT_BGRA)) {
+    // Swap red and blue channels
+    for (size_t i = 0; i < pixelCount; ++i) {
+      size_t index = i * 4;
+      std::swap(pixelData[index + 0], pixelData[index + 2]); // Swap B and R
+    }
+  } else if (toFormat == PIXEL_FORMAT_ARGB) {
+    // Convert BGRA/RGBA to ARGB (move alpha to front)
+    std::vector<BYTE> converted(pixelData.size());
+    for (size_t i = 0; i < pixelCount; ++i) {
+      size_t srcIndex = i * 4;
+      size_t dstIndex = i * 4;
+
+      if (fromFormat == PIXEL_FORMAT_BGRA) {
+        converted[dstIndex + 0] = pixelData[srcIndex + 3]; // A
+        converted[dstIndex + 1] = pixelData[srcIndex + 2]; // R
+        converted[dstIndex + 2] = pixelData[srcIndex + 1]; // G
+        converted[dstIndex + 3] = pixelData[srcIndex + 0]; // B
+      } else { // RGBA
+        converted[dstIndex + 0] = pixelData[srcIndex + 3]; // A
+        converted[dstIndex + 1] = pixelData[srcIndex + 0]; // R
+        converted[dstIndex + 2] = pixelData[srcIndex + 1]; // G
+        converted[dstIndex + 3] = pixelData[srcIndex + 2]; // B
+      }
+    }
+    pixelData = std::move(converted);
+  }
+}
+
+#ifdef _WIN32
 class DesktopDuplicator {
  private:
   ID3D11Device* m_Device = nullptr;
@@ -124,7 +192,8 @@ class DesktopDuplicator {
       std::vector<BYTE>& pixelData,
       UINT32& width,
       UINT32& height,
-      UINT32& dataSize) {
+      UINT32& dataSize,
+      PixelFormat& format) {
     if (!m_DeskDupl)
       return false;
 
@@ -182,10 +251,13 @@ class DesktopDuplicator {
       height = textureDesc.Height;
       dataSize = mappedResource.RowPitch * textureDesc.Height;
 
-      // Debug: Log frame capture details
-      std::cout << "Capturing frame - Width: " << width << ", Height: "
-                << height << ", RowPitch: " << mappedResource.RowPitch
-                << ", DataSize: " << dataSize << std::endl;
+      // Debug: Log frame capture details and detect format
+      format = DXGIFormatToPixelFormat(textureDesc.Format);
+      std::cout
+          << "Capturing frame - Width: " << width << ", Height: " << height
+          << ", RowPitch: " << mappedResource.RowPitch << ", DataSize: "
+          << dataSize << ", DXGI Format: " << textureDesc.Format
+          << ", Detected Format: " << format << std::endl;
 
       // Resize buffer for pixel data only
       pixelData.clear();
@@ -236,7 +308,8 @@ class DesktopDuplicator {
 class DesktopDuplicator {
  public:
   bool Initialize() { return false; }
-  bool CaptureFrame(std::vector<uint8_t>&, uint32_t&, uint32_t&, uint32_t&) {
+  bool CaptureFrame(
+      std::vector<uint8_t>&, uint32_t&, uint32_t&, uint32_t&, PixelFormat&) {
     return false;
   }
   void Cleanup() {}
@@ -373,6 +446,10 @@ class MRDesktopServer {
   std::thread m_streamingThread;
   std::unique_ptr<VideoEncoder> m_encoder;
   CompressionType m_clientCompression = COMPRESSION_NONE;
+  PixelFormat m_clientPixelFormat =
+      PIXEL_FORMAT_BGRA; // Default to BGRA (Windows/FFmpeg default)
+  PixelFormat m_serverPixelFormat =
+      PIXEL_FORMAT_BGRA; // Format that server captures in
 
   // Frame statistics
   int m_frameCount = 0;
@@ -443,11 +520,12 @@ class MRDesktopServer {
       return; // Already stopped, prevent double cleanup
     }
     m_stopped = true;
-    
+
     m_streaming = false;
 
     // Only join thread if we're not calling from within the thread itself
-    if (m_streamingThread.joinable() && std::this_thread::get_id() != m_streamingThread.get_id()) {
+    if (m_streamingThread.joinable() &&
+        std::this_thread::get_id() != m_streamingThread.get_id()) {
       m_streamingThread.join();
     }
 
@@ -466,9 +544,7 @@ class MRDesktopServer {
     }
   }
 
-  bool IsTestCompleted() const {
-    return m_testCompleted;
-  }
+  bool IsTestCompleted() const { return m_testCompleted; }
 
  private:
   void OnClientConnected(std::shared_ptr<AsioConnection> client) {
@@ -517,6 +593,24 @@ class MRDesktopServer {
         } else {
           std::cout << "Invalid compression request size: " << data.size()
                     << " expected: " << sizeof(CompressionType) << std::endl;
+        }
+        break;
+      }
+      case MSG_PIXEL_FORMAT_REQUEST: {
+        std::cout << "Processing pixel format request" << std::endl;
+        if (data.size() >= sizeof(PixelFormat)) {
+          // Extract preferred pixel format from the data payload
+          PixelFormat requestedFormat =
+              *reinterpret_cast<const PixelFormat*>(data.data());
+          std::cout << "Client requested pixel format: " << requestedFormat
+                    << std::endl;
+
+          // For now, honor the client's request (could add validation logic
+          // here)
+          m_clientPixelFormat = requestedFormat;
+        } else {
+          std::cout << "Invalid pixel format request size: " << data.size()
+                    << " expected: " << sizeof(PixelFormat) << std::endl;
         }
         break;
       }
@@ -608,7 +702,11 @@ class MRDesktopServer {
                   << std::endl;
       } else {
         frameReady = m_duplicator.CaptureFrame(
-            pixelData, frameWidth, frameHeight, frameDataSize);
+            pixelData,
+            frameWidth,
+            frameHeight,
+            frameDataSize,
+            m_serverPixelFormat);
       }
 
       if (frameReady) {
@@ -680,6 +778,14 @@ class MRDesktopServer {
           }
         }
 
+        // Convert pixel format if needed
+        ConvertPixelFormat(
+            pixelData,
+            frameWidth,
+            frameHeight,
+            m_serverPixelFormat, // Use detected server format
+            m_clientPixelFormat);
+
         if (!useCompression) {
           // Send uncompressed frame
           FrameMessage frameMsg;
@@ -688,6 +794,7 @@ class MRDesktopServer {
           frameMsg.width = frameWidth;
           frameMsg.height = frameHeight;
           frameMsg.dataSize = frameDataSize;
+          frameMsg.pixelFormat = m_clientPixelFormat;
 
           std::cout << "SERVER SEND: Frame " << m_frameCount + 1
                     << " - Uncompressed: " << frameDataSize << " bytes"

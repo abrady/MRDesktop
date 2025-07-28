@@ -11,7 +11,9 @@ enum MessageType : uint32_t {
   MSG_MOUSE_CLICK = 3,
   MSG_MOUSE_SCROLL = 4,
   MSG_COMPRESSED_FRAME = 5,
-  MSG_COMPRESSION_REQUEST = 6
+  MSG_COMPRESSION_REQUEST = 6,
+  MSG_PIXEL_FORMAT_REQUEST = 7,
+  MSG_PIXEL_FORMAT_RESPONSE = 8
 };
 
 // Supported compression formats
@@ -20,6 +22,14 @@ enum CompressionType : uint32_t {
   COMPRESSION_H264 = 1,
   COMPRESSION_AV1 = 2,
   COMPRESSION_H265 = 3
+};
+
+// Supported pixel formats for decoded frames
+enum PixelFormat : uint32_t {
+  PIXEL_FORMAT_RGBA = 0,    // Red-Green-Blue-Alpha (Android preferred)
+  PIXEL_FORMAT_BGRA = 1,    // Blue-Green-Red-Alpha (Windows/FFmpeg preferred)
+  PIXEL_FORMAT_ARGB = 2,    // Alpha-Red-Green-Blue (Android Bitmap format)
+  PIXEL_FORMAT_YUV420 = 3   // Raw YUV420 (no conversion needed)
 };
 
 // Base message header
@@ -56,6 +66,7 @@ struct FrameMessage {
   uint32_t width;
   uint32_t height;
   uint32_t dataSize;
+  PixelFormat pixelFormat; // Format of the pixel data that follows
 };
 
 struct CompressedFrameMessage {
@@ -69,6 +80,18 @@ struct CompressedFrameMessage {
 struct CompressionRequestMessage {
   MessageHeader header;
   CompressionType compression;
+};
+
+// Pixel format request message (client to server)
+struct PixelFormatRequestMessage {
+  MessageHeader header;
+  PixelFormat preferredFormat;
+};
+
+// Pixel format response message (server to client)
+struct PixelFormatResponseMessage {
+  MessageHeader header;
+  PixelFormat confirmedFormat;
 };
 
 // Mouse movement message

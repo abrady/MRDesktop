@@ -35,7 +35,6 @@ add_library(MRDesktopClient SHARED
     app/src/main/cpp/android_client.cpp
     app/src/main/cpp/AndroidVideoDecoder.cpp
     app/src/main/cpp/AndroidVideoDecoderWrapper.cpp
-    app/src/main/cpp/VideoDecoder_Android.cpp
     app/src/main/cpp/FrameRenderer.cpp
     app/src/main/cpp/CrashSafeFrameHandler.cpp
     ${SHARED_SRC_DIR}/AsioNetworking.cpp

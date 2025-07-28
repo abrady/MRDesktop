@@ -5,7 +5,6 @@
 #include <thread>
 #include "AsioNetworking.h"
 #include "IVideoDecoder.h"
-#include "FFmpegVideoDecoder.h"
 
 class NetworkReceiver::Impl {
  public:
@@ -26,14 +25,13 @@ class NetworkReceiver::Impl {
   std::vector<uint8_t> currentFrameData;
   bool frameReady = false;
 
-  Impl() {
+  Impl() { SetupCallbacks(); }
+
+  Impl(std::unique_ptr<IVideoDecoder> customDecoder)
+      : decoder(std::move(customDecoder)) {
     SetupCallbacks();
   }
-  
-  Impl(std::unique_ptr<IVideoDecoder> customDecoder) : decoder(std::move(customDecoder)) {
-    SetupCallbacks();
-  }
-  
+
   void SetupCallbacks() {
     // Set up AsioConnection callbacks
     connection.SetFrameCallback(
@@ -87,11 +85,6 @@ class NetworkReceiver::Impl {
     if (onRawFrameReceived)
       onRawFrameReceived(MSG_COMPRESSED_FRAME);
 
-    // Initialize decoder if needed
-    if (!decoder) {
-      decoder = std::make_unique<FFmpegVideoDecoder>();
-    }
-
     if (!decoder->IsInitialized()) {
       if (!decoder->Initialize(frameMsg.width, frameMsg.height, compression)) {
         if (onError)
@@ -133,7 +126,7 @@ class NetworkReceiver::Impl {
 
 NetworkReceiver::NetworkReceiver() : pImpl(std::make_unique<Impl>()) {}
 
-NetworkReceiver::NetworkReceiver(std::unique_ptr<IVideoDecoder> decoder) 
+NetworkReceiver::NetworkReceiver(std::unique_ptr<IVideoDecoder> decoder)
     : pImpl(std::make_unique<Impl>(std::move(decoder))) {}
 
 NetworkReceiver::~NetworkReceiver() {

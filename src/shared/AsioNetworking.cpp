@@ -1,4 +1,3 @@
-#define ASIO_STANDALONE
 #include "AsioNetworking.h"
 #include <iostream>
 

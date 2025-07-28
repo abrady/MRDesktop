@@ -1,6 +1,8 @@
 #pragma once
 
+#ifndef ASIO_STANDALONE
 #define ASIO_STANDALONE
+#endif
 #include <atomic>
 #include <functional>
 #include <memory>
