@@ -55,9 +55,6 @@ void AsioConnection::Disconnect() {
 
   m_ioContext.stop();
 
-  if (m_ioThread.joinable()) {
-    m_ioThread.join();
-  }
 
   if (m_onDisconnect) {
     m_onDisconnect();
@@ -378,9 +375,6 @@ void AsioServer::Stop() {
 
   m_ioContext.stop();
 
-  if (m_ioThread.joinable()) {
-    m_ioThread.join();
-  }
 }
 
 void AsioServer::StartAccept() {

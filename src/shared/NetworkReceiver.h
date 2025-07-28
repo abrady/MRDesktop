@@ -16,7 +16,6 @@ class NetworkReceiver {
   std::unique_ptr<Impl> pImpl;
 
  public:
-  NetworkReceiver();
   NetworkReceiver(std::unique_ptr<IVideoDecoder> decoder);
   ~NetworkReceiver();
 

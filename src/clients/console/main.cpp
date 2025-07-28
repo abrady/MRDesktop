@@ -15,11 +15,12 @@
 #include <thread>
 #include <vector>
 #include "FrameLogger.h"
+#include "FFmpegVideoDecoder.h"
+#define LOG_TAG "MRDesk.Console"
 #include "Logging.h"
 #include "NetworkReceiver.h"
 #include "protocol.h"
 
-#define LOG_TAG "MRDesk.Console"
 #pragma pack(push, 1)
 struct BMPFileHeader {
   uint16_t bfType{0};
@@ -206,7 +207,7 @@ int main(int argc, char* argv[]) {
   std::cout << "Initializing network connection..." << std::endl;
 
   // Connect to server
-  NetworkReceiver receiver;
+  NetworkReceiver receiver(std::make_unique<FFmpegVideoDecoder>());
 
   // Set compression before connecting
   receiver.SetCompression(compression);

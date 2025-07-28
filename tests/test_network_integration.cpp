@@ -2,6 +2,7 @@
 #include <thread>
 #include <gtest/gtest.h>
 #include "NetworkReceiver.h"
+#include "FFmpegVideoDecoder.h"
 
 #ifdef _WIN32
 #include <winsock2.h>
@@ -21,7 +22,7 @@ class NetworkIntegrationTest : public ::testing::Test {
     WSADATA wsaData;
     WSAStartup(MAKEWORD(2, 2), &wsaData);
 #endif
-    receiver = std::make_unique<NetworkReceiver>();
+    receiver = std::make_unique<NetworkReceiver>(std::make_unique<FFmpegVideoDecoder>());
   }
 
   void TearDown() override {

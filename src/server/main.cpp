@@ -22,9 +22,8 @@ using INT32 = int32_t;
 #include "../shared/AsioNetworking.h"
 #include "../shared/VideoEncoder.h"
 #include "../shared/protocol.h"
-#include "Logging.h"
-
 #define LOG_TAG "MRDesk.Server"
+#include "Logging.h"
 
 #ifdef _WIN32
 // Convert DXGI format to our PixelFormat enum

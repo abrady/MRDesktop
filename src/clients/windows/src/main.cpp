@@ -1,9 +1,9 @@
 #include <windows.h>
 #include <iostream>
-#include "Logging.h"
 #define LOG_TAG "MRDesk.WindowsMain"
 #include <fcntl.h>
 #include <io.h>
+#include "Logging.h"
 #include "WindowManager.h"
 
 int WINAPI WinMain(

@@ -25,7 +25,7 @@ class NetworkReceiver::Impl {
   std::vector<uint8_t> currentFrameData;
   bool frameReady = false;
 
-  Impl() { SetupCallbacks(); }
+  // Impl() { SetupCallbacks(); }
 
   Impl(std::unique_ptr<IVideoDecoder> customDecoder)
       : decoder(std::move(customDecoder)) {
@@ -123,8 +123,6 @@ class NetworkReceiver::Impl {
     }
   }
 };
-
-NetworkReceiver::NetworkReceiver() : pImpl(std::make_unique<Impl>()) {}
 
 NetworkReceiver::NetworkReceiver(std::unique_ptr<IVideoDecoder> decoder)
     : pImpl(std::make_unique<Impl>(std::move(decoder))) {}
