@@ -118,7 +118,8 @@
       "Bash(find:*)",
       "Bash(adb logcat:*)",
       "Bash(./gradlew:*)",
-      "Bash(JAVA_HOME=\"/mnt/c/open/github/MRDesktop/android/java/jdk-17.0.11+9\" PATH=\"$JAVA_HOME/bin:$PATH\" cmd.exe /c gradlew.bat assembleDebug)"
+      "Bash(JAVA_HOME=\"/mnt/c/open/github/MRDesktop/android/java/jdk-17.0.11+9\" PATH=\"$JAVA_HOME/bin:$PATH\" cmd.exe /c gradlew.bat assembleDebug)",
+      "Bash(set ANDROID_NDK_HOME=C:AndroidSdkndk25.1.8937393)"
     ],
     "deny": []
   }

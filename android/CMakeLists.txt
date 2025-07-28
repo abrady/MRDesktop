@@ -7,27 +7,45 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Include shared source directories
 set(SHARED_SRC_DIR "${CMAKE_SOURCE_DIR}/../src/shared")
 
-# For Android builds, we need to point to vcpkg asio headers manually
-# since the Android toolchain doesn't have access to vcpkg packages
+# For Android builds, use vcpkg headers manually (more reliable than vcpkg integration)
 set(VCPKG_ASIO_DIR "${CMAKE_SOURCE_DIR}/../extern/vcpkg/packages/asio_x64-windows/include")
+set(VCPKG_SPDLOG_DIR "${CMAKE_SOURCE_DIR}/../extern/vcpkg/packages/spdlog_x64-windows/include")
+set(VCPKG_FMT_DIR "${CMAKE_SOURCE_DIR}/../extern/vcpkg/packages/fmt_x64-windows/include")
 
 if(EXISTS "${VCPKG_ASIO_DIR}/asio.hpp")
     message(STATUS "Using asio headers from: ${VCPKG_ASIO_DIR}")
     add_compile_definitions(ASIO_STANDALONE)
 else()
-    message(FATAL_ERROR "asio headers not found. Please ensure vcpkg install asio has been run.")
+    message(FATAL_ERROR "asio headers not found. Please run 'configure.bat' first.")
+endif()
+
+if(EXISTS "${VCPKG_SPDLOG_DIR}/spdlog/spdlog.h")
+    message(STATUS "Using spdlog headers from: ${VCPKG_SPDLOG_DIR}")
+    # Note: SPDLOG_HEADER_ONLY is automatically defined by spdlog when not using compiled lib
+else()
+    message(FATAL_ERROR "spdlog headers not found. Please run 'configure.bat' first.")
+endif()
+
+if(EXISTS "${VCPKG_FMT_DIR}/fmt/base.h")
+    message(STATUS "Using fmt headers from: ${VCPKG_FMT_DIR}")
+    add_compile_definitions(FMT_HEADER_ONLY)
+else()
+    message(FATAL_ERROR "fmt headers not found. Please run 'configure.bat' first.")
 endif()
 
 # Simple Android native client library for testing
 add_library(MRDesktopSimpleClient SHARED
     app/src/main/cpp/simple_android_client.cpp
     ${SHARED_SRC_DIR}/AsioNetworking.cpp
+    ${SHARED_SRC_DIR}/Logging.cpp
 )
 
 target_include_directories(MRDesktopSimpleClient PRIVATE 
     app/src/main/cpp
     ${SHARED_SRC_DIR}
     ${VCPKG_ASIO_DIR}
+    ${VCPKG_SPDLOG_DIR}
+    ${VCPKG_FMT_DIR}
 )
 
 # Full-featured Android native client library
@@ -39,12 +57,15 @@ add_library(MRDesktopClient SHARED
     app/src/main/cpp/CrashSafeFrameHandler.cpp
     ${SHARED_SRC_DIR}/AsioNetworking.cpp
     ${SHARED_SRC_DIR}/NetworkReceiver.cpp
+    ${SHARED_SRC_DIR}/Logging.cpp
 )
 
 target_include_directories(MRDesktopClient PRIVATE 
     app/src/main/cpp
     ${SHARED_SRC_DIR}
     ${VCPKG_ASIO_DIR}
+    ${VCPKG_SPDLOG_DIR}
+    ${VCPKG_FMT_DIR}
 )
 
 # Find required Android libraries
@@ -60,4 +81,4 @@ target_link_libraries(MRDesktopClient
     ${mediandk-lib}
 )
 
-# Note: asio is header-only with ASIO_STANDALONE, no linking required
+# Note: asio, spdlog, and fmt are header-only with compile definitions

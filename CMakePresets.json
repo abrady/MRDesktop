@@ -105,10 +105,9 @@
                 "ANDROID_STL": "c++_shared",
                 "BUILD_ANDROID_CLIENT": "ON"
             },
-            "toolchainFile": "$env{CMAKE_ANDROID_NDK}/build/cmake/android.toolchain.cmake",
+            "toolchainFile": "C:/open/github/MRDesktop/android/ndk/build/cmake/android.toolchain.cmake",
             "environment": {
-                "CMAKE_ANDROID_NDK": "$env{ANDROID_NDK_HOME}",
-                "VCPKG_BUILD_TYPE": "release"
+                "CMAKE_ANDROID_NDK": "C:/open/github/MRDesktop/android/ndk"
             }
         },
         {
@@ -123,13 +122,11 @@
                 "ANDROID_ABI": "arm64-v8a",
                 "ANDROID_NATIVE_API_LEVEL": "24",
                 "ANDROID_STL": "c++_shared",
-                "BUILD_OPENXR_CLIENT": "ON",
-                "VCPKG_CHAINLOAD_TOOLCHAIN_FILE": "$env{CMAKE_ANDROID_NDK}/build/cmake/android.toolchain.cmake"
+                "BUILD_OPENXR_CLIENT": "ON"
             },
-            "toolchainFile": "${sourceDir}/extern/vcpkg/scripts/buildsystems/vcpkg.cmake",
+            "toolchainFile": "C:/open/github/MRDesktop/android/ndk/build/cmake/android.toolchain.cmake",
             "environment": {
-                "CMAKE_ANDROID_NDK": "$env{ANDROID_NDK_HOME}",
-                "VCPKG_BUILD_TYPE": "release"
+                "CMAKE_ANDROID_NDK": "C:/open/github/MRDesktop/android/ndk"
             }
         },
         {
@@ -146,9 +143,9 @@
                 "ANDROID_STL": "c++_shared",
                 "BUILD_ANDROID_CLIENT": "ON"
             },
-            "toolchainFile": "$env{CMAKE_ANDROID_NDK}/build/cmake/android.toolchain.cmake",
+            "toolchainFile": "C:/open/github/MRDesktop/android/ndk/build/cmake/android.toolchain.cmake",
             "environment": {
-                "CMAKE_ANDROID_NDK": "$env{ANDROID_NDK_HOME}"
+                "CMAKE_ANDROID_NDK": "C:/open/github/MRDesktop/android/ndk"
             }
         },
         {
@@ -165,10 +162,9 @@
                 "ANDROID_STL": "c++_shared",
                 "BUILD_ANDROID_CLIENT": "ON"
             },
-            "toolchainFile": "$env{CMAKE_ANDROID_NDK}/build/cmake/android.toolchain.cmake",
+            "toolchainFile": "C:/open/github/MRDesktop/android/ndk/build/cmake/android.toolchain.cmake",
             "environment": {
-                "CMAKE_ANDROID_NDK": "$env{ANDROID_NDK_HOME}",
-                "VCPKG_BUILD_TYPE": "release"
+                "CMAKE_ANDROID_NDK": "C:/open/github/MRDesktop/android/ndk"
             }
         },
         {
@@ -185,9 +181,9 @@
                 "ANDROID_STL": "c++_shared",
                 "BUILD_ANDROID_CLIENT": "ON"
             },
-            "toolchainFile": "$env{CMAKE_ANDROID_NDK}/build/cmake/android.toolchain.cmake",
+            "toolchainFile": "C:/open/github/MRDesktop/android/ndk/build/cmake/android.toolchain.cmake",
             "environment": {
-                "CMAKE_ANDROID_NDK": "$env{ANDROID_NDK_HOME}"
+                "CMAKE_ANDROID_NDK": "C:/open/github/MRDesktop/android/ndk"
             }
         },
         {

@@ -33,7 +33,8 @@ if not exist "extern\vcpkg\vcpkg.exe" (
     )
 )
 
-REM Configure with the appropriate preset
+REM Configure Windows with the appropriate preset
+echo Configuring Windows %BUILD_TYPE%...
 if "%BUILD_TYPE%"=="Debug" (
     cmake --preset windows-debug
 ) else (
@@ -41,10 +42,19 @@ if "%BUILD_TYPE%"=="Debug" (
 )
 
 if %errorlevel% neq 0 (
-    echo Configuration failed!
+    echo Windows configuration failed!
     pause
     exit /b 1
 )
+
+REM Source Android environment if setup script exists  
+if exist "android\setup_android_env.bat" (
+    echo Sourcing Android environment...
+    call android\setup_android_env.bat
+)
+
+REM Note: Android builds use manual vcpkg headers (no separate configuration needed)
+echo Android builds will use vcpkg headers manually from extern/vcpkg/installed/x64-windows/include
 
 echo Configuration successful!
 echo Run 'build.bat' to build the project
