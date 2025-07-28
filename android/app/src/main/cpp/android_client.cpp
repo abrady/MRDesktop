@@ -48,16 +48,17 @@ class AndroidNetworkClient {
   }
 
   bool Connect(const std::string& serverIP, int port) {
-    LOGI("Attempting to connect to %s:%d", serverIP.c_str(), port);
+    LOGI("Attempting to connect to {}:{}", serverIP, port);
 
-    CompressionType compression = COMPRESSION_H265;
+    // Using H.264 for better Android MediaCodec compatibility
+    CompressionType compression = COMPRESSION_H264;
     receiver->SetCompression(compression);
-    LOGI("Set compression type: %d", compression);
+    LOGI("Set compression type: {}", static_cast<int>(compression));
 
     receiver->SetFrameCallback(
         [this](const FrameMessage& msg, const std::vector<uint8_t>& data) {
           LOGI(
-              "Frame callback invoked(%i): %ux%u, %zu bytes",
+              "Frame callback invoked({}): {}x{}, {} bytes",
               frameCount++,
               msg.width,
               msg.height,
@@ -105,8 +106,9 @@ class AndroidNetworkClient {
           // rendering/display
           static auto lastRenderTime = std::chrono::steady_clock::now();
           auto currentTime = std::chrono::steady_clock::now();
-          auto timeDiff = std::chrono::duration_cast<std::chrono::milliseconds>(
-              currentTime - lastRenderTime);
+          auto timeDiff =
+              std::chrono::duration_cast<std::chrono::milliseconds>(
+                  currentTime - lastRenderTime);
 
           bool shouldRender = timeDiff.count() >= 50; // ~20 FPS max
           if (shouldRender) {
@@ -114,7 +116,7 @@ class AndroidNetworkClient {
           }
 
           LOGI(
-              "Processing frame: %ux%u, %zu bytes",
+              "Processing frame: {}x{}, {} bytes",
               msg.width,
               msg.height,
               data.size());
@@ -143,8 +145,8 @@ class AndroidNetworkClient {
             bool attached = false;
 
             // Get JNI environment safely
-            jint getEnvResult =
-                g_vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_6);
+            jint getEnvResult = g_vm->GetEnv(
+                reinterpret_cast<void**>(&env), JNI_VERSION_1_6);
             if (getEnvResult == JNI_EDETACHED) {
               if (g_vm->AttachCurrentThread(&env, nullptr) == JNI_OK) {
                 attached = true;
@@ -202,7 +204,8 @@ class AndroidNetworkClient {
                     arr,
                     static_cast<jsize>(offset),
                     static_cast<jsize>(currentChunkSize),
-                    reinterpret_cast<const jbyte*>(argbData.data() + offset));
+                    reinterpret_cast<const jbyte*>(
+                        argbData.data() + offset));
 
                 if (env->ExceptionCheck()) {
                   LOGE(
@@ -231,7 +234,7 @@ class AndroidNetworkClient {
                 env->ExceptionClear();
               } else {
                 LOGI(
-                    "Frame sent to Java layer: %dx%d, %zu ARGB bytes",
+                    "Frame sent to Java layer: {}x{}, {} ARGB bytes",
                     msg.width,
                     msg.height,
                     argbData.size());

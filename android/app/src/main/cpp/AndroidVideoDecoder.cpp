@@ -126,22 +126,37 @@ bool AndroidVideoDecoder::DecodeFrame(
     return false;
   }
 
-  // Get output buffer
+  // Get output buffer - retry loop to handle format changes
   AMediaCodecBufferInfo bufferInfo;
-  ssize_t outputBufferIndex = AMediaCodec_dequeueOutputBuffer(
-      m_codec, &bufferInfo, 10000); // 10ms timeout
+  ssize_t outputBufferIndex;
+  
+  // Retry up to 3 times to handle format changes and INFO events
+  for (int retry = 0; retry < 3; retry++) {
+    outputBufferIndex = AMediaCodec_dequeueOutputBuffer(
+        m_codec, &bufferInfo, 10000); // 10ms timeout
 
-  if (outputBufferIndex == AMEDIACODEC_INFO_OUTPUT_FORMAT_CHANGED) {
-    LOGD("Output format changed");
-    AMediaFormat* newFormat = AMediaCodec_getOutputFormat(m_codec);
-    if (newFormat) {
-      int32_t width, height;
-      AMediaFormat_getInt32(newFormat, AMEDIAFORMAT_KEY_WIDTH, &width);
-      AMediaFormat_getInt32(newFormat, AMEDIAFORMAT_KEY_HEIGHT, &height);
-      LOGD("New output format: %dx%d", width, height);
-      AMediaFormat_delete(newFormat);
+    if (outputBufferIndex == AMEDIACODEC_INFO_OUTPUT_FORMAT_CHANGED) {
+      LOGD("Output format changed (retry %d/3)", retry + 1);
+      AMediaFormat* newFormat = AMediaCodec_getOutputFormat(m_codec);
+      if (newFormat) {
+        int32_t width, height;
+        AMediaFormat_getInt32(newFormat, AMEDIAFORMAT_KEY_WIDTH, &width);
+        AMediaFormat_getInt32(newFormat, AMEDIAFORMAT_KEY_HEIGHT, &height);
+        LOGD("New output format: %dx%d", width, height);
+        AMediaFormat_delete(newFormat);
+      }
+      // Continue loop to get the actual frame data
+      continue;
     }
-    return false; // Try again next time
+    
+    if (outputBufferIndex == AMEDIACODEC_INFO_OUTPUT_BUFFERS_CHANGED) {
+      LOGD("Output buffers changed (retry %d/3)", retry + 1);
+      // Continue loop to get the actual frame data
+      continue;
+    }
+    
+    // If we got a valid buffer index or an error, break out of retry loop
+    break;
   }
 
   if (outputBufferIndex < 0) {
