@@ -25,6 +25,19 @@ using INT32 = int32_t;
 #define LOG_TAG "MRDesk.Server"
 #include "Logging.h"
 
+// FFmpeg includes for frame scaling 
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 4244)
+#endif
+extern "C" {
+#include <libswscale/swscale.h>
+#include <libavutil/imgutils.h>
+}
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
+
 #ifdef _WIN32
 // Convert DXGI format to our PixelFormat enum
 PixelFormat DXGIFormatToPixelFormat(DXGI_FORMAT dxgiFormat) {
@@ -91,6 +104,66 @@ void ConvertPixelFormat(
     }
     pixelData = std::move(converted);
   }
+}
+
+// Frame scaling utility for Android compatibility 
+void ScaleFrameForAndroid(
+    std::vector<BYTE>& pixelData,
+    uint32_t& width,
+    uint32_t& height,
+    uint32_t& dataSize,
+    uint32_t targetWidth = 640,
+    uint32_t targetHeight = 480) {
+  
+  // Skip scaling if already at target resolution
+  if (width == targetWidth && height == targetHeight) {
+    return;
+  }
+  
+  std::cout << "Scaling frame from " << width << "x" << height 
+            << " to " << targetWidth << "x" << targetHeight << std::endl;
+  
+  // Setup source and destination parameters
+  const uint8_t* srcData[4] = {pixelData.data(), nullptr, nullptr, nullptr};
+  int srcLinesize[4] = {static_cast<int>(width * 4), 0, 0, 0};
+  
+  // Create scaled buffer
+  uint32_t scaledDataSize = targetWidth * targetHeight * 4;
+  std::vector<BYTE> scaledData(scaledDataSize);
+  uint8_t* dstData[4] = {scaledData.data(), nullptr, nullptr, nullptr};
+  int dstLinesize[4] = {static_cast<int>(targetWidth * 4), 0, 0, 0};
+  
+  // Create scaling context
+  SwsContext* scalingContext = sws_getContext(
+      width, height, AV_PIX_FMT_BGRA,
+      targetWidth, targetHeight, AV_PIX_FMT_BGRA,
+      SWS_BILINEAR, nullptr, nullptr, nullptr);
+      
+  if (!scalingContext) {
+    std::cerr << "Failed to create scaling context, keeping original size" << std::endl;
+    return;
+  }
+  
+  // Perform the scaling
+  int result = sws_scale(
+      scalingContext,
+      srcData, srcLinesize, 0, height,
+      dstData, dstLinesize);
+      
+  if (result < 0) {
+    std::cerr << "Frame scaling failed, keeping original size" << std::endl;
+    sws_freeContext(scalingContext);
+    return;
+  }
+  
+  // Replace original data with scaled data
+  pixelData = std::move(scaledData);
+  width = targetWidth;
+  height = targetHeight;
+  dataSize = scaledDataSize;
+  
+  sws_freeContext(scalingContext);
+  std::cout << "Frame successfully scaled to " << width << "x" << height << std::endl;
 }
 
 #ifdef _WIN32
@@ -719,6 +792,11 @@ class MRDesktopServer {
                     << ", Height: " << frameHeight
                     << ", DataSize: " << frameDataSize << std::endl;
           continue;
+        }
+
+        // Scale frame to 640x480 for Android compatibility
+        if (!m_testMode) { // Test mode already generates 640x480
+          ScaleFrameForAndroid(pixelData, frameWidth, frameHeight, frameDataSize);
         }
 
         // Check if compression is requested (dynamically check each frame)
