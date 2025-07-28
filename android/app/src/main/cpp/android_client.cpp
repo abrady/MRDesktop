@@ -8,17 +8,18 @@
 #include "AndroidVideoDecoderWrapper.h"
 #include "CrashSafeFrameHandler.h"
 #include "FrameRenderer.h"
+#define LOG_TAG "MRDesk.Client"
+#include "Logging.h"
 #include "NetworkReceiver.h"
 #include "protocol.h"
-#include "Logging.h"
 
 static JavaVM* g_vm = nullptr;
 static jclass g_clientClass = nullptr;
 static jmethodID g_onFrameMethod = nullptr;
 
-#define LOG_TAG "MRDesk.Client"
-#define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
-#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
+// #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
+// #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG,
+// __VA_ARGS__)
 
 class AndroidNetworkClient {
  private:
@@ -28,9 +29,10 @@ class AndroidNetworkClient {
   std::mutex frameMutex; // Prevent race conditions in frame processing
   int frameCount = 0; // For debugging purposes
   std::thread pollingThread; // Background thread for polling frames
-  
+
   // FPS tracking
-  std::chrono::steady_clock::time_point lastFPSLog = std::chrono::steady_clock::now();
+  std::chrono::steady_clock::time_point lastFPSLog =
+      std::chrono::steady_clock::now();
   int framesSinceLastLog = 0;
   const std::chrono::seconds FPS_LOG_INTERVAL{10}; // Log every 10 seconds
   std::shared_ptr<spdlog::logger> logger;
@@ -39,7 +41,7 @@ class AndroidNetworkClient {
   AndroidNetworkClient() {
     // Initialize logger
     logger = MRDesk::GetLogger("MRDesk.AndroidClient");
-    
+
     // Create NetworkReceiver with Android hardware decoder
     auto androidDecoder = std::make_unique<AndroidVideoDecoderWrapper>();
     receiver = std::make_unique<NetworkReceiver>(std::move(androidDecoder));
@@ -48,7 +50,6 @@ class AndroidNetworkClient {
   bool Connect(const std::string& serverIP, int port) {
     LOGI("Attempting to connect to %s:%d", serverIP.c_str(), port);
 
-    // Set compression before connecting (like console client)
     CompressionType compression = COMPRESSION_H265;
     receiver->SetCompression(compression);
     LOGI("Set compression type: %d", compression);
@@ -61,17 +62,23 @@ class AndroidNetworkClient {
               msg.width,
               msg.height,
               data.size());
-              
+
           // Track FPS
           framesSinceLastLog++;
           auto now = std::chrono::steady_clock::now();
-          auto timeSinceLastLog = std::chrono::duration_cast<std::chrono::seconds>(now - lastFPSLog);
-          
+          auto timeSinceLastLog =
+              std::chrono::duration_cast<std::chrono::seconds>(
+                  now - lastFPSLog);
+
           if (timeSinceLastLog >= FPS_LOG_INTERVAL) {
-            double fps = static_cast<double>(framesSinceLastLog) / timeSinceLastLog.count();
-            logger->info("Android Client FPS: {:.2f} ({} frames in {} seconds)", 
-                        fps, framesSinceLastLog, timeSinceLastLog.count());
-            
+            double fps = static_cast<double>(framesSinceLastLog) /
+                timeSinceLastLog.count();
+            logger->info(
+                "Android Client FPS: {:.2f} ({} frames in {} seconds)",
+                fps,
+                framesSinceLastLog,
+                timeSinceLastLog.count());
+
             // Reset counters
             framesSinceLastLog = 0;
             lastFPSLog = now;

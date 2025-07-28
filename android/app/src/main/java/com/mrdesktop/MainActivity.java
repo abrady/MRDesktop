@@ -36,7 +36,7 @@ public class MainActivity extends AppCompatActivity {
         btnTest = findViewById(R.id.btnTest);
 
         // Set default values
-        editIP.setText("10.0.2.2");
+        editIP.setText("192.168.1.170");
         editPort.setText("8080");
 
         // Set up frame callback before any connection attempts
