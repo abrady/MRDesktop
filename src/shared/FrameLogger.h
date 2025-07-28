@@ -4,6 +4,7 @@
 #include <fstream>
 #include <string>
 #include <vector>
+#include "FrameUtils.h"
 
 struct LoggedFrame {
   uint32_t frameIndex;
@@ -54,9 +55,4 @@ class FrameLogger {
   void EnsureOutputDirectory();
   std::string GenerateFrameFilename(
       uint32_t frameIndex, uint32_t width, uint32_t height);
-  bool SaveFrameAsBMP(
-      uint32_t width,
-      uint32_t height,
-      const std::vector<uint8_t>& frameData,
-      const std::string& filename);
 };

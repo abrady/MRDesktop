@@ -1,7 +1,6 @@
 #include <iostream>
 #ifdef _WIN32
 #include <conio.h>
-#include <windows.h>
 #else
 #include <fcntl.h>
 #include <sys/ioctl.h>
@@ -17,32 +16,10 @@
 #include "FFmpegVideoDecoder.h"
 #include "FrameLogger.h"
 #define LOG_TAG "MRDesk.Console"
+#include "FrameUtils.h"
 #include "Logging.h"
 #include "NetworkReceiver.h"
 #include "protocol.h"
-
-#pragma pack(push, 1)
-struct BMPFileHeader {
-  uint16_t bfType{0};
-  uint32_t bfSize{0};
-  uint16_t bfReserved1{0};
-  uint16_t bfReserved2{0};
-  uint32_t bfOffBits{0};
-};
-struct BMPInfoHeader {
-  uint32_t biSize{0};
-  int32_t biWidth{0};
-  int32_t biHeight{0};
-  uint16_t biPlanes{1};
-  uint16_t biBitCount{0};
-  uint32_t biCompression{0};
-  uint32_t biSizeImage{0};
-  int32_t biXPelsPerMeter{0};
-  int32_t biYPelsPerMeter{0};
-  uint32_t biClrUsed{0};
-  uint32_t biClrImportant{0};
-};
-#pragma pack(pop)
 
 #ifndef _WIN32
 static int _kbhit() {
@@ -62,58 +39,6 @@ static int _getch() {
   return ch;
 }
 #endif
-
-void SaveFrameAsBMP(
-    const FrameMessage& frameMsg,
-    const std::vector<uint8_t>& frameData,
-    const std::string& filename) {
-  BMPFileHeader fileHeader{};
-  BMPInfoHeader infoHeader{};
-
-  fileHeader.bfType = 0x4D42; // "BM"
-  fileHeader.bfSize =
-      sizeof(BMPFileHeader) + sizeof(BMPInfoHeader) + frameData.size();
-  fileHeader.bfOffBits = sizeof(BMPFileHeader) + sizeof(BMPInfoHeader);
-
-  infoHeader.biSize = sizeof(BMPInfoHeader);
-  infoHeader.biWidth = static_cast<int32_t>(frameMsg.width);
-  infoHeader.biHeight = -static_cast<int32_t>(frameMsg.height); // top-down
-  infoHeader.biPlanes = 1;
-  infoHeader.biBitCount = 32;
-  infoHeader.biCompression = 0; // BI_RGB
-  infoHeader.biSizeImage = static_cast<uint32_t>(frameData.size());
-
-#ifdef _WIN32
-  HANDLE hFile = CreateFileA(
-      filename.c_str(),
-      GENERIC_WRITE,
-      0,
-      nullptr,
-      CREATE_ALWAYS,
-      FILE_ATTRIBUTE_NORMAL,
-      nullptr);
-  if (hFile != INVALID_HANDLE_VALUE) {
-    DWORD written;
-    WriteFile(hFile, &fileHeader, sizeof(fileHeader), &written, nullptr);
-    WriteFile(hFile, &infoHeader, sizeof(infoHeader), &written, nullptr);
-    WriteFile(hFile, frameData.data(), frameData.size(), &written, nullptr);
-    CloseHandle(hFile);
-    std::cout << "Saved frame as " << filename << std::endl;
-  }
-#else
-  std::ofstream out(filename, std::ios::binary);
-  if (out.is_open()) {
-    out.write(reinterpret_cast<const char*>(&fileHeader), sizeof(fileHeader));
-    out.write(reinterpret_cast<const char*>(&infoHeader), sizeof(infoHeader));
-    out.write(
-        reinterpret_cast<const char*>(frameData.data()), frameData.size());
-    out.close();
-    std::cout << "Saved frame as " << filename << std::endl;
-  } else {
-    std::cerr << "Failed to open " << filename << " for writing" << std::endl;
-  }
-#endif
-}
 
 void PrintUsage() {
   std::cout << "MRDesktop Console Client - Remote Desktop Controller"
@@ -337,7 +262,8 @@ int main(int argc, char* argv[]) {
 
     // Save first frame as BMP for verification (legacy behavior)
     if (!savedFirstFrame) {
-      SaveFrameAsBMP(frameMsg, frameData, "first_frame.bmp");
+      SaveFrameAsBMP(
+          frameMsg.width, frameMsg.height, frameData, "first_frame.bmp");
       savedFirstFrame = true;
       std::cout << "First frame saved as first_frame.bmp" << std::endl;
     }
