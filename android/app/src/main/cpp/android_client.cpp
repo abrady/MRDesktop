@@ -5,11 +5,11 @@
 #include <string>
 #include <thread>
 #include <android/log.h>
-#include "NetworkReceiver.h"
-#include "protocol.h"
+#include "AndroidVideoDecoderWrapper.h"
 #include "CrashSafeFrameHandler.h"
 #include "FrameRenderer.h"
-#include "AndroidVideoDecoderWrapper.h"
+#include "NetworkReceiver.h"
+#include "protocol.h"
 
 static JavaVM* g_vm = nullptr;
 static jclass g_clientClass = nullptr;
@@ -53,7 +53,7 @@ class AndroidNetworkClient {
               data.size());
 
           // Use mutex to prevent race conditions
-          std::lock_guard<std::mutex> lock(frameMutex);
+          // std::lock_guard<std::mutex> lock(frameMutex);
 
           // Log frame info and check crash safety
           CrashSafeFrameHandler::LogFrameInfo(
@@ -242,7 +242,7 @@ class AndroidNetworkClient {
     if (connected) {
       LOGI("Successfully connected to server");
       running = true;
-      
+
       // Start polling thread to ensure frames are processed
       pollingThread = std::thread([this]() {
         LOGI("Frame polling thread started");
@@ -265,7 +265,7 @@ class AndroidNetworkClient {
     LOGI("Disconnecting from server");
     running = false;
     receiver->Disconnect();
-    
+
     // Wait for polling thread to finish
     if (pollingThread.joinable()) {
       LOGI("Waiting for polling thread to finish");

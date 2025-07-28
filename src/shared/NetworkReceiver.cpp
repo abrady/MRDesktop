@@ -66,12 +66,9 @@ class NetworkReceiver::Impl {
       onRawFrameReceived(MSG_FRAME_DATA);
 
     // Store frame for polling
-    {
-      std::lock_guard<std::mutex> lock(frameMutex);
-      currentFrame = frameMsg;
-      currentFrameData = frameData;
-      frameReady = true;
-    }
+    currentFrame = frameMsg;
+    currentFrameData = frameData;
+    frameReady = true;
 
     // Call callback immediately if set
     if (onFrameReceived) {
@@ -106,12 +103,9 @@ class NetworkReceiver::Impl {
       decodedFrame.dataSize = decodedData.size();
 
       // Store frame for polling
-      {
-        std::lock_guard<std::mutex> lock(frameMutex);
-        currentFrame = decodedFrame;
-        currentFrameData = decodedData;
-        frameReady = true;
-      }
+      currentFrame = decodedFrame;
+      currentFrameData = decodedData;
+      frameReady = true;
 
       // Call callback immediately if set
       if (onFrameReceived) {
@@ -162,7 +156,10 @@ void NetworkReceiver::Disconnect() {
 }
 
 bool NetworkReceiver::PollFrame() {
-  std::lock_guard<std::mutex> lock(pImpl->frameMutex);
+  // Poll the connection for any incoming data/events
+  pImpl->connection.Poll();
+
+  // Check if a frame is ready
   if (pImpl->frameReady) {
     pImpl->frameReady = false;
     return true;

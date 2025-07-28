@@ -32,7 +32,6 @@ class AsioConnection {
  private:
   asio::io_context m_ioContext;
   std::unique_ptr<tcp::socket> m_socket;
-  std::thread m_ioThread;
   std::atomic<bool> m_running{false};
 
   // Callbacks
@@ -86,6 +85,7 @@ class AsioConnection {
 
   // Connection management
   void Disconnect();
+  void Poll(); // Process pending async operations
   bool IsConnected() const {
     return m_running && m_socket && m_socket->is_open();
   }
@@ -126,7 +126,6 @@ class AsioServer {
  private:
   asio::io_context m_ioContext;
   std::unique_ptr<tcp::acceptor> m_acceptor;
-  std::thread m_ioThread;
   std::atomic<bool> m_running{false};
   ClientConnectedCallback m_onClientConnected;
 
@@ -136,6 +135,7 @@ class AsioServer {
 
   bool Start(int port);
   void Stop();
+  void Poll(); // Process pending async operations
 
   void SetClientConnectedCallback(ClientConnectedCallback callback) {
     m_onClientConnected = callback;
@@ -146,5 +146,4 @@ class AsioServer {
   void HandleAccept(
       std::shared_ptr<AsioConnection> newConnection,
       const asio::error_code& error);
-  void RunIoContext();
 };

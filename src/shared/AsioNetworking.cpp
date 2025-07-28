@@ -18,8 +18,6 @@ bool AsioConnection::Connect(const std::string& host, int port) {
     asio::connect(*m_socket, endpoints);
 
     m_running = true;
-    m_ioThread = std::thread([this] { RunIoContext(); });
-
     StartReceive();
     return true;
   } catch (const std::exception& e) {
@@ -31,12 +29,10 @@ bool AsioConnection::Connect(const std::string& host, int port) {
 bool AsioConnection::Listen(int port) {
   // This is for single-connection listening (simplified)
   try {
-    tcp::acceptor acceptor(m_ioContext, tcp::endpoint(tcp::v4(), port));
+    tcp::acceptor acceptor(m_ioContext, tcp::endpoint(tcp::v4(), static_cast<asio::ip::port_type>(port)));
     acceptor.accept(*m_socket);
 
     m_running = true;
-    m_ioThread = std::thread([this] { RunIoContext(); });
-
     StartReceive();
     return true;
   } catch (const std::exception& e) {
@@ -58,6 +54,12 @@ void AsioConnection::Disconnect() {
 
   if (m_onDisconnect) {
     m_onDisconnect();
+  }
+}
+
+void AsioConnection::Poll() {
+  if (m_running) {
+    m_ioContext.poll();
   }
 }
 
@@ -171,6 +173,7 @@ void AsioConnection::StartReceive() {
 
 void AsioConnection::HandleReceive(
     const asio::error_code& error, size_t bytesTransferred) {
+  (void)bytesTransferred;
   if (error) {
     if (error == asio::error::eof) {
       NotifyError("Connection closed by peer");
@@ -191,6 +194,7 @@ void AsioConnection::HandleReceive(
             *m_socket,
             asio::buffer(m_receiveBuffer),
             [this](const asio::error_code& error, size_t bytesTransferred) {
+              (void)bytesTransferred;
               if (error) {
                 NotifyError("Failed to read FrameMessage: " + error.message());
                 return;
@@ -220,6 +224,7 @@ void AsioConnection::HandleReceive(
             *m_socket,
             asio::buffer(m_receiveBuffer),
             [this](const asio::error_code& error, size_t bytesTransferred) {
+              (void)bytesTransferred;
               if (error) {
                 NotifyError(
                     "Failed to read CompressedFrameMessage: " +
@@ -256,6 +261,7 @@ void AsioConnection::HandleReceive(
               *m_socket,
               asio::buffer(m_receiveBuffer),
               [this](const asio::error_code& error, size_t bytesTransferred) {
+                (void)bytesTransferred;
                 if (!error) {
                   ProcessMessage();
                   m_readingHeader = true;
@@ -355,8 +361,6 @@ bool AsioServer::Start(int port) {
     m_acceptor->listen();
 
     m_running = true;
-    m_ioThread = std::thread([this] { RunIoContext(); });
-
     StartAccept();
     return true;
   } catch (const std::exception& e) {
@@ -374,7 +378,12 @@ void AsioServer::Stop() {
   }
 
   m_ioContext.stop();
+}
 
+void AsioServer::Poll() {
+  if (m_running) {
+    m_ioContext.poll();
+  }
 }
 
 void AsioServer::StartAccept() {
@@ -392,12 +401,6 @@ void AsioServer::HandleAccept(
     const asio::error_code& error) {
   if (!error && m_running) {
     newConnection->m_running = true;
-
-    // Start the connection's IO thread to handle message processing
-    newConnection->m_ioThread = std::thread([newConnection]() {
-      newConnection->RunIoContext();
-    });
-
     newConnection->StartReceive();
 
     if (m_onClientConnected) {
@@ -408,10 +411,3 @@ void AsioServer::HandleAccept(
   }
 }
 
-void AsioServer::RunIoContext() {
-  try {
-    m_ioContext.run();
-  } catch (const std::exception& e) {
-    std::cerr << "Server IO context error: " << e.what() << std::endl;
-  }
-}

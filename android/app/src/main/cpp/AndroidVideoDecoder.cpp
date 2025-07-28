@@ -31,8 +31,6 @@ const char* AndroidVideoDecoder::GetMimeType(CompressionType type) {
 
 bool AndroidVideoDecoder::Initialize(
     uint32_t width, uint32_t height, CompressionType compression) {
-  std::lock_guard<std::mutex> lock(m_decoderMutex);
-
   LOGD(
       "Initializing decoder: %dx%d, compression=%d",
       width,
@@ -91,8 +89,6 @@ bool AndroidVideoDecoder::DecodeFrame(
     const uint8_t* compressedData,
     size_t dataSize,
     std::vector<uint8_t>& rgbaData) {
-  std::lock_guard<std::mutex> lock(m_decoderMutex);
-
   if (!m_isInitialized || !m_codec || m_isShuttingDown) {
     LOGE("Decoder not initialized or shutting down");
     return false;
@@ -256,8 +252,6 @@ bool AndroidVideoDecoder::DecodeFrame(
 }
 
 void AndroidVideoDecoder::Cleanup() {
-  std::lock_guard<std::mutex> lock(m_decoderMutex);
-
   m_isShuttingDown = true;
 
   if (m_codec) {
