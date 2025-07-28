@@ -324,7 +324,7 @@ int main(int argc, char* argv[]) {
     // Log frame for debugging if enabled
     if (frameLogger && frameLogger->IsLogging()) {
       frameLogger->LogFrame(
-          frameMsg.width, frameMsg.height, frameMsg.dataSize, frameData.data());
+          frameMsg.width, frameMsg.height, frameData.size(), frameData.data());
 
       // Print stats when logging is complete
       if (!frameLogger->IsLogging()) {

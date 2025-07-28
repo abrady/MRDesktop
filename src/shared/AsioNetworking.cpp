@@ -13,6 +13,13 @@ AsioConnection::~AsioConnection() {
 }
 
 bool AsioConnection::Connect(const std::string& host, int port) {
+  // Single-use connection: prevent reuse after disconnect
+  if (m_running) {
+    NotifyError(
+        "Connection object cannot be reused. Create a new AsioConnection.");
+    return false;
+  }
+
   try {
     tcp::resolver resolver(m_ioContext);
     auto endpoints = resolver.resolve(host, std::to_string(port));
@@ -28,6 +35,13 @@ bool AsioConnection::Connect(const std::string& host, int port) {
 }
 
 bool AsioConnection::Listen(int port) {
+  // Single-use connection: prevent reuse after disconnect
+  if (m_socket && !m_socket->is_open()) {
+    NotifyError(
+        "Connection object cannot be reused. Create a new AsioConnection.");
+    return false;
+  }
+
   // This is for single-connection listening (simplified)
   try {
     tcp::acceptor acceptor(
@@ -44,17 +58,28 @@ bool AsioConnection::Listen(int port) {
 }
 
 void AsioConnection::Disconnect() {
+  // Early return if already disconnected
+  if (!m_running) {
+    return;
+  }
+
+  // Mark as disconnected first to prevent re-entry
   m_running = false;
 
+  // Close socket safely
   if (m_socket && m_socket->is_open()) {
     asio::error_code ec;
     m_socket->close(ec);
+    // Note: We ignore errors here since we're already disconnecting
   }
 
   m_ioContext.stop();
 
+  // Call disconnect callback exactly once
   if (m_onDisconnect) {
-    m_onDisconnect();
+    auto callback = std::move(m_onDisconnect); // Move out to prevent re-entry
+    m_onDisconnect = nullptr; // Clear to prevent double-call
+    callback(); // Call the moved callback
   }
 }
 
