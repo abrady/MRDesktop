@@ -19,6 +19,7 @@ set(CLIENT_SOURCES
     # Shared library files
     ../../shared/AsioNetworking.cpp
     ../../shared/FFmpegVideoDecoder.cpp
+    ../../shared/Logging.cpp
 )
 
 # Header files  
@@ -54,6 +55,7 @@ if(WIN32)
     target_link_libraries(MRDesktopWindowsClient PRIVATE
         # Asio
         asio::asio
+        spdlog::spdlog
         # FFmpeg libraries
         ${FFMPEG_LIBRARIES}
         # Graphics  

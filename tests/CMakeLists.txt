@@ -25,14 +25,16 @@ add_executable(basic_tests
     test_ffmpeg_video_decoder.cpp
     ../src/shared/VideoEncoder.cpp
     ../src/shared/FFmpegVideoDecoder.cpp
+    ../src/shared/Logging.cpp
 )
 
 target_include_directories(basic_tests PRIVATE ${FFMPEG_INCLUDE_DIRS})
 
-target_link_libraries(basic_tests 
-    GTest::gtest 
+target_link_libraries(basic_tests
+    GTest::gtest
     GTest::gtest_main
     ${FFMPEG_LIBRARIES}
+    spdlog::spdlog
 )
 
 # Add platform-specific libraries for basic tests
@@ -47,15 +49,17 @@ add_executable(integration_tests
     ../src/shared/AsioNetworking.cpp
     ../src/shared/NetworkReceiver.cpp
     ../src/shared/FFmpegVideoDecoder.cpp
+    ../src/shared/Logging.cpp
 )
 
 target_include_directories(integration_tests PRIVATE ${FFMPEG_INCLUDE_DIRS})
 
-target_link_libraries(integration_tests 
-    GTest::gtest 
+target_link_libraries(integration_tests
+    GTest::gtest
     GTest::gtest_main
     asio::asio
     ${FFMPEG_LIBRARIES}
+    spdlog::spdlog
 )
 
 # Add platform-specific libraries for integration tests

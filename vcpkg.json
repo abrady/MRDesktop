@@ -23,6 +23,7 @@
     {
       "name": "gtest",
       "default-features": false
-    }
+    },
+    "spdlog"
   ]
 }
