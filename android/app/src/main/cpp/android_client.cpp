@@ -309,8 +309,13 @@ class AndroidNetworkClient {
     }
   }
 
-  bool SendMouseMove(int32_t deltaX, int32_t deltaY) {
-    return receiver->SendMouseMove(deltaX, deltaY);
+  bool SendMouseMove(
+      int32_t deltaX,
+      int32_t deltaY,
+      bool absolute = false,
+      int32_t x = 0,
+      int32_t y = 0) {
+    return receiver->SendMouseMove(deltaX, deltaY, absolute, x, y);
   }
 
   bool SendMouseClick(int button, bool pressed) {
@@ -375,6 +380,15 @@ Java_com_mrdesktop_MRDesktopClient_nativeSendMouseMove(
     return JNI_FALSE;
   }
   return g_client->SendMouseMove(deltaX, deltaY) ? JNI_TRUE : JNI_FALSE;
+}
+
+JNIEXPORT jboolean JNICALL
+Java_com_mrdesktop_MRDesktopClient_nativeSendMouseMoveAbsolute(
+    JNIEnv* env, jobject thiz, jint x, jint y) {
+  if (!g_client) {
+    return JNI_FALSE;
+  }
+  return g_client->SendMouseMove(0, 0, true, x, y) ? JNI_TRUE : JNI_FALSE;
 }
 
 JNIEXPORT jboolean JNICALL
