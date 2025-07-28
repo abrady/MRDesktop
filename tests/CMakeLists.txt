@@ -27,6 +27,7 @@ add_executable(basic_tests
     ../src/shared/VideoEncoder.cpp
     ../src/shared/FFmpegVideoDecoder.cpp
     ../src/shared/FrameLogger.cpp
+    ../src/shared/FrameUtils.cpp
     ../src/shared/Logging.cpp
 )
 

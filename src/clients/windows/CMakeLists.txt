@@ -19,6 +19,8 @@ set(CLIENT_SOURCES
     # Shared library files
     ../../shared/AsioNetworking.cpp
     ../../shared/FFmpegVideoDecoder.cpp
+    ../../shared/FrameUtils.cpp
+    ../../shared/FrameLogger.cpp
     ../../shared/Logging.cpp
 )
 
@@ -31,6 +33,7 @@ set(CLIENT_HEADERS
     # Shared library headers
     ../../shared/AsioNetworking.h
     ../../shared/FrameUtils.h
+    ../../shared/FrameLogger.h
     ../../shared/protocol.h
 )
 
