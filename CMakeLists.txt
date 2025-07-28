@@ -52,6 +52,7 @@ if(PLATFORM_DESKTOP)
     add_executable(MRDesktopConsoleClient
         src/clients/console/main.cpp
         src/shared/FrameLogger.cpp
+        src/shared/FrameUtils.cpp
         src/shared/AsioNetworking.cpp
         src/shared/NetworkReceiver.cpp
         src/shared/FFmpegVideoDecoder.cpp
