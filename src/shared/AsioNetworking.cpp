@@ -1,5 +1,7 @@
 #include "AsioNetworking.h"
 #include <iostream>
+#define LOG_TAG "MRDesk.AsioNetworking"
+#include "Logging.h"
 
 // AsioConnection Implementation
 AsioConnection::AsioConnection() {
@@ -18,7 +20,6 @@ bool AsioConnection::Connect(const std::string& host, int port) {
     asio::connect(*m_socket, endpoints);
 
     m_running = true;
-    StartReceive();
     return true;
   } catch (const std::exception& e) {
     NotifyError("Connect failed: " + std::string(e.what()));
@@ -29,11 +30,12 @@ bool AsioConnection::Connect(const std::string& host, int port) {
 bool AsioConnection::Listen(int port) {
   // This is for single-connection listening (simplified)
   try {
-    tcp::acceptor acceptor(m_ioContext, tcp::endpoint(tcp::v4(), static_cast<asio::ip::port_type>(port)));
+    tcp::acceptor acceptor(
+        m_ioContext,
+        tcp::endpoint(tcp::v4(), static_cast<asio::ip::port_type>(port)));
     acceptor.accept(*m_socket);
 
     m_running = true;
-    StartReceive();
     return true;
   } catch (const std::exception& e) {
     NotifyError("Listen failed: " + std::string(e.what()));
@@ -51,7 +53,6 @@ void AsioConnection::Disconnect() {
 
   m_ioContext.stop();
 
-
   if (m_onDisconnect) {
     m_onDisconnect();
   }
@@ -59,7 +60,14 @@ void AsioConnection::Disconnect() {
 
 void AsioConnection::Poll() {
   if (m_running) {
+    // First process any completed operations
     m_ioContext.poll();
+
+    // Then try to read any available data
+    ReadAvailableData();
+
+    // Process any complete messages we now have
+    ProcessAccumulatedData();
   }
 }
 
@@ -121,9 +129,11 @@ bool AsioConnection::SendCompressionRequest(CompressionType compression) {
   msg.header.size = sizeof(CompressionRequestMessage);
   msg.compression = compression;
 
-  std::cout << "AsioConnection::SendCompressionRequest: sending type="
-            << msg.header.type << " size=" << msg.header.size
-            << " compression=" << compression << std::endl;
+  LOGD(
+      "SendCompressionRequest: sending type={} size={} compression={}",
+      static_cast<uint32_t>(msg.header.type),
+      msg.header.size,
+      static_cast<uint32_t>(compression));
 
   return SendMessage(msg);
 }
@@ -147,181 +157,194 @@ bool AsioConnection::SendData(const void* data, size_t size) {
   }
 }
 
-void AsioConnection::StartReceive() {
+void AsioConnection::ReadAvailableData() {
   if (!IsConnected()) {
     return;
   }
 
-  if (m_readingHeader) {
-    // Read message header first
-    asio::async_read(
-        *m_socket,
-        asio::buffer(&m_currentHeader, sizeof(MessageHeader)),
-        [this](const asio::error_code& error, size_t bytesTransferred) {
-          HandleReceive(error, bytesTransferred);
-        });
-  } else {
-    // Read message data
-    asio::async_read(
-        *m_socket,
-        asio::buffer(m_receiveBuffer),
-        [this](const asio::error_code& error, size_t bytesTransferred) {
-          HandleReceive(error, bytesTransferred);
-        });
+  try {
+    // Check how many bytes are available
+    size_t available = m_socket->available();
+    if (available == 0) {
+      return;
+    }
+
+    // Read up to available bytes into a temp buffer
+    std::vector<uint8_t> tempBuffer(available);
+    size_t bytesRead = m_socket->read_some(asio::buffer(tempBuffer));
+
+    // Append to our accumulating buffer
+    m_accumBuffer.insert(
+        m_accumBuffer.end(),
+        tempBuffer.begin(),
+        tempBuffer.begin() + bytesRead);
+
+  } catch (const std::exception& e) {
+    if (e.what() !=
+        std::string("read_some: Resource temporarily unavailable")) {
+      NotifyError("Read error: " + std::string(e.what()));
+    }
   }
 }
 
-void AsioConnection::HandleReceive(
-    const asio::error_code& error, size_t bytesTransferred) {
-  (void)bytesTransferred;
-  if (error) {
-    if (error == asio::error::eof) {
-      NotifyError("Connection closed by peer");
-    } else {
-      NotifyError("Receive error: " + error.message());
+void AsioConnection::ProcessAccumulatedData() {
+  while (m_accumBuffer.size() >= m_bytesNeeded) {
+    MessageHeader header;
+    switch (m_readingState) {
+      case READING_HEADER:
+        memcpy(&header, m_accumBuffer.data(), sizeof(MessageHeader));
+
+        // The header.size field contains the total message size
+        m_bytesNeeded = header.size;
+        m_readingState = READING_DATAHEADER;
+        break;
+
+      case READING_DATAHEADER:
+        memcpy(&header, m_accumBuffer.data(), sizeof(MessageHeader));
+
+        switch (header.type) {
+          case MSG_FRAME_DATA:
+            FrameMessage frameMsg;
+            memcpy(&frameMsg, m_accumBuffer.data(), sizeof(FrameMessage));
+            m_bytesNeeded += frameMsg.dataSize;
+            break;
+          case MSG_COMPRESSED_FRAME:
+            CompressedFrameMessage compMsg;
+            memcpy(
+                &compMsg, m_accumBuffer.data(), sizeof(CompressedFrameMessage));
+            m_bytesNeeded += compMsg.compressedSize;
+            break;
+          case MSG_MOUSE_MOVE:
+          case MSG_MOUSE_CLICK:
+          case MSG_MOUSE_SCROLL:
+            // For mouse messages, we just need the header size
+            break;
+          case MSG_COMPRESSION_REQUEST:
+          case MSG_PIXEL_FORMAT_REQUEST:
+            // Compression request only needs the header size
+            break;
+        }
+        m_readingState = READING_DATA;
+        break;
+      case READING_DATA:
+        // We have enough data to process a complete message
+        ProcessCompleteMessage();
+
+        // Remove processed bytes from buffer
+        m_accumBuffer.erase(
+            m_accumBuffer.begin(), m_accumBuffer.begin() + m_bytesNeeded);
+
+        // Reset to read next header
+        m_bytesNeeded = sizeof(MessageHeader);
+        m_readingState = READING_HEADER;
+        break;
     }
+  }
+}
+
+void AsioConnection::ProcessCompleteMessage() {
+  if (m_accumBuffer.size() < m_bytesNeeded) {
+    // This should never happen - indicates a bug in our state machine
+    NotifyError(
+        "INTERNAL ERROR: ProcessCompleteMessage called without enough data");
     Disconnect();
     return;
   }
 
-  if (m_readingHeader) {
-    // Header received, now read the complete message structure
-    switch (m_currentHeader.type) {
-      case MSG_FRAME_DATA: {
-        // Read the remaining FrameMessage fields
-        m_receiveBuffer.resize(sizeof(FrameMessage) - sizeof(MessageHeader));
-        asio::async_read(
-            *m_socket,
-            asio::buffer(m_receiveBuffer),
-            [this](const asio::error_code& error, size_t bytesTransferred) {
-              (void)bytesTransferred;
-              if (error) {
-                NotifyError("Failed to read FrameMessage: " + error.message());
-                return;
-              }
+  MessageHeader header;
+  memcpy(&header, m_accumBuffer.data(), sizeof(MessageHeader));
 
-              // Reconstruct the complete FrameMessage
-              FrameMessage frameMsg;
-              frameMsg.header = m_currentHeader;
-              memcpy(
-                  reinterpret_cast<char*>(&frameMsg) + sizeof(MessageHeader),
-                  m_receiveBuffer.data(),
-                  sizeof(FrameMessage) - sizeof(MessageHeader));
+  LOGD("ProcessCompleteMessage: type={}", static_cast<uint32_t>(header.type));
 
-              // Now read the frame data
-              m_receiveBuffer.resize(frameMsg.dataSize);
-              m_readingHeader = false;
-              m_currentFrameMsg = frameMsg; // Store for later processing
-              StartReceive();
-            });
-        return;
-      }
-      case MSG_COMPRESSED_FRAME: {
-        // Read the remaining CompressedFrameMessage fields
-        m_receiveBuffer.resize(
-            sizeof(CompressedFrameMessage) - sizeof(MessageHeader));
-        asio::async_read(
-            *m_socket,
-            asio::buffer(m_receiveBuffer),
-            [this](const asio::error_code& error, size_t bytesTransferred) {
-              (void)bytesTransferred;
-              if (error) {
-                NotifyError(
-                    "Failed to read CompressedFrameMessage: " +
-                    error.message());
-                return;
-              }
-
-              // Reconstruct the complete CompressedFrameMessage
-              CompressedFrameMessage compMsg;
-              compMsg.header = m_currentHeader;
-              memcpy(
-                  reinterpret_cast<char*>(&compMsg) + sizeof(MessageHeader),
-                  m_receiveBuffer.data(),
-                  sizeof(CompressedFrameMessage) - sizeof(MessageHeader));
-
-              // Now read the compressed data
-              m_receiveBuffer.resize(compMsg.compressedSize);
-              m_readingHeader = false;
-              m_currentCompressedFrameMsg =
-                  compMsg; // Store for later processing
-              StartReceive();
-            });
-        return;
-      }
-      case MSG_MOUSE_MOVE:
-      case MSG_MOUSE_CLICK:
-      case MSG_MOUSE_SCROLL:
-      case MSG_COMPRESSION_REQUEST: {
-        // These messages have fixed size, read remaining data directly
-        size_t remainingSize = m_currentHeader.size - sizeof(MessageHeader);
-        if (remainingSize > 0) {
-          m_receiveBuffer.resize(remainingSize);
-          asio::async_read(
-              *m_socket,
-              asio::buffer(m_receiveBuffer),
-              [this](const asio::error_code& error, size_t bytesTransferred) {
-                (void)bytesTransferred;
-                if (!error) {
-                  ProcessMessage();
-                  m_readingHeader = true;
-                  StartReceive();
-                } else {
-                  NotifyError(
-                      "Failed to read input message: " + error.message());
-                }
-              });
-        } else {
-          ProcessMessage();
-          m_readingHeader = true;
-          StartReceive();
-        }
-        return;
-      }
-    }
-  } else {
-    // Data received, process the complete message
-    ProcessMessage();
-    m_readingHeader = true;
-    StartReceive();
-  }
-}
-
-void AsioConnection::ProcessMessage() {
-  std::cout << "AsioConnection::ProcessMessage: type=" << m_currentHeader.type
-            << std::endl;
-  switch (m_currentHeader.type) {
+  switch (header.type) {
     case MSG_FRAME_DATA: {
-      std::cout << "Processing frame data" << std::endl;
+      FrameMessage frameMsg;
+      memcpy(&frameMsg, m_accumBuffer.data(), sizeof(FrameMessage));
+
+      // Calculate frame data size from total message size
+      size_t frameDataSize = m_bytesNeeded - sizeof(FrameMessage);
+      std::vector<uint8_t> frameData(
+          m_accumBuffer.begin() + sizeof(FrameMessage),
+          m_accumBuffer.begin() + sizeof(FrameMessage) + frameDataSize);
+
+      LOGD("Processing frame data, size={}", frameDataSize);
       if (m_onFrame) {
-        m_onFrame(m_currentFrameMsg, m_receiveBuffer);
+        m_onFrame(frameMsg, frameData);
       }
       break;
     }
     case MSG_COMPRESSED_FRAME: {
-      std::cout << "Processing compressed frame" << std::endl;
+      CompressedFrameMessage compMsg;
+      memcpy(&compMsg, m_accumBuffer.data(), sizeof(CompressedFrameMessage));
+
+      // Calculate compressed data size from total message size
+      size_t compDataSize = m_bytesNeeded - sizeof(CompressedFrameMessage);
+      std::vector<uint8_t> compData(
+          m_accumBuffer.begin() + sizeof(CompressedFrameMessage),
+          m_accumBuffer.begin() + sizeof(CompressedFrameMessage) +
+              compDataSize);
+
+      LOGD("Processing compressed frame, size={}", compDataSize);
       if (m_onCompressedFrame) {
-        m_onCompressedFrame(m_currentCompressedFrameMsg, m_receiveBuffer);
+        m_onCompressedFrame(compMsg, compData);
       }
       break;
     }
-    case MSG_MOUSE_MOVE:
-    case MSG_MOUSE_CLICK:
-    case MSG_MOUSE_SCROLL:
-    case MSG_COMPRESSION_REQUEST: {
-      std::cout << "Processing input message: type=" << m_currentHeader.type
-                << " callback=" << (m_onInput ? "set" : "null") << std::endl;
+    case MSG_MOUSE_MOVE: {
+      std::vector<uint8_t> messageData(
+          m_accumBuffer.begin() + sizeof(MessageHeader),
+          m_accumBuffer.begin() + m_bytesNeeded);
+
+      LOGD("Processing mouse move message");
       if (m_onInput) {
-        m_onInput(m_currentHeader, m_receiveBuffer);
-      } else {
-        std::cout << "No input callback set!" << std::endl;
+        m_onInput(header, messageData);
       }
       break;
     }
-    default:
-      std::cout << "Unknown message type: " << m_currentHeader.type
-                << std::endl;
+    case MSG_MOUSE_CLICK: {
+      std::vector<uint8_t> messageData(
+          m_accumBuffer.begin() + sizeof(MessageHeader),
+          m_accumBuffer.begin() + m_bytesNeeded);
+
+      LOGD("Processing mouse click message");
+      if (m_onInput) {
+        m_onInput(header, messageData);
+      }
       break;
+    }
+    case MSG_MOUSE_SCROLL: {
+      std::vector<uint8_t> messageData(
+          m_accumBuffer.begin() + sizeof(MessageHeader),
+          m_accumBuffer.begin() + m_bytesNeeded);
+
+      LOGD("Processing mouse scroll message");
+      if (m_onInput) {
+        m_onInput(header, messageData);
+      }
+      break;
+    }
+    case MSG_COMPRESSION_REQUEST: {
+      std::vector<uint8_t> messageData(
+          m_accumBuffer.begin() + sizeof(MessageHeader),
+          m_accumBuffer.begin() + m_bytesNeeded);
+
+      LOGD("Processing compression request message");
+      if (m_onInput) {
+        m_onInput(header, messageData);
+      }
+      break;
+    }
+    case MSG_PIXEL_FORMAT_REQUEST: {
+      std::vector<uint8_t> messageData(
+          m_accumBuffer.begin() + sizeof(MessageHeader),
+          m_accumBuffer.begin() + m_bytesNeeded);
+
+      LOGD("Processing pixel format request message");
+      if (m_onInput) {
+        m_onInput(header, messageData);
+      }
+      break;
+    }
   }
 }
 
@@ -357,14 +380,15 @@ bool AsioServer::Start(int port) {
   try {
     m_acceptor->open(tcp::v4());
     m_acceptor->set_option(tcp::acceptor::reuse_address(true));
-    m_acceptor->bind(tcp::endpoint(tcp::v4(), port));
+    m_acceptor->bind(
+        tcp::endpoint(tcp::v4(), static_cast<asio::ip::port_type>(port)));
     m_acceptor->listen();
 
     m_running = true;
     StartAccept();
     return true;
   } catch (const std::exception& e) {
-    std::cerr << "Server start failed: " << e.what() << std::endl;
+    LOGE("Server start failed: {}", e.what());
     return false;
   }
 }
@@ -401,7 +425,6 @@ void AsioServer::HandleAccept(
     const asio::error_code& error) {
   if (!error && m_running) {
     newConnection->m_running = true;
-    newConnection->StartReceive();
 
     if (m_onClientConnected) {
       m_onClientConnected(newConnection);
@@ -410,4 +433,3 @@ void AsioServer::HandleAccept(
     StartAccept(); // Accept next connection
   }
 }
-

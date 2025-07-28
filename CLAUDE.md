@@ -250,6 +250,14 @@ The project uses vcpkg for dependency management with `vcpkg.json`:
 
 ## Code Style and Development Practices
 
+### Logging
+
+- Use the structured logging system defined in `src/shared/Logging.h`
+- Set `LOG_TAG` before including `Logging.h` in each source file
+- Use appropriate log levels: `LOGD()` (debug), `LOGI()` (info), `LOGW()` (warn), `LOGE()` (error)
+- **Never use `std::cout` or `std::cerr`** - always use the logging macros
+- Log messages use fmt-style formatting: `LOGI("Processing {} bytes", size)`
+
 ### Formatting
 
 - Uses **clang-format** with Meta's Snowplow style guidelines (`.clang-format`)

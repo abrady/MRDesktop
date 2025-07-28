@@ -41,12 +41,14 @@ class AsioConnection {
   ErrorCallback m_onError;
   DisconnectCallback m_onDisconnect;
 
-  // Receive state
-  MessageHeader m_currentHeader;
-  FrameMessage m_currentFrameMsg;
-  CompressedFrameMessage m_currentCompressedFrameMsg;
-  std::vector<uint8_t> m_receiveBuffer;
-  bool m_readingHeader = true;
+  // Receive state - accumulating buffer approach
+  std::vector<uint8_t> m_accumBuffer;
+  enum ReadingState {
+    READING_HEADER,
+    READING_DATAHEADER,
+    READING_DATA
+  } m_readingState = READING_HEADER;
+  size_t m_bytesNeeded = sizeof(MessageHeader); // Start by needing a header
 
   // Connection settings
   CompressionType m_compression = COMPRESSION_NONE;
@@ -102,9 +104,9 @@ class AsioConnection {
   }
 
  private:
-  void StartReceive();
-  void HandleReceive(const asio::error_code& error, size_t bytesTransferred);
-  void ProcessMessage();
+  void ReadAvailableData();
+  void ProcessAccumulatedData();
+  void ProcessCompleteMessage();
   void NotifyError(const std::string& message);
   void RunIoContext();
 

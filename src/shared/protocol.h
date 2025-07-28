@@ -34,7 +34,8 @@ enum PixelFormat : uint32_t {
 // Base message header
 struct MessageHeader {
   MessageType type;
-  uint32_t size;
+  uint32_t size; // the size of the type-specific header excluding payload, e.g.
+                 // FrameMessage also includes pixel data size
 };
 
 // Frame information (follows MSG_FRAME_DATA header)
