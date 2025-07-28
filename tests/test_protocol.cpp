@@ -65,7 +65,7 @@ TEST_F(ProtocolTest, MouseClickMessage) {
   msg.pressed = true;
 
   EXPECT_EQ(msg.header.type, MSG_MOUSE_CLICK);
-  EXPECT_EQ(msg.button, 0);
+  EXPECT_EQ(msg.button, MouseClickMessage::LEFT_BUTTON);
   EXPECT_TRUE(msg.pressed);
 }
 
