@@ -12,8 +12,7 @@ enum MessageType : uint32_t {
   MSG_MOUSE_SCROLL = 4,
   MSG_COMPRESSED_FRAME = 5,
   MSG_COMPRESSION_REQUEST = 6,
-  MSG_PIXEL_FORMAT_REQUEST = 7,
-  MSG_PIXEL_FORMAT_RESPONSE = 8
+  MSG_PIXEL_FORMAT_REQUEST = 7
 };
 
 // Supported compression formats
@@ -26,10 +25,10 @@ enum CompressionType : uint32_t {
 
 // Supported pixel formats for decoded frames
 enum PixelFormat : uint32_t {
-  PIXEL_FORMAT_RGBA = 0,    // Red-Green-Blue-Alpha (Android preferred)
-  PIXEL_FORMAT_BGRA = 1,    // Blue-Green-Red-Alpha (Windows/FFmpeg preferred)
-  PIXEL_FORMAT_ARGB = 2,    // Alpha-Red-Green-Blue (Android Bitmap format)
-  PIXEL_FORMAT_YUV420 = 3   // Raw YUV420 (no conversion needed)
+  PIXEL_FORMAT_RGBA = 0, // Red-Green-Blue-Alpha (Android preferred)
+  PIXEL_FORMAT_BGRA = 1, // Blue-Green-Red-Alpha (Windows/FFmpeg preferred)
+  PIXEL_FORMAT_ARGB = 2, // Alpha-Red-Green-Blue (Android Bitmap format)
+  PIXEL_FORMAT_YUV420 = 3 // Raw YUV420 (no conversion needed)
 };
 
 // Base message header
