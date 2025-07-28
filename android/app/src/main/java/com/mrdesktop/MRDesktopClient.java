@@ -30,6 +30,7 @@ public class MRDesktopClient {
     public native void nativeDisconnect();
     public native boolean nativeIsConnected();
     public native boolean nativeSendMouseMove(int deltaX, int deltaY);
+    public native boolean nativeSendMouseMoveAbsolute(int x, int y);
     public native boolean nativeSendMouseClick(int button, boolean pressed);
     public static native void nativeSetFrameCallback(Class<?> clazz);
     
@@ -48,6 +49,10 @@ public class MRDesktopClient {
     
     public boolean sendMouseMove(int deltaX, int deltaY) {
         return nativeSendMouseMove(deltaX, deltaY);
+    }
+
+    public boolean sendMouseMoveAbsolute(int x, int y) {
+        return nativeSendMouseMoveAbsolute(x, y);
     }
     
     public boolean sendMouseClick(int button, boolean pressed) {
