@@ -2,6 +2,19 @@ plugins {
     id 'com.android.application'
 }
 
+tasks.register('bundleHevcSample', Copy) {
+    from("${rootDir}/out/frame.h265")
+    into("src/androidTest/assets")
+    outputs.file("src/androidTest/assets/frame.h265")
+    inputs.file("${rootDir}/out/frame.h265")
+}
+
+afterEvaluate {
+    tasks.named('preDebugAndroidTestBuild').configure {
+        dependsOn(bundleHevcSample)
+    }
+}
+
 android {
     namespace 'com.mrdesktop'
     compileSdk 34
@@ -14,7 +27,14 @@ android {
         versionName "1.0"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
-        
+
+        externalNativeBuild {
+            cmake {
+                cppFlags "-std=c++17"
+                targets "hevc_gtest"
+            }
+        }
+
         ndk {
             abiFilters 'arm64-v8a', 'x86_64'
         }
@@ -40,6 +60,8 @@ android {
     }
 }
 
+android.externalNativeBuild.cmake.path = 'src/androidTest/cpp/CMakeLists.txt'
+
 dependencies {
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'com.google.android.material:material:1.11.0'
@@ -47,4 +69,6 @@ dependencies {
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
+    androidTestImplementation "androidx.test:runner:1.5.2"
+    androidTestImplementation "androidx.test:rules:1.5.0"
 }
