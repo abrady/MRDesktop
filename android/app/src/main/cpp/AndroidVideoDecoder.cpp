@@ -37,7 +37,10 @@ bool AndroidVideoDecoder::Initialize(
       height,
       compression);
 
-  Cleanup(); // Clean up any existing decoder
+  if (m_isInitialized) {
+    LOGE("Decoder already initialized, cannot reinitialize");
+    return false;
+  }
 
   m_width = width;
   m_height = height;
