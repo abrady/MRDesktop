@@ -249,7 +249,9 @@ int main(int argc, char* argv[]) {
   HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
   DWORD originalMode;
   GetConsoleMode(hStdin, &originalMode);
-  SetConsoleMode(hStdin, 0); // Disable line input and echo
+  // Disable line input and echo, but preserve Ctrl+C handling
+  DWORD newMode = originalMode & ~(ENABLE_LINE_INPUT | ENABLE_ECHO_INPUT);
+  SetConsoleMode(hStdin, newMode);
 #endif
 
   // Variables for frame receiving and input handling
@@ -324,7 +326,7 @@ int main(int argc, char* argv[]) {
     // Log frame for debugging if enabled
     if (frameLogger && frameLogger->IsLogging()) {
       frameLogger->LogFrame(
-          frameMsg.width, frameMsg.height, frameMsg.dataSize, frameData.data());
+          frameMsg.width, frameMsg.height, frameData.size(), frameData.data());
 
       // Print stats when logging is complete
       if (!frameLogger->IsLogging()) {

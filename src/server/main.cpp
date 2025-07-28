@@ -538,15 +538,15 @@ class MRDesktopServer {
 #endif
   }
 
-  void WaitForExit() {
-    // Simple wait loop - in a real app you'd handle signals properly
-    std::cout << "Press Ctrl+C to exit..." << std::endl;
-    while (true) {
-      std::this_thread::sleep_for(std::chrono::seconds(1));
-    }
-  }
 
   bool IsTestCompleted() const { return m_testCompleted; }
+
+  void Poll() {
+    m_server.Poll();
+    if (m_currentClient) {
+      m_currentClient->Poll();
+    }
+  }
 
  private:
   void OnClientConnected(std::shared_ptr<AsioConnection> client) {
@@ -860,11 +860,17 @@ int main(int argc, char* argv[]) {
   if (testMode) {
     // In test mode, wait for test completion
     while (!server.IsTestCompleted()) {
+      server.Poll(); // Process network events
       std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
     std::cout << "Test completed, shutting down..." << std::endl;
   } else {
-    server.WaitForExit();
+    // In normal mode, poll continuously
+    std::cout << "Press Ctrl+C to exit..." << std::endl;
+    while (true) {
+      server.Poll(); // Process network events
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
   }
 
   return 0;
