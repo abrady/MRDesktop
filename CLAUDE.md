@@ -59,15 +59,17 @@ Located in `android/app/src/main/cpp/`:
 
 The project uses CMake with cross-platform presets defined in `CMakePresets.json`:
 
-### Desktop Builds (Windows/macOS)
+### Desktop Builds (Windows/macOS/Linux)
 
 - **Windows**: `windows-debug`, `windows-release` (Visual Studio 2022)
 - **macOS**: `macos-debug`, `macos-release` (Ninja)
+- **Linux**: `linux-debug`, `linux-release` (Ninja)
 
 ### Android Builds
 
 - **ARM64**: `android-arm64-debug`, `android-arm64-release` (for devices)
-- **x86_64**: `android-x86_64-debug` (for emulator testing)
+- **OpenXR**: `android-openxr-arm64-debug` (for Quest builds with OpenXR)
+- **x86_64**: `android-x86_64-debug`, `android-x86_64-release` (for emulator testing)
 
 ## Development Commands
 
@@ -128,11 +130,12 @@ python run_compression_test.py
 ### Android Development
 
 ```batch
-# Fetch Android toolchain (first time only)
-scripts\fetch_android_toolchain.bat
-
 # Setup Android NDK environment (first time only)
 setup_android.bat
+
+# Alternative setup if Android Studio not installed:
+tools\download_android_tools.bat
+tools\build_apk_standalone.bat
 
 # Build Android native library
 build_android.bat [debug|release]
@@ -140,6 +143,9 @@ build_android.bat [debug|release]
 # Build APK (requires Android Studio)
 cd android
 # Open in Android Studio and build normally
+
+# For OpenXR Quest builds (requires vcpkg and openxr-loader):
+# Use android-openxr-arm64-debug preset
 ```
 
 ### RTP Stack Development
@@ -175,9 +181,14 @@ cd build/debug && ctest --output-on-failure
 
 ### Desktop Streaming Tests
 
-1. **Start Server**: `python run_server.py` - Shows "Server listening on port 8080..."
-2. **Start Client**: `python run_console_client.py` - Creates `first_frame.bmp` with desktop screenshot
+1. **Start Server**: `python run_server.py` (or `run.bat server`) - Shows "Server listening on port 8080..."
+2. **Start Client**: `python run_console_client.py` (or `run.bat client`) - Creates `first_frame.bmp` with desktop screenshot
 3. **Verify**: Both show FPS stats, client saves frame proving capture works
+
+**Troubleshooting**:
+- If server fails with "Desktop duplication is not available", close any remote desktop connections
+- Make sure no other screen capture software is running
+- Check Windows firewall isn't blocking port 8080
 
 ### Compression Testing
 
@@ -340,3 +351,9 @@ linux/                # Docker-based Linux build system
 ## Project Status
 
 This is an active implementation with working desktop streaming between Windows host and client. The Android VR client is in development phase with native library structure in place. The RTP stack module is a standalone component that can be developed and tested independently, designed for future integration into the main streaming pipeline.
+
+## important-instruction-reminders
+Do what has been asked; nothing more, nothing less.
+NEVER create files unless they're absolutely necessary for achieving your goal.
+ALWAYS prefer editing an existing file to creating a new one.
+NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested by the User.
