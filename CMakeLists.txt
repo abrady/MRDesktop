@@ -126,6 +126,9 @@ if(BUILD_OPENXR_CLIENT)
     target_link_libraries(MRDesktopOpenXR PRIVATE OpenXR::openxr_loader)
 endif()
 
+# Add RTP stack as subdirectory (can be built independently)
+add_subdirectory(rtp-stack)
+
 # Build tests
 if(BUILD_TESTS AND PLATFORM_DESKTOP)
     # Try to find GTest, but don't fail if not found

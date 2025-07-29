@@ -8,7 +8,7 @@ MRDesktop is a VR/MR Virtual Desktop project for Meta Quest 3 that enables viewi
 
 ## Project Architecture
 
-The system consists of three main components:
+The system consists of four main components:
 
 ### 1. Desktop Host (Windows/macOS/Linux)
 
@@ -35,7 +35,18 @@ Located in `src/clients/windows/`:
 - **Input Handling**: Native Windows input processing
 - **Window Management**: Full-screen and windowed display modes
 
-### 4. Android VR Client (Quest 3)
+### 4. RTP Stack Module
+
+Located in `rtp-stack/`:
+
+- **Standalone Module**: Independent RTP/RTCP implementation that can be built and tested in isolation
+- **RTP Packet Handling**: Creates, parses, and validates RTP packets for real-time media streaming
+- **RTCP Control**: Implements RTCP sender/receiver reports for quality monitoring and feedback
+- **Jitter Buffer**: Manages packet reordering and timing for smooth media playback
+- **Integration Ready**: Designed as a reusable library for frame streaming in the main MRDesktop project
+- **Independent Build**: Has its own CMakeLists.txt for standalone development and testing
+
+### 5. Android VR Client (Quest 3)
 
 Located in `android/app/src/main/cpp/`:
 
@@ -121,6 +132,22 @@ cd android
 # Open in Android Studio and build normally
 ```
 
+### RTP Stack Development
+
+```batch
+# Build and test RTP stack independently
+cd rtp-stack
+
+# Configure (uses parent project's presets)
+cmake --preset windows-debug
+
+# Build standalone RTP stack
+cmake --build out/build/x64 --config Debug
+
+# Run RTP stack tests
+cd out/build/x64 && ctest --output-on-failure
+```
+
 ## Testing
 
 ### Unit and Integration Tests
@@ -154,6 +181,7 @@ The test suite includes:
 - **Basic Tests**: Protocol serialization, video encoding/decoding
 - **Integration Tests**: Network communication, frame transmission
 - **Compression Tests**: H.265 encode/decode validation
+- **RTP Stack Tests**: RTP packet parsing, RTCP functionality, jitter buffer management
 
 ## Communication Protocol
 
@@ -280,12 +308,17 @@ src/
 │   ├── windows/      # Windows-specific client code
 │   └── unreal/       # Unreal Engine integration
 ├── shared/           # Common networking, video, protocol code
+rtp-stack/            # Standalone RTP/RTCP module
+├── include/rtp/      # RTP stack headers (public API)
+├── src/              # RTP stack implementation
+├── tests/            # RTP stack unit tests
+└── CMakeLists.txt    # Standalone build configuration
 android/              # Android VR client (Quest)
-tests/                # Unit and integration tests
+tests/                # Main project unit and integration tests
 scripts/              # Build and utility scripts
 linux/                # Docker-based Linux build system
 ```
 
 ## Project Status
 
-This is an active implementation with working desktop streaming between Windows host and client. The Android VR client is in development phase with native library structure in place.
+This is an active implementation with working desktop streaming between Windows host and client. The Android VR client is in development phase with native library structure in place. The RTP stack module is a standalone component that can be developed and tested independently, designed for future integration into the main streaming pipeline.

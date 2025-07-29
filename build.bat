@@ -21,8 +21,8 @@ if not exist "%BUILD_DIR%" (
     exit /b 1
 )
 
-REM Build the project
-cmake --build %BUILD_DIR%
+REM Build the project with parallel compilation
+cmake --build %BUILD_DIR% --parallel
 
 if %errorlevel% neq 0 (
     echo Build failed!

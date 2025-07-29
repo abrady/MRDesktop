@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.22)
 project(rtp-stack LANGUAGES CXX)
 
-option(RTP_BUILD_TESTS "Build RTP stack tests" OFF)
+option(RTP_BUILD_TESTS "Build RTP stack tests" ON)
 if(RTP_BUILD_TESTS)
   enable_testing()
 endif()
