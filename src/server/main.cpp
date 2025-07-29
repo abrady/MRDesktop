@@ -25,14 +25,14 @@ using INT32 = int32_t;
 #define LOG_TAG "MRDesk.Server"
 #include "Logging.h"
 
-// FFmpeg includes for frame scaling 
+// FFmpeg includes for frame scaling
 #ifdef _MSC_VER
 #pragma warning(push)
 #pragma warning(disable : 4244)
 #endif
 extern "C" {
-#include <libswscale/swscale.h>
 #include <libavutil/imgutils.h>
+#include <libswscale/swscale.h>
 }
 #ifdef _MSC_VER
 #pragma warning(pop)
@@ -49,8 +49,7 @@ PixelFormat DXGIFormatToPixelFormat(DXGI_FORMAT dxgiFormat) {
     case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
       return PIXEL_FORMAT_RGBA;
     default:
-      std::cout << "Unknown DXGI format: " << dxgiFormat << ", assuming BGRA"
-                << std::endl;
+      LOG_IS("Unknown DXGI format: " << dxgiFormat << ", assuming BGRA");
       return PIXEL_FORMAT_BGRA;
   }
 }
@@ -64,14 +63,13 @@ void ConvertPixelFormat(
     PixelFormat fromFormat,
     PixelFormat toFormat) {
   if (fromFormat == toFormat) {
-    std::cout
-        << "Pixel format conversion skipped - client and server formats match ("
-        << fromFormat << ")" << std::endl;
+    LOG_IS(
+        "Pixel format conversion skipped - client and server formats match ("
+        << fromFormat << ")");
     return; // No conversion needed
   }
 
-  std::cout << "Converting pixel format from " << fromFormat << " to "
-            << toFormat << std::endl;
+  LOG_IS("Converting pixel format from " << fromFormat << " to " << toFormat);
 
   size_t pixelCount = width * height;
 
@@ -106,7 +104,7 @@ void ConvertPixelFormat(
   }
 }
 
-// Frame scaling utility for Android compatibility 
+// Frame scaling utility for Android compatibility
 void ScaleFrameForAndroid(
     std::vector<BYTE>& pixelData,
     uint32_t& width,
@@ -114,56 +112,62 @@ void ScaleFrameForAndroid(
     uint32_t& dataSize,
     uint32_t targetWidth = 640,
     uint32_t targetHeight = 480) {
-  
   // Skip scaling if already at target resolution
   if (width == targetWidth && height == targetHeight) {
     return;
   }
-  
-  std::cout << "Scaling frame from " << width << "x" << height 
-            << " to " << targetWidth << "x" << targetHeight << std::endl;
-  
+
+  LOG_IS(
+      "Scaling frame from "
+      << width << "x" << height << " to " << targetWidth << "x"
+      << targetHeight);
+
   // Setup source and destination parameters
   const uint8_t* srcData[4] = {pixelData.data(), nullptr, nullptr, nullptr};
   int srcLinesize[4] = {static_cast<int>(width * 4), 0, 0, 0};
-  
+
   // Create scaled buffer
   uint32_t scaledDataSize = targetWidth * targetHeight * 4;
   std::vector<BYTE> scaledData(scaledDataSize);
   uint8_t* dstData[4] = {scaledData.data(), nullptr, nullptr, nullptr};
   int dstLinesize[4] = {static_cast<int>(targetWidth * 4), 0, 0, 0};
-  
+
   // Create scaling context
   SwsContext* scalingContext = sws_getContext(
-      width, height, AV_PIX_FMT_BGRA,
-      targetWidth, targetHeight, AV_PIX_FMT_BGRA,
-      SWS_BILINEAR, nullptr, nullptr, nullptr);
-      
+      width,
+      height,
+      AV_PIX_FMT_BGRA,
+      targetWidth,
+      targetHeight,
+      AV_PIX_FMT_BGRA,
+      SWS_BILINEAR,
+      nullptr,
+      nullptr,
+      nullptr);
+
   if (!scalingContext) {
-    std::cerr << "Failed to create scaling context, keeping original size" << std::endl;
+    LOG_ES("Failed to create scaling context, keeping original size");
     return;
   }
-  
+
   // Perform the scaling
   int result = sws_scale(
-      scalingContext,
-      srcData, srcLinesize, 0, height,
-      dstData, dstLinesize);
-      
+      scalingContext, srcData, srcLinesize, 0, height, dstData, dstLinesize);
+
   if (result < 0) {
-    std::cerr << "Frame scaling failed, keeping original size" << std::endl;
+    LOG_ES("Frame scaling failed, keeping original size");
     sws_freeContext(scalingContext);
     return;
   }
-  
+
   // Replace original data with scaled data
   pixelData = std::move(scaledData);
   width = targetWidth;
   height = targetHeight;
   dataSize = scaledDataSize;
-  
+
   sws_freeContext(scalingContext);
-  std::cout << "Frame successfully scaled to " << width << "x" << height << std::endl;
+  LOG_IS("Frame successfully scaled to " << width << "x" << height);
 }
 
 #ifdef _WIN32
@@ -193,8 +197,7 @@ class DesktopDuplicator {
         &featureLevel,
         &m_Context);
     if (FAILED(hr)) {
-      std::cerr << "Failed to create D3D11 device: " << std::hex << hr
-                << std::endl;
+      LOG_ES("Failed to create D3D11 device: " << std::hex << hr);
       return false;
     }
 
@@ -202,7 +205,7 @@ class DesktopDuplicator {
     IDXGIDevice* dxgiDevice = nullptr;
     hr = m_Device->QueryInterface(__uuidof(IDXGIDevice), (void**)&dxgiDevice);
     if (FAILED(hr)) {
-      std::cerr << "Failed to get DXGI device: " << std::hex << hr << std::endl;
+      LOG_ES("Failed to get DXGI device: " << std::hex << hr);
       return false;
     }
 
@@ -211,8 +214,7 @@ class DesktopDuplicator {
     hr = dxgiDevice->GetAdapter(&dxgiAdapter);
     dxgiDevice->Release();
     if (FAILED(hr)) {
-      std::cerr << "Failed to get DXGI adapter: " << std::hex << hr
-                << std::endl;
+      LOG_ES("Failed to get DXGI adapter: " << std::hex << hr);
       return false;
     }
 
@@ -221,45 +223,40 @@ class DesktopDuplicator {
     hr = dxgiAdapter->EnumOutputs(0, &dxgiOutput);
     dxgiAdapter->Release();
     if (FAILED(hr)) {
-      std::cerr << "Failed to get primary output: " << std::hex << hr
-                << std::endl;
+      LOG_ES("Failed to get primary output: " << std::hex << hr);
       return false;
     }
 
     // Get output description
     dxgiOutput->GetDesc(&m_OutputDesc);
-    std::cout
-        << "Primary display: "
+    LOG_IS(
+        "Primary display: "
         << m_OutputDesc.DesktopCoordinates.right -
             m_OutputDesc.DesktopCoordinates.left
         << "x"
         << m_OutputDesc.DesktopCoordinates.bottom -
-            m_OutputDesc.DesktopCoordinates.top
-        << std::endl;
+            m_OutputDesc.DesktopCoordinates.top);
 
     // Get IDXGIOutput1
     hr = dxgiOutput->QueryInterface(__uuidof(IDXGIOutput1), (void**)&m_Output1);
     dxgiOutput->Release();
     if (FAILED(hr)) {
-      std::cerr << "Failed to get IDXGIOutput1: " << std::hex << hr
-                << std::endl;
+      LOG_ES("Failed to get IDXGIOutput1: " << std::hex << hr);
       return false;
     }
 
     // Create desktop duplication
     hr = m_Output1->DuplicateOutput(m_Device, &m_DeskDupl);
     if (FAILED(hr)) {
-      std::cerr << "Failed to create desktop duplication: " << std::hex << hr
-                << std::endl;
+      LOG_ES("Failed to create desktop duplication: " << std::hex << hr);
       if (hr == DXGI_ERROR_NOT_CURRENTLY_AVAILABLE) {
-        std::cerr
-            << "Desktop duplication is not available (may be in use by another process)"
-            << std::endl;
+        LOG_ES(
+            "Desktop duplication is not available (may be in use by another process)");
       }
       return false;
     }
 
-    std::cout << "Desktop Duplication initialized successfully!" << std::endl;
+    LOG_IS("Desktop Duplication initialized successfully!");
     return true;
   }
 
@@ -281,8 +278,7 @@ class DesktopDuplicator {
       return false; // No new frame
     }
     if (FAILED(hr)) {
-      std::cerr << "Failed to acquire next frame: " << std::hex << hr
-                << std::endl;
+      LOG_ES("Failed to acquire next frame: " << std::hex << hr);
       return false;
     }
 
@@ -328,11 +324,12 @@ class DesktopDuplicator {
 
       // Debug: Log frame capture details and detect format
       format = DXGIFormatToPixelFormat(textureDesc.Format);
-      std::cout
-          << "Capturing frame - Width: " << width << ", Height: " << height
-          << ", RowPitch: " << mappedResource.RowPitch << ", DataSize: "
-          << dataSize << ", DXGI Format: " << textureDesc.Format
-          << ", Detected Format: " << format << std::endl;
+      LOG_IS(
+          "Capturing frame - Width: "
+          << width << ", Height: " << height << ", RowPitch: "
+          << mappedResource.RowPitch << ", DataSize: " << dataSize
+          << ", DXGI Format: " << textureDesc.Format
+          << ", Detected Format: " << format);
 
       // Resize buffer for pixel data only
       pixelData.clear();
@@ -542,11 +539,11 @@ class MRDesktopServer {
   ~MRDesktopServer() { Stop(); }
 
   bool Start(int port = 8080) {
-    std::cout << "MRDesktop Server - Desktop Duplication Service" << std::endl;
-    std::cout << "=============================================" << std::endl;
+    LOG_IS("MRDesktop Server - Desktop Duplication Service");
+    LOG_IS("=============================================");
 
     if (m_testMode) {
-      std::cout << "RUNNING IN TEST MODE" << std::endl;
+      LOG_IS("RUNNING IN TEST MODE");
     }
 
     // Initialize platform networking (done automatically by Asio)
@@ -554,15 +551,15 @@ class MRDesktopServer {
     // Initialize COM
     HRESULT hr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
     if (FAILED(hr)) {
-      std::cerr << "Failed to initialize COM: " << std::hex << hr << std::endl;
+      LOG_ES("Failed to initialize COM: " << std::hex << hr);
       return false;
     }
-    std::cout << "COM initialized successfully" << std::endl;
+    LOG_IS("COM initialized successfully");
 #endif
 
     // Initialize desktop duplicator (skip in test mode)
     if (!m_testMode && !m_duplicator.Initialize()) {
-      std::cerr << "Failed to initialize desktop duplicator" << std::endl;
+      LOG_ES("Failed to initialize desktop duplicator");
 #ifdef _WIN32
       CoUninitialize();
 #endif
@@ -577,15 +574,15 @@ class MRDesktopServer {
 
     // Start server
     if (!m_server.Start(port)) {
-      std::cerr << "Failed to start server on port " << port << std::endl;
+      LOG_ES("Failed to start server on port " << port);
 #ifdef _WIN32
       CoUninitialize();
 #endif
       return false;
     }
 
-    std::cout << "Server listening on port " << port << "..." << std::endl;
-    std::cout << "Waiting for client connection..." << std::endl;
+    LOG_IS("Server listening on port " << port << "...");
+    LOG_IS("Waiting for client connection...");
 
     return true;
   }
@@ -622,55 +619,53 @@ class MRDesktopServer {
 
  private:
   void OnClientConnected(std::shared_ptr<AsioConnection> client) {
-    std::cout << "Client connected! Starting desktop streaming..." << std::endl;
+    LOG_IS("Client connected! Starting desktop streaming...");
 
     m_currentClient = client;
 
     // Setup client callbacks
     client->SetCompressionRequestCallback(
         [this](const CompressionRequestMessage& msg) {
-          std::cout << "Processing compression request" << std::endl;
+          LOG_IS("Processing compression request");
           m_clientCompression = msg.compression;
-          std::cout << "Client requested compression type: "
-                    << m_clientCompression << std::endl;
-          std::cout << "Server now configured for compression type: "
-                    << m_clientCompression << std::endl;
+          LOG_IS("Client requested compression type: " << m_clientCompression);
+          LOG_IS(
+              "Server now configured for compression type: "
+              << m_clientCompression);
         });
 
     client->SetPixelFormatRequestCallback(
         [this](const PixelFormatRequestMessage& msg) {
-          std::cout << "Processing pixel format request" << std::endl;
+          LOG_IS("Processing pixel format request");
           PixelFormat requestedFormat = msg.preferredFormat;
-          std::cout << "Client requested pixel format: " << requestedFormat
-                    << std::endl;
+          LOG_IS("Client requested pixel format: " << requestedFormat);
           m_clientPixelFormat = requestedFormat;
         });
 
     client->SetMouseMoveCallback([](const MouseMoveMessage& msg) {
       InputInjector::InjectMouseMove(
           msg.deltaX, msg.deltaY, msg.absolute, msg.x, msg.y);
-      std::cout << "Mouse move: dx=" << msg.deltaX << " dy=" << msg.deltaY
-                << std::endl;
+      LOG_IS("Mouse move: dx=" << msg.deltaX << " dy=" << msg.deltaY);
     });
 
     client->SetMouseClickCallback([](const MouseClickMessage& msg) {
       InputInjector::InjectMouseClick(msg.button, msg.pressed);
-      std::cout << "Mouse " << (msg.pressed ? "press" : "release") << " button "
-                << msg.button << std::endl;
+      LOG_IS(
+          "Mouse " << (msg.pressed ? "press" : "release") << " button "
+                   << msg.button);
     });
 
     client->SetMouseScrollCallback([](const MouseScrollMessage& msg) {
       InputInjector::InjectMouseScroll(msg.deltaX, msg.deltaY);
-      std::cout << "Mouse scroll: dx=" << msg.deltaX << " dy=" << msg.deltaY
-                << std::endl;
+      LOG_IS("Mouse scroll: dx=" << msg.deltaX << " dy=" << msg.deltaY);
     });
 
     client->SetErrorCallback([this](const std::string& error) {
-      std::cerr << "Client error: " << error << std::endl;
+      LOG_ES("Client error: " << error);
     });
 
     client->SetDisconnectCallback([this]() {
-      std::cout << "Client disconnected" << std::endl;
+      LOG_IS("Client disconnected");
       m_streaming = false;
       m_currentClient.reset();
     });
@@ -684,9 +679,7 @@ class MRDesktopServer {
     std::vector<BYTE> pixelData;
     UINT32 frameWidth, frameHeight, frameDataSize;
 
-    std::cout
-        << "Starting streaming loop - compression will be checked per frame"
-        << std::endl;
+    LOG_IS("Starting streaming loop - compression will be checked per frame");
 
     while (m_streaming && m_currentClient && m_currentClient->IsConnected()) {
       // Capture or generate test frame
@@ -715,8 +708,7 @@ class MRDesktopServer {
           }
         }
         frameReady = true;
-        std::cout << "Generated test frame " << m_frameCount + 1 << " (640x480)"
-                  << std::endl;
+        LOG_IS("Generated test frame " << m_frameCount + 1 << " (640x480)");
       } else {
         frameReady = m_duplicator.CaptureFrame(
             pixelData,
@@ -730,15 +722,17 @@ class MRDesktopServer {
         // Validate frame dimensions are reasonable
         if (frameWidth == 0 || frameHeight == 0 || frameWidth > 10000 ||
             frameHeight > 10000 || frameDataSize > 100000000) {
-          std::cerr << "Invalid frame data - Width: " << frameWidth
-                    << ", Height: " << frameHeight
-                    << ", DataSize: " << frameDataSize << std::endl;
+          LOG_ES(
+              "Invalid frame data - Width: "
+              << frameWidth << ", Height: " << frameHeight
+              << ", DataSize: " << frameDataSize);
           continue;
         }
 
         // Scale frame to 640x480 for Android compatibility
         if (!m_testMode) { // Test mode already generates 640x480
-          ScaleFrameForAndroid(pixelData, frameWidth, frameHeight, frameDataSize);
+          ScaleFrameForAndroid(
+              pixelData, frameWidth, frameHeight, frameDataSize);
         }
 
         // Check if compression is requested (dynamically check each frame)
@@ -748,20 +742,18 @@ class MRDesktopServer {
           // Initialize encoder with first frame dimensions if needed
           if (!m_encoder) {
             m_encoder = std::make_unique<VideoEncoder>();
-            std::cout
-                << "Compression enabled, encoder will be initialized with first frame"
-                << std::endl;
+            LOG_IS(
+                "Compression enabled, encoder will be initialized with first frame");
           }
 
           if (!m_encoder->IsInitialized()) {
             if (!m_encoder->Initialize(
                     frameWidth, frameHeight, m_clientCompression)) {
-              std::cerr << "Failed to initialize video encoder" << std::endl;
+              LOG_ES("Failed to initialize video encoder");
               useCompression =
                   false; // Fall back to uncompressed for this frame
             } else {
-              std::cout << "Video encoder initialized successfully"
-                        << std::endl;
+              LOG_IS("Video encoder initialized successfully");
             }
           }
 
@@ -781,14 +773,15 @@ class MRDesktopServer {
               compFrameMsg.compressedSize = compressedData.size();
               compFrameMsg.isKeyframe = isKeyframe ? 1 : 0;
 
-              std::cout
-                  << "SERVER SEND: Frame " << m_frameCount + 1
+              LOG_IS(
+                  "SERVER SEND: Frame "
+                  << m_frameCount + 1
                   << " - Compressed: " << compressedData.size() << " bytes ("
-                  << (isKeyframe ? "KEY" : "DELTA") << ")" << std::endl;
+                  << (isKeyframe ? "KEY" : "DELTA") << ")");
 
               if (!m_currentClient->SendCompressedFrame(
                       compFrameMsg, compressedData)) {
-                std::cerr << "Failed to send compressed frame" << std::endl;
+                LOG_ES("Failed to send compressed frame");
                 break;
               }
             } else {
@@ -800,7 +793,13 @@ class MRDesktopServer {
           }
         }
 
-        // Convert pixel format if needed
+        // Convert pixel format if needed. Note that the encoder above always
+        // receives BGRA data and outputs YUV when compression is enabled. The
+        // negotiated format is only used for uncompressed transfers. To
+        // deliver compressed frames in BGRA/ARGB, a custom encoder that
+        // preserves RGB channels would be required.
+        //
+        // Convert to the client's requested format for the uncompressed path.
         ConvertPixelFormat(
             pixelData,
             frameWidth,
@@ -818,18 +817,18 @@ class MRDesktopServer {
           frameMsg.dataSize = frameDataSize;
           frameMsg.pixelFormat = m_clientPixelFormat;
 
-          std::cout << "SERVER SEND: Frame " << m_frameCount + 1
-                    << " - Uncompressed: " << frameDataSize << " bytes"
-                    << std::endl;
+          LOG_IS(
+              "SERVER SEND: Frame "
+              << m_frameCount + 1 << " - Uncompressed: " << frameDataSize
+              << " bytes");
 
           if (!m_currentClient->SendFrame(frameMsg, pixelData)) {
-            std::cerr << "Failed to send frame" << std::endl;
+            LOG_ES("Failed to send frame");
             break;
           }
         }
 
-        std::cout << "SERVER SEND: Frame " << m_frameCount + 1 << " - COMPLETE"
-                  << std::endl;
+        LOG_IS("SERVER SEND: Frame " << m_frameCount + 1 << " - COMPLETE");
 
         m_frameCount++;
         if (m_frameCount % 30 == 0) {
@@ -837,15 +836,14 @@ class MRDesktopServer {
           auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
               currentTime - m_startTime);
           double fps = (m_frameCount * 1000.0) / duration.count();
-          std::cout << "Sent " << m_frameCount << " frames, FPS: " << fps
-                    << ", Frame size: " << formatBytes(frameDataSize)
-                    << std::endl;
+          LOG_IS(
+              "Sent " << m_frameCount << " frames, FPS: " << fps
+                      << ", Frame size: " << formatBytes(frameDataSize));
         }
 
         // In test mode, exit after sending 3 frames
         if (m_testMode && m_frameCount >= 3) {
-          std::cout << "TEST MODE: Sent 3 frames, exiting successfully"
-                    << std::endl;
+          LOG_IS("TEST MODE: Sent 3 frames, exiting successfully");
           // Give client time to receive frames then break out of streaming loop
           std::this_thread::sleep_for(std::chrono::milliseconds(500));
           m_testCompleted = true;
@@ -873,7 +871,7 @@ int main(int argc, char* argv[]) {
   MRDesktopServer server(testMode);
 
   if (!server.Start(8080)) {
-    std::cerr << "Failed to start server" << std::endl;
+    LOG_ES("Failed to start server");
     return 1;
   }
 
@@ -883,10 +881,10 @@ int main(int argc, char* argv[]) {
       server.Poll(); // Process network events
       std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
-    std::cout << "Test completed, shutting down..." << std::endl;
+    LOG_IS("Test completed, shutting down...");
   } else {
     // In normal mode, poll continuously
-    std::cout << "Press Ctrl+C to exit..." << std::endl;
+    LOG_IS("Press Ctrl+C to exit...");
     while (true) {
       server.Poll(); // Process network events
       std::this_thread::sleep_for(std::chrono::milliseconds(100));
