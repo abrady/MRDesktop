@@ -251,6 +251,14 @@ The system implements intelligent pixel format negotiation to handle cross-platf
 
 This system ensures optimal performance while supporting the native formats each platform requires, avoiding unnecessary conversions when client and server formats match.
 
+When compression is enabled the server currently encodes frames with FFmpeg's
+H.26x encoders in the `YUV420` format. Pixel format negotiation is ignored for
+these compressed frames. The client decodes to YUV and must convert the image to
+BGRA or ARGB itself. To deliver compressed frames directly in the negotiated
+format you could implement a custom encoder that preserves RGB channels (for
+example using `libx264rgb` or a PNG codec) so the decoded frame already matches
+the client's request.
+
 ### Android Integration
 
 - Native C++ library compiled with Android NDK
