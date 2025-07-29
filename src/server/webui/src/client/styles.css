@@ -1,0 +1,56 @@
+:root {
+  color-scheme: dark light;
+  --bg: #222;
+  --fg: #eee;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: sans-serif;
+}
+
+.app {
+  display: flex;
+  height: 100vh;
+}
+
+.sidebar {
+  width: 40%;
+  border-right: 1px solid #444;
+  padding: 0.5rem;
+  box-sizing: border-box;
+}
+
+.main {
+  flex: 1;
+  padding: 0.5rem;
+}
+
+.live-indicator {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-bottom: 0.5rem;
+  background: gray;
+  animation: blink 1s step-end infinite;
+}
+
+.live-indicator[data-on='true'] {
+  background: lime;
+}
+
+@keyframes blink {
+  50% { opacity: 0; }
+}
+
+.help {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 1rem;
+}
