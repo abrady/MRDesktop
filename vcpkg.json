@@ -22,17 +22,21 @@
       "default-features": false,
       "platform": "windows",
       "features": [
-        "amf", 
-        "avcodec", 
-        "avformat", 
+        "amf",
+        "avcodec",
+        "avformat",
         "gpl",
         "nvcodec",
         "qsv",
-        "swresample", 
+        "swresample",
         "swscale",
         "x264",
         "x265"
       ]
+    },
+    {
+      "name": "mfx-dispatch",
+      "platform": "linux"
     },
     {
       "name": "gtest",
