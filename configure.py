@@ -69,10 +69,18 @@ def bootstrap_vcpkg():
     
     if not vcpkg_exe.exists():
         print("Bootstrapping vcpkg...")
+        if system != "Windows":
+            # Make sure bootstrap script is executable on Unix systems
+            bootstrap_path = Path(bootstrap_script)
+            if bootstrap_path.exists():
+                run_command(["chmod", "+x", str(bootstrap_path)])
+        
         success, output = run_command([bootstrap_script])
         if not success:
             print("Failed to bootstrap vcpkg!")
             return False
+    else:
+        print("vcpkg already bootstrapped.")
     
     return True
 
@@ -97,13 +105,25 @@ def configure_cmake(build_type):
         else:
             preset = "linux-release"
     
-    print(f"Configuring {system} {build_type}...")
+    # Check if CMakePresets.json exists
+    presets_file = Path("CMakePresets.json")
+    if not presets_file.exists():
+        print("Error: CMakePresets.json not found!")
+        print("Make sure you're running this script from the project root directory.")
+        return False
+    
+    print(f"Configuring {system} {build_type} using preset: {preset}")
     success, output = run_command(["cmake", "--preset", preset])
     if not success:
         print(f"{system} configuration failed!")
         print("This may be due to missing build tools or dependencies.")
         if system == "Windows":
             print("Make sure Visual Studio 2022 with C++ development tools is installed.")
+        elif system == "Linux":
+            print("Make sure CMake, Ninja, and development tools are installed.")
+            print("In container: run 'linux/build-linux.sh shell' for interactive mode.")
+        else: # macOS
+            print("Make sure Xcode command line tools are installed: xcode-select --install")
         return False
     
     print("CMake configuration completed successfully.")
