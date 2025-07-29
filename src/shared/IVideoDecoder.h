@@ -21,4 +21,8 @@ class IVideoDecoder {
       std::vector<uint8_t>& decodedData) = 0;
   virtual bool IsInitialized() const = 0;
   virtual void Cleanup() = 0;
+  
+  virtual uint32_t GetWidth() const = 0;
+  virtual uint32_t GetHeight() const = 0;
+  virtual CompressionType GetCompressionType() const = 0;
 };

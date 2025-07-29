@@ -52,8 +52,8 @@ class FFmpegVideoDecoder : public IVideoDecoder {
       std::vector<uint8_t>& bgraData) override;
   void Cleanup() override;
 
-  uint32_t GetWidth() const { return m_Width; }
-  uint32_t GetHeight() const { return m_Height; }
-  CompressionType GetCompressionType() const { return m_CompressionType; }
+  uint32_t GetWidth() const override { return m_Width; }
+  uint32_t GetHeight() const override { return m_Height; }
+  CompressionType GetCompressionType() const override { return m_CompressionType; }
   bool IsInitialized() const override { return m_IsInitialized; }
 };

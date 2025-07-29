@@ -53,6 +53,7 @@ add_library(MRDesktopClient SHARED
     app/src/main/cpp/android_client.cpp
     app/src/main/cpp/AndroidVideoDecoder.cpp
     app/src/main/cpp/AndroidVideoDecoderWrapper.cpp
+    app/src/main/cpp/AndroidSurfaceVideoDecoder.cpp
     app/src/main/cpp/FrameRenderer.cpp
     app/src/main/cpp/CrashSafeFrameHandler.cpp
     ${SHARED_SRC_DIR}/AsioNetworking.cpp
@@ -71,6 +72,8 @@ target_include_directories(MRDesktopClient PRIVATE
 # Find required Android libraries
 find_library(log-lib log)
 find_library(mediandk-lib mediandk)
+find_library(android-lib android)
+find_library(gles-lib GLESv2)
 
 target_link_libraries(MRDesktopSimpleClient 
     ${log-lib}
@@ -79,6 +82,8 @@ target_link_libraries(MRDesktopSimpleClient
 target_link_libraries(MRDesktopClient 
     ${log-lib}
     ${mediandk-lib}
+    ${android-lib}
+    ${gles-lib}
 )
 
 # Note: asio, spdlog, and fmt are header-only with compile definitions

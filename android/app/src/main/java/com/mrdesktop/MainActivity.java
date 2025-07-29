@@ -42,28 +42,9 @@ public class MainActivity extends AppCompatActivity {
         editIP.setText("192.168.1.170");
         editPort.setText("8080");
 
-        // Set up frame callback before any connection attempts
-        MRDesktopClient.setFrameCallback((data, width, height) -> {
-            remoteWidth = width;
-            remoteHeight = height;
-            android.util.Log.d("MRDesktop", "Frame callback received: " + data.length + " bytes, " + width + "x" + height);
-            try {
-                // Check if we have enough data for ARGB_8888 format
-                int expectedSize = width * height * 4; // 4 bytes per pixel for ARGB_8888
-                if (data.length >= expectedSize) {
-                    Bitmap bmp = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-                    bmp.copyPixelsFromBuffer(ByteBuffer.wrap(data));
-                    runOnUiThread(() -> {
-                        android.util.Log.d("MRDesktop", "Setting bitmap to imageFrame");
-                        imageFrame.setImageBitmap(bmp);
-                    });
-                } else {
-                    android.util.Log.e("MRDesktop", "Buffer too small: got " + data.length + " bytes, need " + expectedSize);
-                }
-            } catch (Exception e) {
-                android.util.Log.e("MRDesktop", "Error processing frame: " + e.getMessage());
-            }
-        });
+        // Note: This MainActivity is a legacy test interface
+        // For VR/OpenGL applications, use Surface-based rendering instead
+        // See SurfaceTestActivity or runSurfacePerformanceTest() for modern approach
 
         imageFrame.setOnTouchListener((v, event) -> {
             if (!isConnected) {
@@ -153,33 +134,9 @@ public class MainActivity extends AppCompatActivity {
         });
 
         btnTest.setOnClickListener(v -> {
-            android.util.Log.d("MRDesktop", "Test button clicked");
-            btnTest.setText("Testing...");
-            btnTest.setEnabled(false);
-            
-            String ip = editIP.getText().toString();
-            int port;
-            try {
-                port = Integer.parseInt(editPort.getText().toString());
-            } catch (NumberFormatException ignored) {
-                port = 8080;
-            }
-            
-            final String finalIp = ip;
-            final int finalPort = port;
-            
-            new Thread(() -> {
-                // Create a new client instance for testing to avoid interfering with main connection
-                MRDesktopClient testClient = new MRDesktopClient();
-                android.util.Log.d("MRDesktop", "Starting frame validation test...");
-                testClient.runFrameValidationTest(finalIp, finalPort);
-                
-                runOnUiThread(() -> {
-                    btnTest.setText("Test");
-                    btnTest.setEnabled(true);
-                    android.util.Log.d("MRDesktop", "Frame validation test completed");
-                });
-            }).start();
+            // Launch Surface performance test activity
+            android.content.Intent intent = new android.content.Intent(this, SurfaceTestActivity.class);
+            startActivity(intent);
         });
     }
 }

@@ -126,7 +126,8 @@
       "Bash(ctest:*)",
       "Bash(./basic_tests.exe)",
       "WebFetch(domain:docs.anthropic.com)",
-      "Bash(winget install:*)"
+      "Bash(winget install:*)",
+      "Bash(fd:*)"
     ],
     "deny": []
   }

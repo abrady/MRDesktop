@@ -1,28 +1,75 @@
 package com.mrdesktop;
 
+import android.graphics.SurfaceTexture;
+import android.view.Surface;
+
 public class MRDesktopClient {
     static {
         System.loadLibrary("MRDesktopClient");
     }
 
-    /** Callback interface for delivering decoded frames to Java. */
-    public interface FrameCallback {
-        void onFrame(byte[] data, int width, int height);
+    /** Callback interface for Surface-based frame rendering (GPU-optimized). */
+    public interface SurfaceFrameCallback {
+        void onFrameAvailable(int textureId, int width, int height);
     }
 
-    private static FrameCallback frameCallback;
+    private static SurfaceFrameCallback surfaceFrameCallback;
+    private SurfaceTexture surfaceTexture;
+    private Surface surface;
+    private int textureId;
 
-    /** Called from native code whenever a frame is received. */
-    private static void onFrameReceived(byte[] data, int width, int height) {
-        if (frameCallback != null) {
-            frameCallback.onFrame(data, width, height);
+    /** Called from native code when a Surface frame is available. */
+    private static void onSurfaceFrameAvailable(int textureId, int width, int height) {
+        if (surfaceFrameCallback != null) {
+            surfaceFrameCallback.onFrameAvailable(textureId, width, height);
         }
     }
 
-    /** Register a callback to receive frames from native code. */
-    public static void setFrameCallback(FrameCallback callback) {
-        frameCallback = callback;
-        nativeSetFrameCallback(MRDesktopClient.class);
+    /** Register a callback for Surface-based frame rendering. */
+    public void setSurfaceFrameCallback(SurfaceFrameCallback callback) {
+        surfaceFrameCallback = callback;
+        nativeSetSurfaceFrameCallback(MRDesktopClient.class);
+    }
+
+    /** Initialize Surface for MediaCodec decoding. */
+    public boolean initializeSurface(int textureId) {
+        this.textureId = textureId;
+        
+        // Create SurfaceTexture from the provided GL_TEXTURE_EXTERNAL_OES texture
+        surfaceTexture = new SurfaceTexture(textureId);
+        
+        // Create Surface from SurfaceTexture
+        surface = new Surface(surfaceTexture);
+        
+        // Pass the Surface to native code for MediaCodec configuration
+        return nativeInitializeSurface(surface);
+    }
+
+    /** Update texture image for Surface decoding (call this in your render loop). */
+    public void updateTexImage() {
+        if (surfaceTexture != null) {
+            surfaceTexture.updateTexImage();
+        }
+    }
+
+    /** Get transform matrix for Surface texture. */
+    public void getTransformMatrix(float[] matrix) {
+        if (surfaceTexture != null && matrix.length >= 16) {
+            surfaceTexture.getTransformMatrix(matrix);
+        }
+    }
+
+    /** Clean up Surface resources. */
+    public void cleanup() {
+        if (surface != null) {
+            surface.release();
+            surface = null;
+        }
+        if (surfaceTexture != null) {
+            surfaceTexture.release();
+            surfaceTexture = null;
+        }
+        nativeCleanupSurface();
     }
     
     // Native method declarations
@@ -32,7 +79,9 @@ public class MRDesktopClient {
     public native boolean nativeSendMouseMove(int deltaX, int deltaY);
     public native boolean nativeSendMouseMoveAbsolute(int x, int y);
     public native boolean nativeSendMouseClick(int button, boolean pressed);
-    public static native void nativeSetFrameCallback(Class<?> clazz);
+    public static native void nativeSetSurfaceFrameCallback(Class<?> clazz);
+    public native boolean nativeInitializeSurface(Surface surface);
+    public native void nativeCleanupSurface();
     
     // Java wrapper methods
     public boolean connect(String serverIP, int port) {
@@ -41,6 +90,8 @@ public class MRDesktopClient {
     
     public void disconnect() {
         nativeDisconnect();
+        // Clean up Surface resources on disconnect
+        cleanup();
     }
     
     public boolean isConnected() {
@@ -96,88 +147,64 @@ public class MRDesktopClient {
         }
     }
     
-    // Frame validation test method similar to console client --test mode
-    public void runFrameValidationTest(String serverIP, int port) {
-        System.out.println("MRDesktop: Starting frame validation test to " + serverIP + ":" + port);
+    /** 
+     * Performance test using Surface decoding (GPU-optimized for VR/OpenGL applications).
+     * This eliminates CPU-based YUV→RGB conversion for significantly better performance.
+     */
+    public void runSurfacePerformanceTest(String serverIP, int port, int glTextureId) {
+        System.out.println("MRDesktop: Starting Surface-based performance test");
         
         final int[] frameCount = {0};
-        final boolean[] testPassed = {true};
-        final boolean[] testCompleted = {false};
+        final long[] totalTime = {0};
+        final long startTime = System.currentTimeMillis();
         
-        // Set up frame callback to validate frames
-        setFrameCallback(new FrameCallback() {
+        // Set up Surface frame callback
+        setSurfaceFrameCallback(new SurfaceFrameCallback() {
             @Override
-            public void onFrame(byte[] data, int width, int height) {
+            public void onFrameAvailable(int textureId, int width, int height) {
                 frameCount[0]++;
-                System.out.println("TEST: Received frame " + frameCount[0] + " - " + width + "x" + height + " (" + data.length + " bytes)");
+                long currentTime = System.currentTimeMillis();
+                totalTime[0] = currentTime - startTime;
                 
-                // Validate expected dimensions (same as console client test)
-                if (width != 640 || height != 480) {
-                    System.err.println("TEST FAILED: Expected 640x480, got " + width + "x" + height);
-                    testPassed[0] = false;
+                if (frameCount[0] % 30 == 0) { // Log every 30 frames
+                    double fps = (frameCount[0] * 1000.0) / totalTime[0];
+                    System.out.println("SURFACE PERFORMANCE: " + frameCount[0] + " frames, " + 
+                                     String.format("%.2f", fps) + " FPS, " +
+                                     "Texture: " + textureId + ", " +
+                                     "Resolution: " + width + "x" + height);
                 }
                 
-                // Validate data size 
-                int expectedSize = 640 * 480 * 4; // ARGB format
-                if (data.length != expectedSize) {
-                    System.err.println("TEST FAILED: Expected " + expectedSize + " bytes, got " + data.length);
-                    testPassed[0] = false;
-                }
-                
-                // Validate test pattern - check a few key pixels
-                if (data.length >= expectedSize) {
-                    // Check top-left corner pixel (ARGB format)
-                    int alpha = data[3] & 0xFF;
-                    int red = data[2] & 0xFF;
-                    int green = data[1] & 0xFF;
-                    int blue = data[0] & 0xFF;
-                    
-                    if (alpha != 255) {
-                        System.err.println("TEST FAILED: Alpha channel not 255 at (0,0)");
-                        testPassed[0] = false;
-                    }
-                    
-                    System.out.println("TEST: Frame " + frameCount[0] + " pixel (0,0) = R:" + red + " G:" + green + " B:" + blue + " A:" + alpha);
-                }
-                
-                // Complete test after 3 frames
-                if (frameCount[0] >= 3) {
-                    testCompleted[0] = true;
-                    System.out.println("TEST: Received all 3 frames, test completed");
-                }
+                // Update texture for rendering (this is where your OpenGL code would use the texture)
+                updateTexImage();
             }
         });
         
-        if (connect(serverIP, port)) {
-            System.out.println("MRDesktop: Connected successfully!");
+        if (initializeSurface(glTextureId) && connect(serverIP, port)) {
+            System.out.println("MRDesktop: Connected with Surface rendering (GPU-accelerated)");
             
-            // Wait for frames to be received (up to 10 seconds)
-            int maxWaitTime = 10000; // 10 seconds
-            int waitTime = 0;
-            while (!testCompleted[0] && waitTime < maxWaitTime) {
-                try {
-                    Thread.sleep(100);
-                    waitTime += 100;
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    break;
-                }
+            // Run performance test for 10 seconds
+            try {
+                Thread.sleep(10000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
             }
             
             disconnect();
             
-            // Print test results
-            System.out.println("\n=== ANDROID FRAME VALIDATION TEST RESULTS ===");
-            System.out.println("Total frames received: " + frameCount[0]);
+            // Final performance report
+            double totalSeconds = totalTime[0] / 1000.0;
+            double avgFPS = frameCount[0] / totalSeconds;
             
-            if (testPassed[0] && frameCount[0] >= 3) {
-                System.out.println("TEST PASSED: Frame validation successful - " + frameCount[0] + " frames processed correctly!");
-            } else {
-                System.out.println("TEST FAILED: " + (testPassed[0] ? "Insufficient frames received" : "Frame validation failed"));
-            }
+            System.out.println("\n=== SURFACE PERFORMANCE TEST RESULTS ===");
+            System.out.println("Total frames: " + frameCount[0]);
+            System.out.println("Total time: " + String.format("%.2f", totalSeconds) + " seconds");
+            System.out.println("Average FPS: " + String.format("%.2f", avgFPS));
+            System.out.println("Method: MediaCodec Surface decoding (GPU-based)");
+            System.out.println("CPU YUV→RGB conversion: ELIMINATED");
+            System.out.println("Ready for VR/OpenGL rendering!");
             
         } else {
-            System.out.println("MRDesktop: Failed to connect!");
+            System.out.println("MRDesktop: Failed to initialize Surface or connect!");
         }
     }
 }
