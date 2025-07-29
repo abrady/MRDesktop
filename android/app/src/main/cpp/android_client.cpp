@@ -7,7 +7,6 @@
 #include <android/log.h>
 #include "AndroidVideoDecoderWrapper.h"
 #include "CrashSafeFrameHandler.h"
-#include "FrameRenderer.h"
 #define LOG_TAG "MRDesk.Client"
 #include "Logging.h"
 #include "NetworkReceiver.h"
@@ -24,7 +23,6 @@ static jmethodID g_onFrameMethod = nullptr;
 class AndroidNetworkClient {
  private:
   std::unique_ptr<NetworkReceiver> receiver;
-  FrameRenderer frameRenderer;
   std::atomic<bool> running{false};
   std::mutex frameMutex; // Prevent race conditions in frame processing
   int frameCount = 0; // For debugging purposes
@@ -127,19 +125,12 @@ class AndroidNetworkClient {
             return;
           }
 
-          // Convert YUV to ARGB format for Android display
-          std::vector<uint8_t> argbData;
-          if (!frameRenderer.ConvertYUVToARGB(
-                  data, msg.width, msg.height, argbData)) {
-            LOGE("Failed to convert YUV frame to ARGB");
-            CrashSafeFrameHandler::DisableFrameRendering();
-            return;
-          }
+          const std::vector<uint8_t>& yuvData = data;
 
           // Only send to Java layer if we should render this frame (rate
           // limiting)
           if (shouldRender && g_vm && g_onFrameMethod && g_clientClass &&
-              !argbData.empty()) {
+              !yuvData.empty()) {
             JNIEnv* env = nullptr;
             bool attached = false;
 
@@ -162,18 +153,18 @@ class AndroidNetworkClient {
               // Limit array size to prevent OOM and add safety margin
               const size_t maxArraySize =
                   16 * 1024 * 1024; // Reduced to 16MB limit
-              if (argbData.size() > maxArraySize) {
+              if (yuvData.size() > maxArraySize) {
                 LOGE(
                     "Frame too large for JNI transfer: %zu bytes",
-                    argbData.size());
+                    yuvData.size());
                 if (attached)
                   g_vm->DetachCurrentThread();
                 return;
               }
 
               // Check if we have enough memory before creating large arrays
-              if (argbData.empty()) {
-                LOGE("ARGB data is empty after conversion");
+              if (yuvData.empty()) {
+                LOGE("YUV data is empty after decode");
                 if (attached)
                   g_vm->DetachCurrentThread();
                 return;
@@ -181,7 +172,7 @@ class AndroidNetworkClient {
 
               // Create Java byte array with error checking
               jbyteArray arr =
-                  env->NewByteArray(static_cast<jsize>(argbData.size()));
+                  env->NewByteArray(static_cast<jsize>(yuvData.size()));
               if (arr == nullptr) {
                 LOGE("Failed to create Java byte array for frame data");
                 if (env->ExceptionCheck()) {
@@ -195,15 +186,15 @@ class AndroidNetworkClient {
 
               // Copy data safely in chunks to avoid large memory operations
               const size_t chunkSize = 1024 * 1024; // 1MB chunks
-              for (size_t offset = 0; offset < argbData.size();
+              for (size_t offset = 0; offset < yuvData.size();
                    offset += chunkSize) {
                 size_t currentChunkSize =
-                    std::min(chunkSize, argbData.size() - offset);
+                    std::min(chunkSize, yuvData.size() - offset);
                 env->SetByteArrayRegion(
                     arr,
                     static_cast<jsize>(offset),
                     static_cast<jsize>(currentChunkSize),
-                    reinterpret_cast<const jbyte*>(argbData.data() + offset));
+                    reinterpret_cast<const jbyte*>(yuvData.data() + offset));
 
                 if (env->ExceptionCheck()) {
                   LOGE(
@@ -232,10 +223,10 @@ class AndroidNetworkClient {
                 env->ExceptionClear();
               } else {
                 LOGI(
-                    "Frame sent to Java layer: {}x{}, {} ARGB bytes",
+                    "Frame sent to Java layer: {}x{}, {} YUV bytes",
                     msg.width,
                     msg.height,
-                    argbData.size());
+                    yuvData.size());
               }
 
               env->DeleteLocalRef(arr);
@@ -257,8 +248,8 @@ class AndroidNetworkClient {
                 LOGE("Frame callback method not found");
               if (!g_clientClass)
                 LOGE("Client class not initialized");
-              if (argbData.empty())
-                LOGE("ARGB data is empty");
+              if (yuvData.empty())
+                LOGE("YUV data is empty");
             }
           }
         });
@@ -274,6 +265,7 @@ class AndroidNetworkClient {
     bool connected = receiver->Connect(serverIP, port);
     if (connected) {
       LOGI("Successfully connected to server");
+      receiver->SendPixelFormatRequest(PIXEL_FORMAT_YUV420);
       running = true;
 
       // Start polling thread to ensure frames are processed

@@ -170,6 +170,21 @@ bool AsioConnection::SendCompressionRequest(CompressionType compression) {
   return SendMessage(msg);
 }
 
+bool AsioConnection::SendPixelFormatRequest(PixelFormat format) {
+  PixelFormatRequestMessage msg;
+  msg.header.type = MSG_PIXEL_FORMAT_REQUEST;
+  msg.header.size = sizeof(PixelFormatRequestMessage);
+  msg.preferredFormat = format;
+
+  LOGD(
+      "SendPixelFormatRequest: sending type={} size={} format={}",
+      static_cast<uint32_t>(msg.header.type),
+      msg.header.size,
+      static_cast<uint32_t>(format));
+
+  return SendMessage(msg);
+}
+
 template <typename T>
 bool AsioConnection::SendMessage(const T& message) {
   return SendData(&message, sizeof(T));

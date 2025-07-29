@@ -262,6 +262,10 @@ bool NetworkReceiver::SendCompressionRequest(CompressionType compression) {
   return pImpl->connection.SendCompressionRequest(compression);
 }
 
+bool NetworkReceiver::SendPixelFormatRequest(PixelFormat format) {
+  return pImpl->connection.SendPixelFormatRequest(format);
+}
+
 bool NetworkReceiver::SendMouseMove(
     int32_t deltaX, int32_t deltaY, bool absolute, int32_t x, int32_t y) {
   return pImpl->connection.SendMouseMove(deltaX, deltaY, absolute, x, y);
