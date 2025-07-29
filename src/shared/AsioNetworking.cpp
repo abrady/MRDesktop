@@ -323,57 +323,52 @@ void AsioConnection::ProcessCompleteMessage() {
       break;
     }
     case MSG_MOUSE_MOVE: {
-      std::vector<uint8_t> messageData(
-          m_accumBuffer.begin() + sizeof(MessageHeader),
-          m_accumBuffer.begin() + m_bytesNeeded);
+      MouseMoveMessage msg;
+      memcpy(&msg, m_accumBuffer.data(), sizeof(MouseMoveMessage));
 
       LOGD("Processing mouse move message");
-      if (m_onInput) {
-        m_onInput(header, messageData);
+      if (m_onMouseMove) {
+        m_onMouseMove(msg);
       }
       break;
     }
     case MSG_MOUSE_CLICK: {
-      std::vector<uint8_t> messageData(
-          m_accumBuffer.begin() + sizeof(MessageHeader),
-          m_accumBuffer.begin() + m_bytesNeeded);
+      MouseClickMessage msg;
+      memcpy(&msg, m_accumBuffer.data(), sizeof(MouseClickMessage));
 
       LOGD("Processing mouse click message");
-      if (m_onInput) {
-        m_onInput(header, messageData);
+      if (m_onMouseClick) {
+        m_onMouseClick(msg);
       }
       break;
     }
     case MSG_MOUSE_SCROLL: {
-      std::vector<uint8_t> messageData(
-          m_accumBuffer.begin() + sizeof(MessageHeader),
-          m_accumBuffer.begin() + m_bytesNeeded);
+      MouseScrollMessage msg;
+      memcpy(&msg, m_accumBuffer.data(), sizeof(MouseScrollMessage));
 
       LOGD("Processing mouse scroll message");
-      if (m_onInput) {
-        m_onInput(header, messageData);
+      if (m_onMouseScroll) {
+        m_onMouseScroll(msg);
       }
       break;
     }
     case MSG_COMPRESSION_REQUEST: {
-      std::vector<uint8_t> messageData(
-          m_accumBuffer.begin() + sizeof(MessageHeader),
-          m_accumBuffer.begin() + m_bytesNeeded);
+      CompressionRequestMessage msg;
+      memcpy(&msg, m_accumBuffer.data(), sizeof(CompressionRequestMessage));
 
       LOGD("Processing compression request message");
-      if (m_onInput) {
-        m_onInput(header, messageData);
+      if (m_onCompressionRequest) {
+        m_onCompressionRequest(msg);
       }
       break;
     }
     case MSG_PIXEL_FORMAT_REQUEST: {
-      std::vector<uint8_t> messageData(
-          m_accumBuffer.begin() + sizeof(MessageHeader),
-          m_accumBuffer.begin() + m_bytesNeeded);
+      PixelFormatRequestMessage msg;
+      memcpy(&msg, m_accumBuffer.data(), sizeof(PixelFormatRequestMessage));
 
       LOGD("Processing pixel format request message");
-      if (m_onInput) {
-        m_onInput(header, messageData);
+      if (m_onPixelFormatRequest) {
+        m_onPixelFormatRequest(msg);
       }
       break;
     }
