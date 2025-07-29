@@ -83,14 +83,14 @@ python build.py [debug|release]
 # Build with specific number of parallel jobs
 python build.py debug -j 8
 
-# Run server (Windows only - listens on port 8080)
-run_server.bat
+# Run server (listens on port 8080)
+python run_server.py
 
-# Run console client (Windows only - connects to localhost:8080 or specific IP)
-run_console_client.bat [IP_ADDRESS]
+# Run console client (connects to localhost:8080 or specific IP)
+python run_console_client.py [IP_ADDRESS]
 
-# Run integration tests (Windows only)
-scripts\run_test.bat [debug|release]
+# Run integration tests
+python scripts/run_test.py [debug|release]
 
 # Format code using clang-format
 scripts\format.sh
@@ -164,7 +164,7 @@ cd out/build/x64 && ctest --output-on-failure
 
 ```batch
 # Windows - Run all tests
-scripts\run_test.bat [debug|release]
+python scripts/run_test.py [debug|release]
 
 # Linux - Run tests in container
 python linux/build-linux.py test [debug|release]
@@ -175,8 +175,8 @@ cd build/debug && ctest --output-on-failure
 
 ### Desktop Streaming Tests
 
-1. **Start Server**: `run_server.bat` - Shows "Server listening on port 8080..."
-2. **Start Client**: `run_console_client.bat` - Creates `first_frame.bmp` with desktop screenshot
+1. **Start Server**: `python run_server.py` - Shows "Server listening on port 8080..."
+2. **Start Client**: `python run_console_client.py` - Creates `first_frame.bmp` with desktop screenshot
 3. **Verify**: Both show FPS stats, client saves frame proving capture works
 
 ### Compression Testing

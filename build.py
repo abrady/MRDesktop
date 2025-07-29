@@ -101,11 +101,11 @@ def show_run_instructions(system, build_dir):
     print("To run the applications:")
     
     if system == "Windows":
-        print("  run_server.bat           - Start the desktop server")
-        print("  run_console_client.bat   - Connect to localhost")  
-        print("  run_console_client.bat [IP] - Connect to specific IP")
+        print("  python run_server.py           - Start the desktop server")
+        print("  python run_console_client.py   - Connect to localhost")  
+        print("  python run_console_client.py [IP] - Connect to specific IP")
         print()
-        print("Example: run_console_client.bat 192.168.1.100")
+        print("Example: python run_console_client.py 192.168.1.100")
     else:
         # For Linux/macOS, show the actual binary paths
         server_binary = build_dir / "MRDesktopServer"
