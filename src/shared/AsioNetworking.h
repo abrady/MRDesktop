@@ -90,6 +90,7 @@ class AsioConnection {
   bool SendMouseClick(MouseClickMessage::MouseButton button, bool pressed);
   bool SendMouseScroll(int32_t deltaX, int32_t deltaY);
   bool SendCompressionRequest(CompressionType compression);
+  bool SendPixelFormatRequest(PixelFormat format);
 
   // Raw data sending (for testing/debugging)
   bool SendData(const void* data, size_t size);
