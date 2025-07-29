@@ -36,17 +36,17 @@ export CONTAINER_ENGINE=docker
 
 1. **Build the container image:**
    ```bash
-   ./build-linux.sh image
+   python linux/build-linux.py image
    ```
 
 2. **Build the project (debug):**
    ```bash
-   ./build-linux.sh build debug
+   python linux/build-linux.py build debug
    ```
 
 3. **Build the project (release):**
    ```bash
-   ./build-linux.sh build release
+   python linux/build-linux.py build release
    ```
 
 4. **Run tests:**
@@ -56,21 +56,21 @@ export CONTAINER_ENGINE=docker
 
 5. **Interactive development shell:**
    ```bash
-   ./build-linux.sh shell
+   python linux/build-linux.py shell
    ```
 
 ## Available Commands
 
-### build-linux.sh
+### build-linux.py
 
 | Command | Description |
 |---------|-------------|
-| `./build-linux.sh build [debug\|release]` | Build the project |
-| `./build-linux.sh test [debug\|release]` | Run tests |
-| `./build-linux.sh shell` | Start interactive shell |
-| `./build-linux.sh image` | Build container image |
-| `./build-linux.sh clean` | Clean build artifacts |
-| `./build-linux.sh help` | Show help |
+| `python linux/build-linux.py build [debug\|release]` | Build the project |
+| `python linux/build-linux.py test [debug\|release]` | Run tests |
+| `python linux/build-linux.py shell` | Start interactive shell |
+| `python linux/build-linux.py image` | Build container image |
+| `python linux/build-linux.py clean` | Clean build artifacts |
+| `python linux/build-linux.py help` | Show help |
 
 ### run-tests-linux.sh
 
@@ -129,7 +129,7 @@ ctest --verbose --output-on-failure
 
 1. **Start interactive shell:**
    ```bash
-   ./build-linux.sh shell
+   python linux/build-linux.py shell
    ```
 
 2. **Inside the container, configure and build:**
@@ -153,7 +153,7 @@ ctest --verbose --output-on-failure
 
 - The container mounts the project directory at `/workspace`
 - Changes to source files are immediately available in the container
-- Use `./build-linux.sh shell` for iterative development
+- Use `python linux/build-linux.py shell` for iterative development
 - Container includes development tools: GDB, Valgrind, strace
 
 ## Container Environment
@@ -186,7 +186,7 @@ The Linux build container includes:
 Example:
 ```bash
 export CONTAINER_ENGINE=docker
-./build-linux.sh build
+python linux/build-linux.py build
 ```
 
 ## Troubleshooting
@@ -202,20 +202,20 @@ export CONTAINER_ENGINE=docker
 
 2. **Rebuild image:**
    ```bash
-   ./build-linux.sh image
+   python linux/build-linux.py image
    ```
 
 ### Build Fails
 
 1. **Clean build directory:**
    ```bash
-   ./build-linux.sh clean
-   ./build-linux.sh build
+   python linux/build-linux.py clean
+   python linux/build-linux.py build
    ```
 
 2. **Check container shell:**
    ```bash
-   ./build-linux.sh shell
+   python linux/build-linux.py shell
    # Manually run build commands to see detailed errors
    ```
 
@@ -223,7 +223,7 @@ export CONTAINER_ENGINE=docker
 
 1. **Run tests individually:**
    ```bash
-   ./build-linux.sh shell
+   python linux/build-linux.py shell
    cd build/debug
    ./tests/basic_tests --gtest_filter=ProtocolTest.*
    ```
@@ -242,8 +242,8 @@ The containerized build system is designed for CI/CD integration:
 # Example GitHub Actions workflow
 - name: Build Linux
   run: |
-    ./build-linux.sh image
-    ./build-linux.sh build release
+    python linux/build-linux.py image
+    python linux/build-linux.py build release
 
 - name: Test Linux
   run: ./run-tests-linux.sh release

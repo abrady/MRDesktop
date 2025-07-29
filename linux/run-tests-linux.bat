@@ -21,14 +21,14 @@ if %ERRORLEVEL% neq 0 (
 REM Check if image exists
 %CONTAINER_ENGINE% images %IMAGE_NAME% >nul 2>&1
 if %ERRORLEVEL% neq 0 (
-    echo [ERROR] Container image not found. Run 'build-linux.bat image' first.
+    echo [ERROR] Container image not found. Run 'python linux/build-linux.py image' first.
     exit /b 1
 )
 
-REM Check if build exists
-if not exist "..\build\%BUILD_TYPE%" (
+REM Check if build exists (Linux builds use linux-prefixed directories)
+if not exist "..\build\linux-%BUILD_TYPE%" (
     echo [WARN] Build directory not found. Building first...
-    call ..\build-linux.bat build %BUILD_TYPE%
+    call python ..\linux\build-linux.py build %BUILD_TYPE%
     if %ERRORLEVEL% neq 0 (
         echo [ERROR] Build failed
         exit /b 1
@@ -37,4 +37,4 @@ if not exist "..\build\%BUILD_TYPE%" (
 
 echo [INFO] Running Linux tests ^(%BUILD_TYPE%^) in container...
 
-%CONTAINER_ENGINE% run --rm -v "%CD%\..:/workspace" -w /workspace %IMAGE_NAME% bash -c "cd build/%BUILD_TYPE% && echo 'Running CTest...' && ctest --output-on-failure --verbose && echo '' && echo 'Running individual test executables for detailed output...' && if [ -f 'tests/basic_tests' ]; then echo 'Running basic_tests...' && ./tests/basic_tests --gtest_output=xml:basic_tests_results.xml; fi && if [ -f 'tests/integration_tests' ]; then echo 'Running integration_tests...' && ./tests/integration_tests --gtest_output=xml:integration_tests_results.xml; fi && echo 'Tests completed!'"
+%CONTAINER_ENGINE% run --rm -v "%CD%\..:/workspace" -w /workspace %IMAGE_NAME% bash -c "cd build/linux-%BUILD_TYPE% && echo 'Running CTest...' && ctest --output-on-failure --verbose && echo '' && echo 'Running individual test executables for detailed output...' && if [ -f 'tests/basic_tests' ]; then echo 'Running basic_tests...' && ./tests/basic_tests --gtest_output=xml:basic_tests_results.xml; fi && if [ -f 'tests/integration_tests' ]; then echo 'Running integration_tests...' && ./tests/integration_tests --gtest_output=xml:integration_tests_results.xml; fi && echo 'Tests completed!'"

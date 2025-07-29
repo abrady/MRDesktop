@@ -119,7 +119,7 @@ def show_run_instructions(system, build_dir):
         print()
         if system == "Linux":
             print("Or use the Linux container:")
-            print("  linux/build-linux.sh build [debug|release]")
+            print("  python linux/build-linux.py build [debug|release]")
 
 
 def get_cpu_count():

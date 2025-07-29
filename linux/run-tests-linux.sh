@@ -35,14 +35,14 @@ fi
 
 # Check if image exists
 if [ ! "$(${CONTAINER_ENGINE} images -q ${IMAGE_NAME} 2> /dev/null)" ]; then
-    echo_error "Container image not found. Run './build-linux.sh image' first."
+    echo_error "Container image not found. Run 'python linux/build-linux.py image' first."
     exit 1
 fi
 
-# Check if build exists
-if [ ! -d "build/${BUILD_TYPE}" ]; then
+# Check if build exists (Linux builds use linux-prefixed directories)
+if [ ! -d "build/linux-${BUILD_TYPE}" ]; then
     echo_warn "Build directory not found. Building first..."
-    ./build-linux.sh build ${BUILD_TYPE}
+    python linux/build-linux.py build ${BUILD_TYPE}
 fi
 
 echo_info "Running Linux tests (${BUILD_TYPE}) in container..."
@@ -52,7 +52,7 @@ ${CONTAINER_ENGINE} run --rm \
     -w /workspace \
     ${IMAGE_NAME} \
     bash -c "
-        cd build/${BUILD_TYPE}
+        cd build/linux-${BUILD_TYPE}
         
         echo 'Running CTest...'
         ctest --output-on-failure --verbose

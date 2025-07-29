@@ -102,22 +102,22 @@ scripts\format.sh
 
 ```bash
 # Build project using container
-linux/build-linux.sh build [debug|release]
+python linux/build-linux.py build [debug|release]
 
 # Run tests in container
-linux/build-linux.sh test [debug|release]
+python linux/build-linux.py test [debug|release]
 
 # Start interactive development shell (can use Python scripts inside)
-linux/build-linux.sh shell
+python linux/build-linux.py shell
 
 # Build container image
-linux/build-linux.sh image
+python linux/build-linux.py image
 
 # Clean build artifacts
-linux/build-linux.sh clean
+python linux/build-linux.py clean
 
 # Alternative: Use Python scripts directly in container shell
-# linux/build-linux.sh shell
+# python linux/build-linux.py shell
 # python3 configure.py debug
 # python3 build.py debug
 
@@ -167,7 +167,7 @@ cd out/build/x64 && ctest --output-on-failure
 scripts\run_test.bat [debug|release]
 
 # Linux - Run tests in container
-linux/build-linux.sh test [debug|release]
+python linux/build-linux.py test [debug|release]
 
 # Run specific test suite manually
 cd build/debug && ctest --output-on-failure
