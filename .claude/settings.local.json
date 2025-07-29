@@ -124,7 +124,8 @@
       "Bash(python:*)",
       "Bash(del test_configure.py)",
       "Bash(ctest:*)",
-      "Bash(./basic_tests.exe)"
+      "Bash(./basic_tests.exe)",
+      "WebFetch(domain:docs.anthropic.com)"
     ],
     "deny": []
   }
