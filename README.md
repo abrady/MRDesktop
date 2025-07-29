@@ -59,20 +59,6 @@ To test the desktop video streaming:
 
  The first_frame.bmp file will prove the desktop capture is working
 
-## Pixel Format with Compression
-
-When compression is active (requested via `MSG_COMPRESSION_REQUEST`) the server
-always encodes frames in the YUV420 format for the H.26x encoders. The pixel
-format agreed upon with `MSG_PIXEL_FORMAT_REQUEST` only applies to
-uncompressed transfers. A client decoding a compressed frame therefore receives
-YUV output and must convert it to the desired BGRA/ARGB format on its side.
-
-Advanced setups can implement a custom encoder that preserves RGB channels
-(for example `libx264rgb` or a PNG-based codec). Such an approach would allow
-compressed frames to be delivered directly in the negotiated format and avoid
-the extra conversion step after decoding.
-
-
 ## Formatting
 
 The repository uses clang-format to keep the C/C++ code consistent. The style configuration is in `.clang-format`, based on Meta's Snowplow guidelines. Run `scripts/format.sh` after making changes to automatically format the source files.
