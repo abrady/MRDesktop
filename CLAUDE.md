@@ -186,6 +186,7 @@ cd build/debug && ctest --output-on-failure
 3. **Verify**: Both show FPS stats, client saves frame proving capture works
 
 **Troubleshooting**:
+
 - If server fails with "Desktop duplication is not available", close any remote desktop connections
 - Make sure no other screen capture software is running
 - Check Windows firewall isn't blocking port 8080
@@ -353,7 +354,46 @@ linux/                # Docker-based Linux build system
 This is an active implementation with working desktop streaming between Windows host and client. The Android VR client is in development phase with native library structure in place. The RTP stack module is a standalone component that can be developed and tested independently, designed for future integration into the main streaming pipeline.
 
 ## important-instruction-reminders
+
 Do what has been asked; nothing more, nothing less.
 NEVER create files unless they're absolutely necessary for achieving your goal.
 ALWAYS prefer editing an existing file to creating a new one.
 NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested by the User.
+
+## Claude Code Tool Preferences for Windows Development
+
+When working on Windows, use these modern tools for better performance and readability:
+
+### File Operations
+
+- **fd** - Fast file finder (installed via winget)
+  - Use `fd <pattern>` instead of `dir /s` or PowerShell's `Get-ChildItem -Recurse`
+  - Example: `fd "*.cpp"` to find all C++ files
+  - Example: `fd main` to find files/directories containing "main"
+
+- **bat** - Enhanced file viewer with syntax highlighting (installed via winget)  
+  - Use `bat <file>` instead of `type` for viewing files
+  - Provides syntax highlighting, line numbers, and git integration
+  - Example: `bat src/server/main.cpp`
+
+- **eza** - Modern directory listing (installed via winget)
+  - Use `eza` instead of `dir` for better formatted output
+  - Use `eza -la` for detailed listing with file permissions and timestamps
+  - Use `eza --tree` for tree view of directories
+
+### Search Operations
+
+- **ripgrep (rg)** - Fast text search (already available)
+  - Use `rg <pattern>` instead of `findstr` for searching file contents
+  - Example: `rg "LOG_TAG" --type cpp` to search in C++ files only
+  - Example: `rg "MSG_FRAME_DATA" src/` to search in src directory
+
+### Windows Command Preference Order
+
+1. **fd** for finding files by name/pattern
+2. **rg** for searching file contents  
+3. **bat** for viewing files with syntax highlighting
+4. **eza** for directory listings
+5. Standard Windows commands (dir, type, etc.) as fallback
+
+These tools provide better performance, colored output, and more intuitive syntax than traditional Windows commands.
