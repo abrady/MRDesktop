@@ -58,8 +58,13 @@ jobs:
     - name: Build
       run: cmake --build --preset linux-debug
 
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.x'
+
     - name: Run H.265 Compression Test
-      run: bash ./run_compression_test.sh
+      run: python ./run_compression_test.py
 
     - name: Upload test artifacts on failure
       if: failure()

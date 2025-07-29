@@ -61,4 +61,4 @@ To test the desktop video streaming:
 
 ## Formatting
 
-The repository uses clang-format to keep the C/C++ code consistent. The style configuration is in `.clang-format`, based on Meta's Snowplow guidelines. Run `scripts/format.sh` after making changes to automatically format the source files.
+The repository uses clang-format to keep the C/C++ code consistent. The style configuration is in `.clang-format`, based on Meta's Snowplow guidelines. Run `python scripts/format.py` after making changes to automatically format the source files.

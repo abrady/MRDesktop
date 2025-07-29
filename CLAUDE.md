@@ -59,15 +59,17 @@ Located in `android/app/src/main/cpp/`:
 
 The project uses CMake with cross-platform presets defined in `CMakePresets.json`:
 
-### Desktop Builds (Windows/macOS)
+### Desktop Builds (Windows/macOS/Linux)
 
 - **Windows**: `windows-debug`, `windows-release` (Visual Studio 2022)
 - **macOS**: `macos-debug`, `macos-release` (Ninja)
+- **Linux**: `linux-debug`, `linux-release` (Ninja)
 
 ### Android Builds
 
 - **ARM64**: `android-arm64-debug`, `android-arm64-release` (for devices)
-- **x86_64**: `android-x86_64-debug` (for emulator testing)
+- **OpenXR**: `android-openxr-arm64-debug` (for Quest builds with OpenXR)
+- **x86_64**: `android-x86_64-debug`, `android-x86_64-release` (for emulator testing)
 
 ## Development Commands
 
@@ -83,17 +85,17 @@ python build.py [debug|release]
 # Build with specific number of parallel jobs
 python build.py debug -j 8
 
-# Run server (Windows only - listens on port 8080)
-run_server.bat
+# Run server (listens on port 8080)
+python run_server.py
 
-# Run console client (Windows only - connects to localhost:8080 or specific IP)
-run_console_client.bat [IP_ADDRESS]
+# Run console client (connects to localhost:8080 or specific IP)
+python run_console_client.py [IP_ADDRESS]
 
-# Run integration tests (Windows only)
-scripts\run_test.bat [debug|release]
+# Run integration tests
+python scripts/run_test.py [debug|release]
 
 # Format code using clang-format
-scripts\format.sh
+python scripts/format.py
 ```
 
 **Note**: The Python scripts (`configure.py` and `build.py`) work cross-platform and automatically detect your OS to use the appropriate CMake presets and build directories.
@@ -102,37 +104,38 @@ scripts\format.sh
 
 ```bash
 # Build project using container
-linux/build-linux.sh build [debug|release]
+python linux/build-linux.py build [debug|release]
 
 # Run tests in container
-linux/build-linux.sh test [debug|release]
+python linux/build-linux.py test [debug|release]
 
 # Start interactive development shell (can use Python scripts inside)
-linux/build-linux.sh shell
+python linux/build-linux.py shell
 
 # Build container image
-linux/build-linux.sh image
+python linux/build-linux.py image
 
 # Clean build artifacts
-linux/build-linux.sh clean
+python linux/build-linux.py clean
 
 # Alternative: Use Python scripts directly in container shell
-# linux/build-linux.sh shell
+# python linux/build-linux.py shell
 # python3 configure.py debug
 # python3 build.py debug
 
 # Run compression tests
-./run_compression_test.sh
+python run_compression_test.py
 ```
 
 ### Android Development
 
 ```batch
-# Fetch Android toolchain (first time only)
-scripts\fetch_android_toolchain.bat
-
 # Setup Android NDK environment (first time only)
 setup_android.bat
+
+# Alternative setup if Android Studio not installed:
+tools\download_android_tools.bat
+tools\build_apk_standalone.bat
 
 # Build Android native library
 build_android.bat [debug|release]
@@ -140,6 +143,9 @@ build_android.bat [debug|release]
 # Build APK (requires Android Studio)
 cd android
 # Open in Android Studio and build normally
+
+# For OpenXR Quest builds (requires vcpkg and openxr-loader):
+# Use android-openxr-arm64-debug preset
 ```
 
 ### RTP Stack Development
@@ -164,10 +170,10 @@ cd out/build/x64 && ctest --output-on-failure
 
 ```batch
 # Windows - Run all tests
-scripts\run_test.bat [debug|release]
+python scripts/run_test.py [debug|release]
 
 # Linux - Run tests in container
-linux/build-linux.sh test [debug|release]
+python linux/build-linux.py test [debug|release]
 
 # Run specific test suite manually
 cd build/debug && ctest --output-on-failure
@@ -175,15 +181,21 @@ cd build/debug && ctest --output-on-failure
 
 ### Desktop Streaming Tests
 
-1. **Start Server**: `run_server.bat` - Shows "Server listening on port 8080..."
-2. **Start Client**: `run_console_client.bat` - Creates `first_frame.bmp` with desktop screenshot
+1. **Start Server**: `python run_server.py` (or `run.bat server`) - Shows "Server listening on port 8080..."
+2. **Start Client**: `python run_console_client.py` (or `run.bat client`) - Creates `first_frame.bmp` with desktop screenshot
 3. **Verify**: Both show FPS stats, client saves frame proving capture works
+
+**Troubleshooting**:
+
+- If server fails with "Desktop duplication is not available", close any remote desktop connections
+- Make sure no other screen capture software is running
+- Check Windows firewall isn't blocking port 8080
 
 ### Compression Testing
 
 ```bash
-# Test H.265 compression (Linux)
-./run_compression_test.sh
+# Test H.265 compression (cross-platform)
+python run_compression_test.py
 ```
 
 The test suite includes:
@@ -251,6 +263,14 @@ The system implements intelligent pixel format negotiation to handle cross-platf
 
 This system ensures optimal performance while supporting the native formats each platform requires, avoiding unnecessary conversions when client and server formats match.
 
+When compression is enabled the server currently encodes frames with FFmpeg's
+H.26x encoders in the `YUV420` format. Pixel format negotiation is ignored for
+these compressed frames. The client decodes to YUV and must convert the image to
+BGRA or ARGB itself. To deliver compressed frames directly in the negotiated
+format you could implement a custom encoder that preserves RGB channels (for
+example using `libx264rgb` or a PNG codec) so the decoded frame already matches
+the client's request.
+
 ### Android Integration
 
 - Native C++ library compiled with Android NDK
@@ -299,7 +319,7 @@ The project uses vcpkg for dependency management with `vcpkg.json`:
 ### Formatting
 
 - Uses **clang-format** with Meta's Snowplow style guidelines (`.clang-format`)
-- Run `scripts/format.sh` to format all source files before committing
+- Run `python scripts/format.py` to format all source files before committing
 - 80-character line limit, 2-space indentation
 
 ### Build Configuration
@@ -332,3 +352,48 @@ linux/                # Docker-based Linux build system
 ## Project Status
 
 This is an active implementation with working desktop streaming between Windows host and client. The Android VR client is in development phase with native library structure in place. The RTP stack module is a standalone component that can be developed and tested independently, designed for future integration into the main streaming pipeline.
+
+## important-instruction-reminders
+
+Do what has been asked; nothing more, nothing less.
+NEVER create files unless they're absolutely necessary for achieving your goal.
+ALWAYS prefer editing an existing file to creating a new one.
+NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested by the User.
+
+## Claude Code Tool Preferences for Windows Development
+
+When working on Windows, use these modern tools for better performance and readability:
+
+### File Operations
+
+- **fd** - Fast file finder (installed via winget)
+  - Use `fd <pattern>` instead of `dir /s` or PowerShell's `Get-ChildItem -Recurse`
+  - Example: `fd "*.cpp"` to find all C++ files
+  - Example: `fd main` to find files/directories containing "main"
+
+- **bat** - Enhanced file viewer with syntax highlighting (installed via winget)  
+  - Use `bat <file>` instead of `type` for viewing files
+  - Provides syntax highlighting, line numbers, and git integration
+  - Example: `bat src/server/main.cpp`
+
+- **eza** - Modern directory listing (installed via winget)
+  - Use `eza` instead of `dir` for better formatted output
+  - Use `eza -la` for detailed listing with file permissions and timestamps
+  - Use `eza --tree` for tree view of directories
+
+### Search Operations
+
+- **ripgrep (rg)** - Fast text search (already available)
+  - Use `rg <pattern>` instead of `findstr` for searching file contents
+  - Example: `rg "LOG_TAG" --type cpp` to search in C++ files only
+  - Example: `rg "MSG_FRAME_DATA" src/` to search in src directory
+
+### Windows Command Preference Order
+
+1. **fd** for finding files by name/pattern
+2. **rg** for searching file contents  
+3. **bat** for viewing files with syntax highlighting
+4. **eza** for directory listings
+5. Standard Windows commands (dir, type, etc.) as fallback
+
+These tools provide better performance, colored output, and more intuitive syntax than traditional Windows commands.

@@ -92,7 +92,7 @@ if errorlevel 1 (
     echo ===============================================
     echo.
     echo Please start the MRDesktop server in another terminal:
-    echo   run_server.bat
+    echo   python run_server.py
     echo.
     echo Server should listen on port %SERVER_PORT%
     echo Android emulator will connect to %SERVER_IP%:%SERVER_PORT%

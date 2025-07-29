@@ -39,7 +39,5 @@ echo.
 echo.
 echo ==================================
 echo If both executables exist, you can now run:
-echo   run_test.bat debug
-echo or
-echo   powershell .\run_test.ps1 -Config debug
+echo   python run_test.py debug
 echo ==================================

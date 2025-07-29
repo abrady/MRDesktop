@@ -8,10 +8,9 @@ This runs a simple integration test that validates the server-client communicati
 
 ## Advanced Testing
 For more testing options, see the scripts in the `scripts/` directory:
-- `scripts/run_test.bat` - Full-featured test with debug/release options
-- `scripts/run_test.ps1` - PowerShell version
+- `python scripts/run_test.py` - Full-featured test with debug/release options
 - `scripts/verify_test_setup.bat` - Setup verification
-- `scripts/test_compile.bat` - Build verification
+- `python scripts/test_compile.py` - Build verification
 
 ## What the Test Does
 1. **Server Test Mode**: Generates 640x480 test frames with red-green gradient pattern

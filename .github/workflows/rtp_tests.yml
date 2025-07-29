@@ -1,0 +1,84 @@
+name: RTP Stack Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'rtp-stack/**'
+      - '.github/workflows/rtp_tests.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'rtp-stack/**'
+      - '.github/workflows/rtp_tests.yml'
+  workflow_dispatch:
+
+jobs:
+  rtp-tests:
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+        config: [Debug, Release]
+      fail-fast: false
+    
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+        
+    - name: Cache vcpkg
+      uses: ./.github/actions/cache-vcpkg
+        
+    - name: Cache RTP build artifacts
+      uses: actions/cache@v3
+      with:
+        path: |
+          build
+          rtp-stack/out
+        key: ${{ runner.os }}-${{ matrix.config }}-rtp-${{ hashFiles('rtp-stack/CMakeLists.txt', 'rtp-stack/tests/CMakeLists.txt', 'CMakeLists.txt', 'vcpkg.json') }}
+        restore-keys: |
+          ${{ runner.os }}-${{ matrix.config }}-rtp-
+          ${{ runner.os }}-rtp-
+        
+    - name: Install dependencies  
+      uses: ./.github/actions/install-deps
+        
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.x'
+        
+    - name: Configure project (includes RTP stack)
+      run: python configure.py ${{ matrix.config }}
+      
+    - name: Build RTP stack only
+      shell: bash
+      run: |
+        if [ "${{ matrix.os }}" = "windows-latest" ]; then
+          cmake --build build/${{ matrix.config }} --target rtp_stack --config ${{ matrix.config }}
+          cmake --build build/${{ matrix.config }}/rtp-stack --target rtp_tests --config ${{ matrix.config }}
+        else
+          cmake --build build/*${{ matrix.config }}* --target rtp_stack
+          cmake --build build/*${{ matrix.config }}*/rtp-stack --target rtp_tests
+        fi
+        
+    - name: Run RTP Stack Tests
+      shell: bash
+      run: |
+        if [ "${{ matrix.os }}" = "windows-latest" ]; then
+          cd build/${{ matrix.config }}/rtp-stack/tests && ctest -C ${{ matrix.config }} --output-on-failure --verbose
+        else
+          cd build/*${{ matrix.config }}*/rtp-stack/tests && ctest --output-on-failure --verbose
+        fi
+        
+    - name: Upload RTP test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: rtp-test-results-${{ matrix.os }}-${{ matrix.config }}
+        path: |
+          build/*/rtp-stack/tests/Testing/Temporary/LastTest.log
+        retention-days: 7

@@ -122,7 +122,11 @@
       "Bash(set ANDROID_NDK_HOME=C:AndroidSdkndk25.1.8937393)",
       "Bash(./sdk/cmdline-tools/latest/bin/sdkmanager.bat:*)",
       "Bash(python:*)",
-      "Bash(del test_configure.py)"
+      "Bash(del test_configure.py)",
+      "Bash(ctest:*)",
+      "Bash(./basic_tests.exe)",
+      "WebFetch(domain:docs.anthropic.com)",
+      "Bash(winget install:*)"
     ],
     "deny": []
   }

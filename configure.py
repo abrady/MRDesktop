@@ -121,7 +121,7 @@ def configure_cmake(build_type):
             print("Make sure Visual Studio 2022 with C++ development tools is installed.")
         elif system == "Linux":
             print("Make sure CMake, Ninja, and development tools are installed.")
-            print("In container: run 'linux/build-linux.sh shell' for interactive mode.")
+            print("In container: run 'python linux/build-linux.py shell' for interactive mode.")
         else: # macOS
             print("Make sure Xcode command line tools are installed: xcode-select --install")
         return False

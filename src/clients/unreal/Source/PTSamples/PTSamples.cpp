@@ -3,4 +3,4 @@
 #include "PTSamples.h"
 #include "Modules/ModuleManager.h"
 
-IMPLEMENT_PRIMARY_GAME_MODULE( FDefaultGameModuleImpl, PTSamples, "PTSamples" );
+IMPLEMENT_PRIMARY_GAME_MODULE(FDefaultGameModuleImpl, PTSamples, "PTSamples");

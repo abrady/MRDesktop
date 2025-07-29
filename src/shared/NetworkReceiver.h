@@ -38,6 +38,7 @@ class NetworkReceiver {
       int32_t y = 0);
   bool SendMouseClick(MouseClickMessage::MouseButton button, bool pressed);
   bool SendMouseScroll(int32_t deltaX, int32_t deltaY);
+  bool SendPixelFormatRequest(PixelFormat format);
 
   // Callback setters
   void SetFrameCallback(
