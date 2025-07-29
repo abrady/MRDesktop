@@ -53,8 +53,6 @@ def main():
     print()
     print("You can now run the test with:")
     print("  python scripts/run_test.py [debug|release]")
-    print("or")
-    print("  powershell scripts/run_test.ps1 [-Config debug|release]")
     
     return 0
 

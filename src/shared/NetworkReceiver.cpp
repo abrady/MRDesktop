@@ -12,11 +12,12 @@ class NetworkReceiver::Impl {
   AsioConnection connection;
   std::unique_ptr<IVideoDecoder> decoder;
   CompressionType compression = COMPRESSION_H265;
-  
+
   // Performance timing
   std::shared_ptr<spdlog::logger> logger;
   std::chrono::steady_clock::time_point frameReceiveStart;
-  std::chrono::steady_clock::time_point lastPerfLog = std::chrono::steady_clock::now();
+  std::chrono::steady_clock::time_point lastPerfLog =
+      std::chrono::steady_clock::now();
   int framesSinceLastPerfLog = 0;
   double totalNetworkTime = 0.0;
   double totalDecodeTime = 0.0;
@@ -91,7 +92,7 @@ class NetworkReceiver::Impl {
       const CompressedFrameMessage& frameMsg,
       const std::vector<uint8_t>& compressedData) {
     auto frameStartTime = std::chrono::steady_clock::now();
-    
+
     if (onRawFrameReceived)
       onRawFrameReceived(MSG_COMPRESSED_FRAME);
 
@@ -107,9 +108,9 @@ class NetworkReceiver::Impl {
     auto decodeStartTime = std::chrono::steady_clock::now();
     std::vector<uint8_t> decodedData;
     bool decodeSuccess = decoder->DecodeFrame(
-            compressedData.data(), compressedData.size(), decodedData);
+        compressedData.data(), compressedData.size(), decodedData);
     auto decodeEndTime = std::chrono::steady_clock::now();
-    
+
     if (decodeSuccess) {
       // Convert to FrameMessage format for compatibility
       FrameMessage decodedFrame;
@@ -128,52 +129,71 @@ class NetworkReceiver::Impl {
       if (onFrameReceived) {
         onFrameReceived(decodedFrame, decodedData);
       }
-      
+
       // Calculate and log performance metrics
       auto frameEndTime = std::chrono::steady_clock::now();
-      
-      double networkTimeMs = std::chrono::duration<double, std::milli>(decodeStartTime - frameStartTime).count();
-      double decodeTimeMs = std::chrono::duration<double, std::milli>(decodeEndTime - decodeStartTime).count();
-      double totalTimeMs = std::chrono::duration<double, std::milli>(frameEndTime - frameStartTime).count();
-      
+
+      double networkTimeMs =
+          std::chrono::duration<double, std::milli>(
+              decodeStartTime - frameStartTime)
+              .count();
+      double decodeTimeMs =
+          std::chrono::duration<double, std::milli>(
+              decodeEndTime - decodeStartTime)
+              .count();
+      double totalTimeMs =
+          std::chrono::duration<double, std::milli>(
+              frameEndTime - frameStartTime)
+              .count();
+
       totalNetworkTime += networkTimeMs;
       totalDecodeTime += decodeTimeMs;
       framesSinceLastPerfLog++;
-      
+
       auto now = std::chrono::steady_clock::now();
-      auto timeSinceLastLog = std::chrono::duration_cast<std::chrono::seconds>(now - lastPerfLog);
-      
+      auto timeSinceLastLog =
+          std::chrono::duration_cast<std::chrono::seconds>(now - lastPerfLog);
+
       if (timeSinceLastLog >= PERF_LOG_INTERVAL) {
         double avgNetworkTime = totalNetworkTime / framesSinceLastPerfLog;
         double avgDecodeTime = totalDecodeTime / framesSinceLastPerfLog;
-        double fps = static_cast<double>(framesSinceLastPerfLog) / timeSinceLastLog.count();
-        
-        logger->info("PERFORMANCE ANALYSIS - FPS: {:.2f} | "
-                    "Avg Network: {:.2f}ms | Avg Decode: {:.2f}ms | "
-                    "Network/Decode Ratio: {:.2f} | "
-                    "Data: {}KB compressed -> {}KB decoded",
-                    fps, avgNetworkTime, avgDecodeTime, 
-                    avgNetworkTime / avgDecodeTime,
-                    compressedData.size() / 1024, decodedData.size() / 1024);
-        
+        double fps = static_cast<double>(framesSinceLastPerfLog) /
+            timeSinceLastLog.count();
+
+        logger->info(
+            "PERFORMANCE ANALYSIS - FPS: {:.2f} | "
+            "Avg Network: {:.2f}ms | Avg Decode: {:.2f}ms | "
+            "Network/Decode Ratio: {:.2f} | "
+            "Data: {}KB compressed -> {}KB decoded",
+            fps,
+            avgNetworkTime,
+            avgDecodeTime,
+            avgNetworkTime / avgDecodeTime,
+            compressedData.size() / 1024,
+            decodedData.size() / 1024);
+
         // Determine bottleneck
         if (avgDecodeTime > avgNetworkTime * 2) {
-          logger->warn("BOTTLENECK: Video decoding is slow ({:.2f}ms vs {:.2f}ms network)", 
-                      avgDecodeTime, avgNetworkTime);
+          logger->warn(
+              "BOTTLENECK: Video decoding is slow ({:.2f}ms vs {:.2f}ms network)",
+              avgDecodeTime,
+              avgNetworkTime);
         } else if (avgNetworkTime > avgDecodeTime * 2) {
-          logger->warn("BOTTLENECK: Network download is slow ({:.2f}ms vs {:.2f}ms decode)", 
-                      avgNetworkTime, avgDecodeTime);
+          logger->warn(
+              "BOTTLENECK: Network download is slow ({:.2f}ms vs {:.2f}ms decode)",
+              avgNetworkTime,
+              avgDecodeTime);
         } else {
           logger->info("BALANCED: Network and decode times are similar");
         }
-        
+
         // Reset counters
         totalNetworkTime = 0.0;
         totalDecodeTime = 0.0;
         framesSinceLastPerfLog = 0;
         lastPerfLog = now;
       }
-      
+
     } else {
       if (onError)
         onError("Failed to decode compressed frame");

@@ -129,7 +129,7 @@ bool AndroidVideoDecoder::DecodeFrame(
   // Get output buffer - retry loop to handle format changes
   AMediaCodecBufferInfo bufferInfo;
   ssize_t outputBufferIndex;
-  
+
   // Retry up to 3 times to handle format changes and INFO events
   for (int retry = 0; retry < 3; retry++) {
     outputBufferIndex = AMediaCodec_dequeueOutputBuffer(
@@ -148,13 +148,13 @@ bool AndroidVideoDecoder::DecodeFrame(
       // Continue loop to get the actual frame data
       continue;
     }
-    
+
     if (outputBufferIndex == AMEDIACODEC_INFO_OUTPUT_BUFFERS_CHANGED) {
       LOGD("Output buffers changed (retry %d/3)", retry + 1);
       // Continue loop to get the actual frame data
       continue;
     }
-    
+
     // If we got a valid buffer index or an error, break out of retry loop
     break;
   }

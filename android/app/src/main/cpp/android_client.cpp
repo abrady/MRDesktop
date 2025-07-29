@@ -106,9 +106,8 @@ class AndroidNetworkClient {
           // rendering/display
           static auto lastRenderTime = std::chrono::steady_clock::now();
           auto currentTime = std::chrono::steady_clock::now();
-          auto timeDiff =
-              std::chrono::duration_cast<std::chrono::milliseconds>(
-                  currentTime - lastRenderTime);
+          auto timeDiff = std::chrono::duration_cast<std::chrono::milliseconds>(
+              currentTime - lastRenderTime);
 
           bool shouldRender = timeDiff.count() >= 50; // ~20 FPS max
           if (shouldRender) {
@@ -145,8 +144,8 @@ class AndroidNetworkClient {
             bool attached = false;
 
             // Get JNI environment safely
-            jint getEnvResult = g_vm->GetEnv(
-                reinterpret_cast<void**>(&env), JNI_VERSION_1_6);
+            jint getEnvResult =
+                g_vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_6);
             if (getEnvResult == JNI_EDETACHED) {
               if (g_vm->AttachCurrentThread(&env, nullptr) == JNI_OK) {
                 attached = true;
@@ -204,8 +203,7 @@ class AndroidNetworkClient {
                     arr,
                     static_cast<jsize>(offset),
                     static_cast<jsize>(currentChunkSize),
-                    reinterpret_cast<const jbyte*>(
-                        argbData.data() + offset));
+                    reinterpret_cast<const jbyte*>(argbData.data() + offset));
 
                 if (env->ExceptionCheck()) {
                   LOGE(

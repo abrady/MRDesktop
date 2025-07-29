@@ -4,9 +4,9 @@ This directory contains auxiliary test and build scripts for the MRDesktop proje
 
 ## Scripts Overview
 
-### `run_test.py` / `run_test.ps1`
-Full-featured test scripts that support both debug and release configurations.
-- **Usage**: `python run_test.py [debug|release]` or `powershell .\run_test.ps1 [-Config debug|release]`
+### `run_test.py`
+Full-featured test script that supports both debug and release configurations.
+- **Usage**: `python run_test.py [debug|release]`
 - **Features**: 
   - Configuration selection
   - Process cleanup
@@ -37,7 +37,4 @@ For advanced testing with configuration options:
 ```bash
 # From scripts directory
 python run_test.py debug
-
-# Or PowerShell version
-powershell .\run_test.ps1 -Config debug
 ```

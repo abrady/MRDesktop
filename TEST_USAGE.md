@@ -9,7 +9,6 @@ This runs a simple integration test that validates the server-client communicati
 ## Advanced Testing
 For more testing options, see the scripts in the `scripts/` directory:
 - `python scripts/run_test.py` - Full-featured test with debug/release options
-- `scripts/run_test.ps1` - PowerShell version
 - `scripts/verify_test_setup.bat` - Setup verification
 - `python scripts/test_compile.py` - Build verification
 

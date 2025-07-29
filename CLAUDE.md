@@ -93,7 +93,7 @@ python run_console_client.py [IP_ADDRESS]
 python scripts/run_test.py [debug|release]
 
 # Format code using clang-format
-scripts\format.sh
+python scripts/format.py
 ```
 
 **Note**: The Python scripts (`configure.py` and `build.py`) work cross-platform and automatically detect your OS to use the appropriate CMake presets and build directories.
@@ -122,7 +122,7 @@ python linux/build-linux.py clean
 # python3 build.py debug
 
 # Run compression tests
-./run_compression_test.sh
+python run_compression_test.py
 ```
 
 ### Android Development
@@ -182,8 +182,8 @@ cd build/debug && ctest --output-on-failure
 ### Compression Testing
 
 ```bash
-# Test H.265 compression (Linux)
-./run_compression_test.sh
+# Test H.265 compression (cross-platform)
+python run_compression_test.py
 ```
 
 The test suite includes:
@@ -307,7 +307,7 @@ The project uses vcpkg for dependency management with `vcpkg.json`:
 ### Formatting
 
 - Uses **clang-format** with Meta's Snowplow style guidelines (`.clang-format`)
-- Run `scripts/format.sh` to format all source files before committing
+- Run `python scripts/format.py` to format all source files before committing
 - 80-character line limit, 2-space indentation
 
 ### Build Configuration

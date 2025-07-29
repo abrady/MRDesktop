@@ -33,8 +33,8 @@ bool FFmpegVideoDecoder::Initialize(
 
   const char* codecName = GetCodecName(compression);
   if (!codecName) {
-    std::cerr << "FFmpegVideoDecoder: Unsupported compression type: " << compression
-              << std::endl;
+    std::cerr << "FFmpegVideoDecoder: Unsupported compression type: "
+              << compression << std::endl;
     return false;
   }
 
@@ -49,7 +49,8 @@ bool FFmpegVideoDecoder::Initialize(
   // Allocate codec context
   m_CodecContext = avcodec_alloc_context3(codec);
   if (!m_CodecContext) {
-    std::cerr << "FFmpegVideoDecoder: Could not allocate codec context" << std::endl;
+    std::cerr << "FFmpegVideoDecoder: Could not allocate codec context"
+              << std::endl;
     return false;
   }
 
@@ -94,7 +95,8 @@ bool FFmpegVideoDecoder::Initialize(
       nullptr,
       nullptr);
   if (!m_SwsContext) {
-    std::cerr << "FFmpegVideoDecoder: Could not create scaling context" << std::endl;
+    std::cerr << "FFmpegVideoDecoder: Could not create scaling context"
+              << std::endl;
     Cleanup();
     return false;
   }
@@ -125,7 +127,8 @@ bool FFmpegVideoDecoder::DecodeFrame(
   // Send packet to decoder
   int ret = avcodec_send_packet(m_CodecContext, m_Packet);
   if (ret < 0) {
-    std::cerr << "FFmpegVideoDecoder: Error sending packet to decoder" << std::endl;
+    std::cerr << "FFmpegVideoDecoder: Error sending packet to decoder"
+              << std::endl;
     return false;
   }
 

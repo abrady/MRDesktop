@@ -18,30 +18,26 @@ void InitLogging();
 #define LOGD(...) MRDesk::GetLogger(LOG_TAG)->debug(__VA_ARGS__)
 
 #define LOG_IS(MSG)                              \
-    do {                                         \
+  do {                                           \
     std::ostringstream _os;                      \
     _os << MSG;                                  \
     MRDesk::GetLogger(LOG_TAG)->info(_os.str()); \
-  }                                              \
-  while (0)
+  } while (0)
 #define LOG_ES(MSG)                               \
-    do {                                          \
+  do {                                            \
     std::ostringstream _os;                       \
     _os << MSG;                                   \
     MRDesk::GetLogger(LOG_TAG)->error(_os.str()); \
-  }                                               \
-  while (0)
+  } while (0)
 #define LOG_WS(MSG)                              \
-    do {                                         \
+  do {                                           \
     std::ostringstream _os;                      \
     _os << MSG;                                  \
     MRDesk::GetLogger(LOG_TAG)->warn(_os.str()); \
-  }                                              \
-  while (0)
+  } while (0)
 #define LOG_DS(MSG)                               \
-    do {                                          \
+  do {                                            \
     std::ostringstream _os;                       \
     _os << MSG;                                   \
     MRDesk::GetLogger(LOG_TAG)->debug(_os.str()); \
-  }                                               \
-  while (0)
+  } while (0)

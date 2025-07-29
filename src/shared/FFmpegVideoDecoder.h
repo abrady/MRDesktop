@@ -19,8 +19,8 @@ extern "C" {
 
 #include <memory>
 #include <vector>
-#include "protocol.h"
 #include "IVideoDecoder.h"
+#include "protocol.h"
 
 /**
  * FFmpeg-based video decoder for desktop platforms (Windows, Linux, macOS).
@@ -44,7 +44,8 @@ class FFmpegVideoDecoder : public IVideoDecoder {
   FFmpegVideoDecoder();
   ~FFmpegVideoDecoder();
 
-  bool Initialize(uint32_t width, uint32_t height, CompressionType compression) override;
+  bool Initialize(
+      uint32_t width, uint32_t height, CompressionType compression) override;
   bool DecodeFrame(
       const uint8_t* compressedData,
       size_t dataSize,

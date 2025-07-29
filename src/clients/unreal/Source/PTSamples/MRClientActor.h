@@ -9,20 +9,18 @@
  * Simple actor that owns an MRClient and logs received frames
  */
 UCLASS()
-class PTSAMPLES_API AMRClientActor : public AActor
-{
-    GENERATED_BODY()
+class PTSAMPLES_API AMRClientActor : public AActor {
+  GENERATED_BODY()
 
-public:
-    AMRClientActor();
+ public:
+  AMRClientActor();
 
-protected:
-    virtual void BeginPlay() override;
-    virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+ protected:
+  virtual void BeginPlay() override;
+  virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
-    void HandleFrame(const TArray<uint8>& Data);
+  void HandleFrame(const TArray<uint8>& Data);
 
-private:
-    TUniquePtr<MRClient> Client;
+ private:
+  TUniquePtr<MRClient> Client;
 };
-
