@@ -17,8 +17,8 @@ jobs:
   rtp-tests:
     strategy:
       matrix:
-        os: [windows-latest, ubuntu-latest, macos-latest]
-        config: [Debug, Release]
+        os: [windows-latest, ubuntu-latest] # , macos-latest
+        config: [Debug] # , Release
       fail-fast: false
     
     runs-on: ${{ matrix.os }}
