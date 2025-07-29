@@ -24,8 +24,13 @@ class AsioConnection {
       std::function<void(const FrameMessage&, const std::vector<uint8_t>&)>;
   using CompressedFrameCallback = std::function<void(
       const CompressedFrameMessage&, const std::vector<uint8_t>&)>;
-  using InputCallback =
-      std::function<void(const MessageHeader&, const std::vector<uint8_t>&)>;
+  using MouseMoveCallback = std::function<void(const MouseMoveMessage&)>;
+  using MouseClickCallback = std::function<void(const MouseClickMessage&)>;
+  using MouseScrollCallback = std::function<void(const MouseScrollMessage&)>;
+  using CompressionRequestCallback =
+      std::function<void(const CompressionRequestMessage&)>;
+  using PixelFormatRequestCallback =
+      std::function<void(const PixelFormatRequestMessage&)>;
   using ErrorCallback = std::function<void(const std::string&)>;
   using DisconnectCallback = std::function<void()>;
 
@@ -37,7 +42,11 @@ class AsioConnection {
   // Callbacks
   FrameCallback m_onFrame;
   CompressedFrameCallback m_onCompressedFrame;
-  InputCallback m_onInput;
+  MouseMoveCallback m_onMouseMove;
+  MouseClickCallback m_onMouseClick;
+  MouseScrollCallback m_onMouseScroll;
+  CompressionRequestCallback m_onCompressionRequest;
+  PixelFormatRequestCallback m_onPixelFormatRequest;
   ErrorCallback m_onError;
   DisconnectCallback m_onDisconnect;
 
@@ -97,7 +106,21 @@ class AsioConnection {
   void SetCompressedFrameCallback(CompressedFrameCallback callback) {
     m_onCompressedFrame = callback;
   }
-  void SetInputCallback(InputCallback callback) { m_onInput = callback; }
+  void SetMouseMoveCallback(MouseMoveCallback callback) {
+    m_onMouseMove = callback;
+  }
+  void SetMouseClickCallback(MouseClickCallback callback) {
+    m_onMouseClick = callback;
+  }
+  void SetMouseScrollCallback(MouseScrollCallback callback) {
+    m_onMouseScroll = callback;
+  }
+  void SetCompressionRequestCallback(CompressionRequestCallback callback) {
+    m_onCompressionRequest = callback;
+  }
+  void SetPixelFormatRequestCallback(PixelFormatRequestCallback callback) {
+    m_onPixelFormatRequest = callback;
+  }
   void SetErrorCallback(ErrorCallback callback) { m_onError = callback; }
   void SetDisconnectCallback(DisconnectCallback callback) {
     m_onDisconnect = callback;

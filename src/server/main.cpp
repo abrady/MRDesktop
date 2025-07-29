@@ -538,7 +538,6 @@ class MRDesktopServer {
 #endif
   }
 
-
   bool IsTestCompleted() const { return m_testCompleted; }
 
   void Poll() {
@@ -555,10 +554,43 @@ class MRDesktopServer {
     m_currentClient = client;
 
     // Setup client callbacks
-    client->SetInputCallback(
-        [this](const MessageHeader& header, const std::vector<uint8_t>& data) {
-          HandleInputMessage(header, data);
+    client->SetCompressionRequestCallback(
+        [this](const CompressionRequestMessage& msg) {
+          std::cout << "Processing compression request" << std::endl;
+          m_clientCompression = msg.compression;
+          std::cout << "Client requested compression type: "
+                    << m_clientCompression << std::endl;
+          std::cout << "Server now configured for compression type: "
+                    << m_clientCompression << std::endl;
         });
+
+    client->SetPixelFormatRequestCallback(
+        [this](const PixelFormatRequestMessage& msg) {
+          std::cout << "Processing pixel format request" << std::endl;
+          PixelFormat requestedFormat = msg.preferredFormat;
+          std::cout << "Client requested pixel format: " << requestedFormat
+                    << std::endl;
+          m_clientPixelFormat = requestedFormat;
+        });
+
+    client->SetMouseMoveCallback([](const MouseMoveMessage& msg) {
+      InputInjector::InjectMouseMove(
+          msg.deltaX, msg.deltaY, msg.absolute, msg.x, msg.y);
+      std::cout << "Mouse move: dx=" << msg.deltaX << " dy=" << msg.deltaY
+                << std::endl;
+    });
+
+    client->SetMouseClickCallback([](const MouseClickMessage& msg) {
+      InputInjector::InjectMouseClick(msg.button, msg.pressed);
+      std::cout << "Mouse " << (msg.pressed ? "press" : "release") << " button "
+                << msg.button << std::endl;
+    });
+
+    client->SetMouseScrollCallback([](const MouseScrollMessage& msg) {
+      InputInjector::InjectMouseScroll(msg.deltaX, msg.deltaY);
+      std::cout << "Mouse scroll: dx=" << msg.deltaX << " dy=" << msg.deltaY
+                << std::endl;
+    });
 
     client->SetErrorCallback([this](const std::string& error) {
       std::cerr << "Client error: " << error << std::endl;
@@ -573,96 +605,6 @@ class MRDesktopServer {
     // Start streaming
     m_streaming = true;
     m_streamingThread = std::thread([this]() { StreamingLoop(); });
-  }
-
-  void HandleInputMessage(
-      const MessageHeader& header, const std::vector<uint8_t>& data) {
-    std::cout << "HandleInputMessage: type=" << header.type << " size="
-              << header.size << " data.size()=" << data.size() << std::endl;
-    switch (header.type) {
-      case MSG_COMPRESSION_REQUEST: {
-        std::cout << "Processing compression request" << std::endl;
-        if (data.size() >= sizeof(CompressionType)) {
-          // Extract compression type from the data payload
-          m_clientCompression =
-              *reinterpret_cast<const CompressionType*>(data.data());
-          std::cout << "Client requested compression type: "
-                    << m_clientCompression << std::endl;
-
-          // Send acknowledgment back to client (optional but good practice)
-          std::cout << "Server now configured for compression type: "
-                    << m_clientCompression << std::endl;
-        } else {
-          std::cout << "Invalid compression request size: " << data.size()
-                    << " expected: " << sizeof(CompressionType) << std::endl;
-        }
-        break;
-      }
-      case MSG_PIXEL_FORMAT_REQUEST: {
-        std::cout << "Processing pixel format request" << std::endl;
-        if (data.size() >= sizeof(PixelFormat)) {
-          // Extract preferred pixel format from the data payload
-          PixelFormat requestedFormat =
-              *reinterpret_cast<const PixelFormat*>(data.data());
-          std::cout << "Client requested pixel format: " << requestedFormat
-                    << std::endl;
-
-          // For now, honor the client's request (could add validation logic
-          // here)
-          m_clientPixelFormat = requestedFormat;
-        } else {
-          std::cout << "Invalid pixel format request size: " << data.size()
-                    << " expected: " << sizeof(PixelFormat) << std::endl;
-        }
-        break;
-      }
-      case MSG_MOUSE_MOVE: {
-        if (data.size() >= sizeof(MouseMoveMessage) - sizeof(MessageHeader)) {
-          // Create a complete MouseMoveMessage by combining header and data
-          MouseMoveMessage msg;
-          msg.header = header;
-          memcpy(
-              reinterpret_cast<char*>(&msg) + sizeof(MessageHeader),
-              data.data(),
-              data.size());
-          InputInjector::InjectMouseMove(
-              msg.deltaX, msg.deltaY, msg.absolute, msg.x, msg.y);
-          std::cout << "Mouse move: dx=" << msg.deltaX << " dy=" << msg.deltaY
-                    << std::endl;
-        }
-        break;
-      }
-      case MSG_MOUSE_CLICK: {
-        if (data.size() >= sizeof(MouseClickMessage) - sizeof(MessageHeader)) {
-          // Create a complete MouseClickMessage by combining header and data
-          MouseClickMessage msg;
-          msg.header = header;
-          memcpy(
-              reinterpret_cast<char*>(&msg) + sizeof(MessageHeader),
-              data.data(),
-              data.size());
-          InputInjector::InjectMouseClick(msg.button, msg.pressed);
-          std::cout << "Mouse " << (msg.pressed ? "press" : "release")
-                    << " button " << msg.button << std::endl;
-        }
-        break;
-      }
-      case MSG_MOUSE_SCROLL: {
-        if (data.size() >= sizeof(MouseScrollMessage) - sizeof(MessageHeader)) {
-          // Create a complete MouseScrollMessage by combining header and data
-          MouseScrollMessage msg;
-          msg.header = header;
-          memcpy(
-              reinterpret_cast<char*>(&msg) + sizeof(MessageHeader),
-              data.data(),
-              data.size());
-          InputInjector::InjectMouseScroll(msg.deltaX, msg.deltaY);
-          std::cout << "Mouse scroll: dx=" << msg.deltaX << " dy=" << msg.deltaY
-                    << std::endl;
-        }
-        break;
-      }
-    }
   }
 
   void StreamingLoop() {
