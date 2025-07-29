@@ -60,7 +60,9 @@ android/app/src/main/jniLibs/
 android/.idea/
 *.iml
 
+mrdesktop.lognode_modules/
 mrdesktop.log
+
 # perfetto capture files
 *.perfetto
 *.pb
