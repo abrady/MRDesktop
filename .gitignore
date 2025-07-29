@@ -60,4 +60,4 @@ android/app/src/main/jniLibs/
 android/.idea/
 *.iml
 
-mrdesktop.log
+mrdesktop.lognode_modules/

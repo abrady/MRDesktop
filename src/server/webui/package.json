@@ -1,0 +1,49 @@
+{
+  "name": "webui",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build && tsc -p tsconfig.json",
+    "start": "node dist/server/index.js",
+    "lint": "eslint . --ext .ts,.tsx",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^4.29.0",
+    "@visx/scale": "^3.12.0",
+    "@visx/shape": "^3.12.0",
+    "@visx/visx": "^3.0.0",
+    "cors": "^2.8.5",
+    "express": "^5.0.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "ws": "^8.13.0"
+  },
+  "devDependencies": {
+    "@testing-library/react": "^14.0.0",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^4.17.17",
+    "@types/node": "^18.17.3",
+    "@types/react": "^18.2.14",
+    "@types/react-dom": "^18.2.7",
+    "@types/ws": "^8.5.5",
+    "@typescript-eslint/eslint-plugin": "^6.7.3",
+    "@typescript-eslint/parser": "^6.7.3",
+    "@vitejs/plugin-react": "^4.0.0",
+    "eslint": "^8.47.0",
+    "eslint-config-airbnb-typescript": "^17.1.0",
+    "eslint-config-prettier": "^9.0.0",
+    "eslint-plugin-import": "^2.29.1",
+    "eslint-plugin-jsx-a11y": "^6.7.1",
+    "eslint-plugin-react": "^7.33.2",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "jsdom": "^26.1.0",
+    "prettier": "^3.0.3",
+    "supertest": "^6.3.3",
+    "typescript": "^5.2.2",
+    "vite": "^4.4.9",
+    "vite-tsconfig-paths": "^4.2.0",
+    "vitest": "^0.34.5"
+  }
+}
