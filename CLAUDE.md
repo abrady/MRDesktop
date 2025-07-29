@@ -8,7 +8,7 @@ MRDesktop is a VR/MR Virtual Desktop project for Meta Quest 3 that enables viewi
 
 ## Project Architecture
 
-The system consists of three main components:
+The system consists of four main components:
 
 ### 1. Desktop Host (Windows/macOS/Linux)
 
@@ -35,7 +35,18 @@ Located in `src/clients/windows/`:
 - **Input Handling**: Native Windows input processing
 - **Window Management**: Full-screen and windowed display modes
 
-### 4. Android VR Client (Quest 3)
+### 4. RTP Stack Module
+
+Located in `rtp-stack/`:
+
+- **Standalone Module**: Independent RTP/RTCP implementation that can be built and tested in isolation
+- **RTP Packet Handling**: Creates, parses, and validates RTP packets for real-time media streaming
+- **RTCP Control**: Implements RTCP sender/receiver reports for quality monitoring and feedback
+- **Jitter Buffer**: Manages packet reordering and timing for smooth media playback
+- **Integration Ready**: Designed as a reusable library for frame streaming in the main MRDesktop project
+- **Independent Build**: Has its own CMakeLists.txt for standalone development and testing
+
+### 5. Android VR Client (Quest 3)
 
 Located in `android/app/src/main/cpp/`:
 
@@ -60,27 +71,32 @@ The project uses CMake with cross-platform presets defined in `CMakePresets.json
 
 ## Development Commands
 
-### Windows Desktop Development
+### Cross-Platform Development (Windows/macOS/Linux)
 
-```batch
+```bash
 # Configure project (Debug by default, or specify 'release')
-configure.bat [release]
+python configure.py [debug|release]
 
-# Build project (Debug by default, or specify 'release')
-build.bat [release]
+# Build project (Debug by default, or specify 'release')  
+python build.py [debug|release]
 
-# Run server (listens on port 8080)
+# Build with specific number of parallel jobs
+python build.py debug -j 8
+
+# Run server (Windows only - listens on port 8080)
 run_server.bat
 
-# Run console client (connects to localhost:8080 or specific IP)
+# Run console client (Windows only - connects to localhost:8080 or specific IP)
 run_console_client.bat [IP_ADDRESS]
 
-# Run integration tests
+# Run integration tests (Windows only)
 scripts\run_test.bat [debug|release]
 
 # Format code using clang-format
 scripts\format.sh
 ```
+
+**Note**: The Python scripts (`configure.py` and `build.py`) work cross-platform and automatically detect your OS to use the appropriate CMake presets and build directories.
 
 ### Linux Development (using Docker/Podman)
 
@@ -91,7 +107,7 @@ linux/build-linux.sh build [debug|release]
 # Run tests in container
 linux/build-linux.sh test [debug|release]
 
-# Start interactive development shell
+# Start interactive development shell (can use Python scripts inside)
 linux/build-linux.sh shell
 
 # Build container image
@@ -99,6 +115,11 @@ linux/build-linux.sh image
 
 # Clean build artifacts
 linux/build-linux.sh clean
+
+# Alternative: Use Python scripts directly in container shell
+# linux/build-linux.sh shell
+# python3 configure.py debug
+# python3 build.py debug
 
 # Run compression tests
 ./run_compression_test.sh
@@ -119,6 +140,22 @@ build_android.bat [debug|release]
 # Build APK (requires Android Studio)
 cd android
 # Open in Android Studio and build normally
+```
+
+### RTP Stack Development
+
+```batch
+# Build and test RTP stack independently
+cd rtp-stack
+
+# Configure (uses parent project's presets)
+cmake --preset windows-debug
+
+# Build standalone RTP stack
+cmake --build out/build/x64 --config Debug
+
+# Run RTP stack tests
+cd out/build/x64 && ctest --output-on-failure
 ```
 
 ## Testing
@@ -154,6 +191,7 @@ The test suite includes:
 - **Basic Tests**: Protocol serialization, video encoding/decoding
 - **Integration Tests**: Network communication, frame transmission
 - **Compression Tests**: H.265 encode/decode validation
+- **RTP Stack Tests**: RTP packet parsing, RTCP functionality, jitter buffer management
 
 ## Communication Protocol
 
@@ -280,12 +318,17 @@ src/
 │   ├── windows/      # Windows-specific client code
 │   └── unreal/       # Unreal Engine integration
 ├── shared/           # Common networking, video, protocol code
+rtp-stack/            # Standalone RTP/RTCP module
+├── include/rtp/      # RTP stack headers (public API)
+├── src/              # RTP stack implementation
+├── tests/            # RTP stack unit tests
+└── CMakeLists.txt    # Standalone build configuration
 android/              # Android VR client (Quest)
-tests/                # Unit and integration tests
+tests/                # Main project unit and integration tests
 scripts/              # Build and utility scripts
 linux/                # Docker-based Linux build system
 ```
 
 ## Project Status
 
-This is an active implementation with working desktop streaming between Windows host and client. The Android VR client is in development phase with native library structure in place.
+This is an active implementation with working desktop streaming between Windows host and client. The Android VR client is in development phase with native library structure in place. The RTP stack module is a standalone component that can be developed and tested independently, designed for future integration into the main streaming pipeline.

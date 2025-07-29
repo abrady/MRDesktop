@@ -120,7 +120,9 @@
       "Bash(./gradlew:*)",
       "Bash(JAVA_HOME=\"/mnt/c/open/github/MRDesktop/android/java/jdk-17.0.11+9\" PATH=\"$JAVA_HOME/bin:$PATH\" cmd.exe /c gradlew.bat assembleDebug)",
       "Bash(set ANDROID_NDK_HOME=C:AndroidSdkndk25.1.8937393)",
-      "Bash(./sdk/cmdline-tools/latest/bin/sdkmanager.bat:*)"
+      "Bash(./sdk/cmdline-tools/latest/bin/sdkmanager.bat:*)",
+      "Bash(python:*)",
+      "Bash(del test_configure.py)"
     ],
     "deny": []
   }

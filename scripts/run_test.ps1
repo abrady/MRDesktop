@@ -21,13 +21,13 @@ if ($Config -eq "debug") {
 # Check if binaries exist
 if (-not (Test-Path $ServerExe)) {
     Write-Host "ERROR: Server executable not found at $ServerExe" -ForegroundColor Red
-    Write-Host "Please build the project first using: build.bat $Config" -ForegroundColor Red
+    Write-Host "Please build the project first using: python build.py $Config" -ForegroundColor Red
     exit 1
 }
 
 if (-not (Test-Path $ClientExe)) {
     Write-Host "ERROR: Client executable not found at $ClientExe" -ForegroundColor Red
-    Write-Host "Please build the project first using: build.bat $Config" -ForegroundColor Red
+    Write-Host "Please build the project first using: python build.py $Config" -ForegroundColor Red
     exit 1
 }
 

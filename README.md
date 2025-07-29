@@ -19,8 +19,8 @@ This repository always links against the release build of FFmpeg. The build scri
 To test the desktop video streaming:
 
   Step 1: Build the applications
-  configure.bat
-  build.bat
+  python configure.py
+  python build.py
 
   Step 2: Start the server
   Open a command prompt and run:
