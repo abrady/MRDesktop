@@ -71,27 +71,32 @@ The project uses CMake with cross-platform presets defined in `CMakePresets.json
 
 ## Development Commands
 
-### Windows Desktop Development
+### Cross-Platform Development (Windows/macOS/Linux)
 
-```batch
+```bash
 # Configure project (Debug by default, or specify 'release')
-configure.bat [release]
+python configure.py [debug|release]
 
-# Build project (Debug by default, or specify 'release')
-build.bat [release]
+# Build project (Debug by default, or specify 'release')  
+python build.py [debug|release]
 
-# Run server (listens on port 8080)
+# Build with specific number of parallel jobs
+python build.py debug -j 8
+
+# Run server (Windows only - listens on port 8080)
 run_server.bat
 
-# Run console client (connects to localhost:8080 or specific IP)
+# Run console client (Windows only - connects to localhost:8080 or specific IP)
 run_console_client.bat [IP_ADDRESS]
 
-# Run integration tests
+# Run integration tests (Windows only)
 scripts\run_test.bat [debug|release]
 
 # Format code using clang-format
 scripts\format.sh
 ```
+
+**Note**: The Python scripts (`configure.py` and `build.py`) work cross-platform and automatically detect your OS to use the appropriate CMake presets and build directories.
 
 ### Linux Development (using Docker/Podman)
 
@@ -102,7 +107,7 @@ linux/build-linux.sh build [debug|release]
 # Run tests in container
 linux/build-linux.sh test [debug|release]
 
-# Start interactive development shell
+# Start interactive development shell (can use Python scripts inside)
 linux/build-linux.sh shell
 
 # Build container image
@@ -110,6 +115,11 @@ linux/build-linux.sh image
 
 # Clean build artifacts
 linux/build-linux.sh clean
+
+# Alternative: Use Python scripts directly in container shell
+# linux/build-linux.sh shell
+# python3 configure.py debug
+# python3 build.py debug
 
 # Run compression tests
 ./run_compression_test.sh

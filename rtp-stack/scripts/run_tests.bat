@@ -23,10 +23,10 @@ echo Build directory: %BUILD_DIR%
 REM Check if build directory exists, if not suggest running parent configure/build
 if not exist "%BUILD_DIR%" (
     echo Build directory %BUILD_DIR% does not exist!
-    echo Please run configure.bat and build.bat from the parent MRDesktop directory first:
+    echo Please run configure.py and build.py from the parent MRDesktop directory first:
     echo   cd ..
-    echo   configure.bat
-    echo   build.bat
+    echo   python configure.py
+    echo   python build.py
     cd /d "%ORIGINAL_DIR%"
     pause
     exit /b 1

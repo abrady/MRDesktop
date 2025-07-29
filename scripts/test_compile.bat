@@ -5,7 +5,7 @@ echo.
 REM Just try to configure and build to check for compilation errors
 if not exist "..\build\debug" (
     echo Running configure...
-    call ..\configure.bat debug
+    call python ..\configure.py debug
     if %ERRORLEVEL% neq 0 (
         echo Configuration failed!
         exit /b %ERRORLEVEL%
@@ -13,7 +13,7 @@ if not exist "..\build\debug" (
 )
 
 echo Building...
-call ..\build.bat debug
+call python ..\build.py debug
 if %ERRORLEVEL% neq 0 (
     echo Build failed!
     exit /b %ERRORLEVEL%

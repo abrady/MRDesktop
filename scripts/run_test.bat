@@ -23,13 +23,13 @@ if "%CONFIG%"=="debug" (
 
 if not exist "%SERVER_EXE%" (
     echo ERROR: Server executable not found at %SERVER_EXE%
-    echo Please build the project first using: build.bat %CONFIG%
+    echo Please build the project first using: python build.py %CONFIG%
     exit /b 1
 )
 
 if not exist "%CLIENT_EXE%" (
     echo ERROR: Client executable not found at %CLIENT_EXE%
-    echo Please build the project first using: build.bat %CONFIG%
+    echo Please build the project first using: python build.py %CONFIG%
     exit /b 1
 )
 
